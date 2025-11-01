@@ -1,5 +1,3 @@
-import React from "react";
-
 export const ApprovalMessageSection = () => {
   return (
     <section className="w-full bg-green-50 border-b border-[#b8f7cf]" role="status" aria-live="polite">

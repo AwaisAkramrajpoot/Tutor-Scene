@@ -1,5 +1,3 @@
-import React from "react";
-
 export const AvailabilitySection = () => {
   const steps = [
     { number: "1", label: "Create Profile", isActive: false },
@@ -21,7 +19,7 @@ export const AvailabilitySection = () => {
         </p>
         <nav aria-label="Progress steps" className="mt-8 inline-flex items-center gap-2 bg-white/10 rounded-full px-3 py-2">
           {steps.map((step, i) => (
-            <React.Fragment key={step.number}>
+            <div key={step.number} className="flex items-center gap-2">
               <div className={`flex items-center gap-2 ${!step.isActive ? "opacity-60" : ""}`} aria-current={step.isActive ? "step" : undefined}>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${step.isActive ? "bg-white text-[#2A66B8]" : "bg-white/30 text-white"}`}>
                   <span className="text-base">{step.number}</span>
@@ -29,7 +27,7 @@ export const AvailabilitySection = () => {
                 <span className="text-sm whitespace-nowrap">{step.label}</span>
               </div>
               {i < steps.length - 1 && <span className="text-blue-200">→</span>}
-            </React.Fragment>
+            </div>
           ))}
         </nav>
       </div>

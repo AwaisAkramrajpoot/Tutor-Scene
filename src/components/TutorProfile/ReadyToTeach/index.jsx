@@ -1,4 +1,3 @@
-import React from "react";
 import { ApprovalMessageSection } from "./ApprovalMessageSection";
 import { AvailabilitySection } from "./AvailabilitySection";
 import { DashboardPreviewSection } from "./DashboardPreviewSection";
