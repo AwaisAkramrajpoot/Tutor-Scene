@@ -1,7 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsDateString, IsString, IsOptional } from 'class-validator';
+import { IsNumber, IsDateString, IsString, IsOptional, Min } from 'class-validator';
 
 export class CreateBookingDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  studentProfileId: number;
+
   @ApiProperty({ example: 1 })
   @IsNumber()
   tutorProfileId: number;
@@ -18,9 +22,10 @@ export class CreateBookingDto {
   @IsDateString()
   endTime: string;
 
-  @ApiProperty({ example: 'America/New_York' })
-  @IsString()
-  timezone: string;
+  @ApiProperty({ example: 50.00, description: 'Total price for the booking session' })
+  @IsNumber()
+  @Min(0)
+  totalPrice: number;
 
   @ApiProperty({ example: 'I need help with calculus', required: false })
   @IsString()

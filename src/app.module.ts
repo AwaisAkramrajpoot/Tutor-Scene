@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { DatabaseConfig } from '@/config/database.config';
 import { UsersModule } from './modules/users/users.module';
@@ -21,6 +22,10 @@ import { FileUploadModule } from './modules/file-upload/file-upload.module';
 import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SupportModule } from './modules/support/support.module';
+import { SeedingModule } from './database/seeding/seeding.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { InterviewsModule } from './modules/interviews/interviews.module';
+import { GradeLevelsModule } from './modules/grade-levels/grade-levels.module';
 
 @Module({
   imports: [
@@ -34,6 +39,17 @@ import { SupportModule } from './modules/support/support.module';
     TypeOrmModule.forRootAsync({
       useClass: DatabaseConfig,
     }),
+
+    // Rate limiting configuration
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 60 seconds (1 minute)
+        limit: 100, // Default: 100 requests per minute
+      },
+    ]),
+
+    // Database seeding
+    SeedingModule,
 
     // Feature modules
     AuthModule,
@@ -53,6 +69,9 @@ import { SupportModule } from './modules/support/support.module';
     PromoCodesModule,
     AdminModule,
     SupportModule,
+    WebhooksModule,
+    InterviewsModule,
+    GradeLevelsModule,
   ],
   controllers: [],
   providers: [

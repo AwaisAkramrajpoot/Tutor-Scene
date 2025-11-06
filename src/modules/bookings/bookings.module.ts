@@ -1,13 +1,22 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
 import { Booking } from '@/database/entities/booking.entity';
+import { User } from '@/database/entities/user.entity';
+import { Prospect } from '@/database/entities/prospect.entity';
+import { StripeService } from './services/stripe.service';
+import { InterviewsModule } from '../interviews/interviews.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Booking])],
+  imports: [
+    TypeOrmModule.forFeature([Booking, User, Prospect]),
+    forwardRef(() => InterviewsModule),
+    AuthModule,
+  ],
   controllers: [BookingsController],
-  providers: [BookingsService],
+  providers: [BookingsService, StripeService],
   exports: [BookingsService],
 })
 export class BookingsModule {}

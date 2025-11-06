@@ -1,22 +1,29 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
+  Param,
+  Query,
+  ParseIntPipe,
   UseInterceptors,
+  UseGuards,
   UploadedFile,
   BadRequestException,
   InternalServerErrorException,
+  NotFoundException,
   Logger,
-  Param,
-  ParseIntPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { OnboardingService } from './services/onboarding.service';
 import { OnboardingDto } from './dto/onboarding.dto';
 import { OnboardingResponseDto } from './dto/onboarding-response.dto';
+import { Public } from '../auth/decorators/auth.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { Prospect } from '@/database/entities/prospect.entity';
-import { FileUploadDto, FileType } from './dto/file-upload.dto';
+import { UserRole } from '@/database/entities/enums';
 
 interface MulterFile {
   fieldname: string;
@@ -60,36 +67,43 @@ export class OnboardingController {
     }
   }
 
-  @Post('tutor/:id/file')
+  @Post('file')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Upload tutor file' })
-  @ApiResponse({ status: 201, description: 'File uploaded successfully', type: OnboardingResponseDto })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  @ApiResponse({ status: 404, description: 'Prospect not found' })
+  @ApiOperation({ summary: 'Upload file to S3 and return URL' })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'File uploaded successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', example: 'https://my-bucket.s3.amazonaws.com/file-123456.pdf' },
+        message: { type: 'string', example: 'File uploaded successfully' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - No file provided or invalid file' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    description: 'File upload',
+    description: 'File to upload',
     schema: {
       type: 'object',
       properties: {
         file: {
           type: 'string',
           format: 'binary',
-        },
-        fileType: {
-          type: 'string',
-          enum: [FileType.CV, FileType.INTRO_VIDEO, FileType.GOV_ID],
         }
       }
     }
   })
-  async uploadTutorFile(
-    @Param('id', ParseIntPipe) id: number,
+  async uploadFile(
     @UploadedFile() file: MulterFile,
-    @Body() fileUploadDto: FileUploadDto,
-  ): Promise<OnboardingResponseDto> {
+  ): Promise<{ url: string; message: string }> {
     try {
+      if (!file) {
+        throw new BadRequestException('No file provided');
+      }
+
       // S3 bucket URL - in a real implementation, this would come from config
       const s3BucketUrl = process.env.S3_BUCKET_URL || 'https://my-bucket.s3.amazonaws.com';
       
@@ -101,16 +115,9 @@ export class OnboardingController {
         s3BucketUrl,
       );
       
-      // Update prospect with file URL
-      const prospect = await this.onboardingService.updateProspectWithFile(
-        id,
-        fileUrl,
-        fileUploadDto.fileType,
-      );
-      
       return {
-        prospect,
-        message: `File uploaded successfully as ${fileUploadDto.fileType}`,
+        url: fileUrl,
+        message: 'File uploaded successfully',
       };
     } catch (error) {
       this.logger.error('File upload failed', error.stack);
@@ -118,6 +125,243 @@ export class OnboardingController {
         throw error;
       }
       throw new InternalServerErrorException('File upload failed');
+    }
+  }
+
+  @Get('status/:userId')
+  @ApiOperation({ summary: 'Get prospect status by user ID' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Prospect status retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { 
+          type: 'string', 
+          enum: ['pending', 'active', 'suspended'],
+          example: 'pending' 
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 404, description: 'User not found in prospects' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async getProspectStatus(
+    @Param('userId', ParseIntPipe) userId: number,
+  ): Promise<{ status: string }> {
+    try {
+      return await this.onboardingService.getProspectStatusByUserId(userId);
+    } catch (error) {
+      this.logger.error(`Failed to get prospect status for user ${userId}`, error.stack);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to retrieve prospect status');
+    }
+  }
+
+  @Get('tutors/list')
+  @ApiOperation({ summary: 'Get list of tutors/prospects with optional status filter' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Tutors list retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        prospects: {
+          type: 'array',
+          items: {
+            type: 'object'
+          }
+        },
+        count: {
+          type: 'number',
+          example: 10
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async getTutorsList(
+    @Query('status') status?: string,
+  ): Promise<{ prospects: Prospect[]; count: number }> {
+    try {
+      const prospects = await this.onboardingService.getTutorsList(status);
+      return {
+        prospects,
+        count: prospects.length,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get tutors list', error.stack);
+      throw new InternalServerErrorException('Failed to retrieve tutors list');
+    }
+  }
+
+  @Get('tutor')
+  @ApiOperation({ summary: 'Search for active tutors with filters' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Tutors search results',
+    schema: {
+      type: 'object',
+      properties: {
+        tutors: {
+          type: 'array',
+          items: {
+            type: 'object'
+          }
+        },
+        count: {
+          type: 'number',
+          example: 5
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async searchTutors(
+    @Query('subject') subject?: string,
+    @Query('priceRange') priceRange?: string,
+    @Query('availability') availability?: string,
+    @Query('searchString') searchString?: string,
+    @Query('level') level?: string,
+  ): Promise<{ tutors: Prospect[]; count: number }> {
+    try {
+      const tutors = await this.onboardingService.searchTutors(
+        subject,
+        priceRange,
+        availability,
+        searchString,
+        level,
+      );
+      return {
+        tutors,
+        count: tutors.length,
+      };
+    } catch (error) {
+      this.logger.error('Failed to search tutors', error.stack);
+      throw new InternalServerErrorException('Failed to search tutors');
+    }
+  }
+
+  @Post('tutor/:id/approve')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Approve tutor and create Stripe accounts (Admin only)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Tutor approved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        prospect: { type: 'object' },
+        message: { type: 'string', example: 'Tutor approved successfully' }
+      }
+    }
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
+  @ApiResponse({ status: 404, description: 'Tutor not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async approveTutor(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{ prospect: Prospect; message: string }> {
+    try {
+      const prospect = await this.onboardingService.approveTutor(id);
+      return {
+        prospect,
+        message: 'Tutor approved successfully',
+      };
+    } catch (error) {
+      this.logger.error(`Failed to approve tutor with ID ${id}`, error.stack);
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to approve tutor');
+    }
+  }
+
+  @Get('stripe-onboarding-link/:userId')
+  @ApiOperation({ summary: 'Get Stripe Connect onboarding link for tutor' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Onboarding link generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', example: 'https://connect.stripe.com/setup/...' },
+        message: { type: 'string', example: 'Onboarding link generated successfully' }
+      }
+    }
+  })
+  @ApiResponse({ status: 404, description: 'Prospect not found for user' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async getStripeOnboardingLink(
+    @Param('userId', ParseIntPipe) userId: number,
+  ): Promise<{ url: string; message: string }> {
+    try {
+      const url = await this.onboardingService.generateStripeOnboardingLink(userId);
+      return {
+        url,
+        message: 'Onboarding link generated successfully',
+      };
+    } catch (error) {
+      this.logger.error(`Failed to generate onboarding link for user ${userId}`, error.stack);
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to generate onboarding link');
+    }
+  }
+
+  @Get('payment-onboarded/:userId')
+  @ApiOperation({ summary: 'Check if tutor has completed payment onboarding' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Payment onboarding status retrieved',
+    schema: {
+      type: 'object',
+      properties: {
+        paymentOnBoarded: { type: 'boolean', example: true }
+      }
+    }
+  })
+  @ApiResponse({ status: 404, description: 'Prospect not found for user' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async getPaymentOnboardingStatus(
+    @Param('userId', ParseIntPipe) userId: number,
+  ): Promise<{ paymentOnBoarded: boolean }> {
+    try {
+      return await this.onboardingService.getPaymentOnboardingStatus(userId);
+    } catch (error) {
+      this.logger.error(`Failed to get payment onboarding status for user ${userId}`, error.stack);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to retrieve payment onboarding status');
+    }
+  }
+
+  @Get('tutor/:id')
+  @ApiOperation({ summary: 'Get tutor/prospect by ID' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Tutor retrieved successfully',
+    type: Prospect
+  })
+  @ApiResponse({ status: 404, description: 'Tutor not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async getTutorById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<Prospect> {
+    try {
+      return await this.onboardingService.getTutorById(id);
+    } catch (error) {
+      this.logger.error(`Failed to get tutor with ID ${id}`, error.stack);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to retrieve tutor');
     }
   }
 }

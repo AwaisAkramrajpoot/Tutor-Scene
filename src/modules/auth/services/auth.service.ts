@@ -12,6 +12,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '@/database/entities/user.entity';
+import { Prospect } from '@/database/entities/prospect.entity';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { AuthResponseDto } from '../dto/auth-response.dto';
@@ -19,21 +20,27 @@ import { JwtPayload } from '../strategies/jwt.strategy';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { MailService } from './mail.service';
+import { UserStatus, UserRole } from '@/database/entities/enums';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Prospect)
+    private readonly prospectRepository: Repository<Prospect>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+    // Normalize email to lowercase for case-insensitive comparison
+    const normalizedEmail = registerDto.email.toLowerCase();
+
     // Check if user already exists by email
     const existingUser = await this.userRepository.findOne({
-      where: { email: registerDto.email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
@@ -45,11 +52,12 @@ export class AuthService {
 
     // Create new user
     const user = this.userRepository.create({
-      email: registerDto.email,
+      email: normalizedEmail,
       passwordHash: hashedPassword,
       firstName: registerDto.firstName,
       lastName: registerDto.lastName,
       phoneNumber: registerDto.phone,
+      status: UserStatus.ACTIVE,
       role: registerDto.role as any || 'student',
     });
 
@@ -60,9 +68,12 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+    // Normalize email to lowercase for case-insensitive comparison
+    const normalizedEmail = loginDto.email.toLowerCase();
+
     // Find user by email
     const user = await this.userRepository.findOne({
-      where: { email: loginDto.email },
+      where: { email: normalizedEmail },
       select: ['id', 'email', 'passwordHash', 'firstName', 'lastName', 'status', 'role'],
     });
 
@@ -126,9 +137,12 @@ export class AuthService {
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
     const { email } = forgotPasswordDto;
     
+    // Normalize email to lowercase for case-insensitive comparison
+    const normalizedEmail = email.toLowerCase();
+    
     // Check if user exists by email
     const user = await this.userRepository.findOne({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
@@ -222,6 +236,24 @@ export class AuthService {
 
     const refreshToken = this.jwtService.sign(refreshPayload);
 
+    // Fetch prospect data if user is a tutor and status is active
+    let paymentOnBoarded: boolean | undefined;
+    let prospectId: number | undefined;
+    let prospectStatus: string | undefined;
+    
+    if (user.role === UserRole.TUTOR && user.status === UserStatus.ACTIVE) {
+      const prospect = await this.prospectRepository.findOne({
+        where: { userId: user.id },
+        select: ['id', 'paymentOnBoarded', 'status'],
+      });
+      
+      if (prospect) {
+        paymentOnBoarded = prospect.paymentOnBoarded ?? false;
+        prospectId = prospect.id;
+        prospectStatus = prospect.status;
+      }
+    }
+
     return {
       accessToken,
       refreshToken,
@@ -231,6 +263,9 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        ...(paymentOnBoarded !== undefined && { paymentOnBoarded }),
+        ...(prospectId !== undefined && { prospectId }),
+        ...(prospectStatus !== undefined && { prospectStatus }),
       },
     };
   }

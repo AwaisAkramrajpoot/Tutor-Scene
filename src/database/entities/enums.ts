@@ -30,6 +30,13 @@ export enum TutorStatus {
   INACTIVE = 'inactive',
 }
 
+export enum ProspectStatus {
+  PENDING = 'pending',
+  AWAITING_INTERVIEW = 'awaiting_interview',
+  ACTIVE = 'active',
+  SUSPENDED = 'suspended',
+}
+
 export enum BookingStatus {
   PENDING = 'pending',
   TUTOR_REVIEW = 'tutor_review',
@@ -191,4 +198,16 @@ export enum RecurringBookingFrequency {
   WEEKLY = 'weekly',
   BIWEEKLY = 'biweekly',
   MONTHLY = 'monthly',
+}
+
+export enum InterviewStatus {
+  SCHEDULED = 'scheduled',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
+}
+
+export enum MessageRequestStatus {
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  REJECTED = 'rejected',
 }

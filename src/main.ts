@@ -3,10 +3,22 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import * as express from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bodyParser: true });
+  const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+
+  // Configure body parser - use raw for webhooks, json for everything else
+  app.use(
+    express.json({
+      verify: (req: any, res, buf) => {
+        if (req.originalUrl === '/api/v1/webhooks/stripe') {
+          req.rawBody = buf;
+        }
+      },
+    }),
+  );
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -23,9 +35,9 @@ async function bootstrap() {
 
   // CORS configuration
   app.enableCors({
-    origin: configService.get('CORS_ORIGIN', 'http://localhost:3000'),
+    origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
+    credentials: false,
   });
 
   // Swagger documentation
@@ -40,7 +52,7 @@ async function bootstrap() {
   const swaggerPath = configService.get('SWAGGER_PATH', 'docs');
   SwaggerModule.setup(swaggerPath, app, document);
 
-  const port = configService.get('PORT', 3000);
+  const port = configService.get('PORT', 3001);
   await app.listen(port);
   
   console.log(`🚀 Application is running on: http://localhost:${port}`);

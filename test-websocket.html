@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <div>
+        <label>JWT Token:</label><br>
+        <input type="text" id="token" style="width: 500px" placeholder="Paste your JWT token here">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+    <div style="margin-top: 20px;">
+        <h3>Status: <span id="status">Disconnected</span></h3>
+        <h3>Logs:</h3>
+        <div id="logs" style="border: 1px solid #ccc; padding: 10px; height: 400px; overflow-y: scroll; font-family: monospace;"></div>
+    </div>
+
+    <script>
+        let socket = null;
+
+        function log(message) {
+            const logs = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            logs.innerHTML += `[${time}] ${message}<br>`;
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+
+        function connect() {
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                alert('Please enter a JWT token');
+                return;
+            }
+
+            log('Attempting to connect...');
+            document.getElementById('status').textContent = 'Connecting...';
+
+            // Connect to the messaging namespace
+            socket = io('http://localhost:3001/messaging', {
+                auth: {
+                    token: token
+                },
+                transports: ['websocket'],
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionAttempts: 5
+            });
+
+            // Connection events
+            socket.on('connect', () => {
+                log('✅ Connected successfully!');
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('status').style.color = 'green';
+            });
+
+            socket.on('connected', (data) => {
+                log('✅ Received connected event: ' + JSON.stringify(data));
+            });
+
+            socket.on('disconnect', (reason) => {
+                log('❌ Disconnected: ' + reason);
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').style.color = 'red';
+            });
+
+            socket.on('connect_error', (error) => {
+                log('❌ Connection error: ' + error.message);
+                document.getElementById('status').textContent = 'Connection Error';
+                document.getElementById('status').style.color = 'red';
+            });
+
+            socket.on('error', (error) => {
+                log('❌ Error: ' + JSON.stringify(error));
+            });
+
+            // User presence events
+            socket.on('userOnline', (data) => {
+                log('👤 User online: ' + JSON.stringify(data));
+            });
+
+            socket.on('userOffline', (data) => {
+                log('👤 User offline: ' + JSON.stringify(data));
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                log('Disconnected manually');
+            }
+        }
+    </script>
+</body>
+</html>

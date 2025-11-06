@@ -2,17 +2,30 @@ import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { BookingStatus } from './enums';
 import { User } from './user.entity';
+import { Prospect } from './prospect.entity';
 
 @Entity('booking')
 export class Booking extends BaseEntity {
   @Column({ name: 'student_profile_id' })
   studentProfileId: number;
 
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'student_profile_id' })
+  student: User;
+
   @Column({ name: 'tutor_profile_id' })
   tutorProfileId: number;
 
+  @ManyToOne(() => Prospect)
+  @JoinColumn({ name: 'tutor_profile_id' })
+  tutor: Prospect;
+
   @Column({ name: 'subject_id', nullable: true })
   subjectId: number;
+
+  @ManyToOne('Subject', { nullable: true })
+  @JoinColumn({ name: 'subject_id' })
+  subject: any;
 
   @Column({ type: 'timestamp', name: 'start_time' })
   startTime: Date;
@@ -20,10 +33,7 @@ export class Booking extends BaseEntity {
   @Column({ type: 'timestamp', name: 'end_time' })
   endTime: Date;
 
-  @Column({ type: 'varchar', length: 100 })
-  timezone: string;
-
-  @Column({ type: 'enum', enum: BookingStatus, default: BookingStatus.PENDING })
+  @Column({ type: 'enum', enum: BookingStatus, default: BookingStatus.TUTOR_REVIEW })
   status: BookingStatus;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, name: 'total_price' })

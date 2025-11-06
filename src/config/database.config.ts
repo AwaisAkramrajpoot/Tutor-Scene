@@ -15,6 +15,9 @@ import { BackgroundCheck } from '../database/entities/background-check.entity';
 import { Notification } from '../database/entities/notification.entity';
 import { PromoCode } from '../database/entities/promo-code.entity';
 import { SupportTicket } from '../database/entities/support-ticket.entity';
+import { Interview } from '../database/entities/interview.entity';
+import { MessageRequest } from '../database/entities/message-request.entity';
+import { Conversation } from '../database/entities/conversation.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -45,6 +48,9 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         Notification,
         PromoCode,
         SupportTicket,
+        Interview,
+        MessageRequest,
+        Conversation,
       ],
       synchronize: true, // Auto-create tables from entities
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),

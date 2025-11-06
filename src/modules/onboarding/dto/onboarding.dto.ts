@@ -4,6 +4,13 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class OnboardingDto {
   @ApiProperty({
+    description: 'User ID from the authenticated user',
+    example: 1
+  })
+  @IsInt()
+  userId: number;
+
+  @ApiProperty({
     description: 'Full name of the tutor',
     example: 'John Smith'
   })
@@ -86,4 +93,13 @@ export class OnboardingDto {
   @IsOptional()
   @IsString()
   govId?: string;
+
+  @ApiProperty({
+    description: 'URL to the tutor\'s profile picture',
+    example: 'https://my-bucket.s3.amazonaws.com/profile-12345.jpg',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  profilePic?: string;
 }

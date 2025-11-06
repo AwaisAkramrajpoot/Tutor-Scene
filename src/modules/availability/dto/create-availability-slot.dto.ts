@@ -1,26 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsBoolean, IsOptional, IsDateString } from 'class-validator';
+import { IsDateString, IsNumber } from 'class-validator';
 
 export class CreateAvailabilitySlotDto {
-  @ApiProperty({ example: 'MONDAY' })
-  @IsString()
-  dayOfWeek: string;
+  @ApiProperty({ example: 8, description: 'Tutor profile ID' })
+  @IsNumber()
+  tutorProfileId: number;
 
-  @ApiProperty({ example: '09:00:00' })
-  @IsString()
+  @ApiProperty({ example: '2025-11-06T00:00:00', description: 'Start time as ISO 8601 timestamp' })
+  @IsDateString()
   startTime: string;
 
-  @ApiProperty({ example: '17:00:00' })
-  @IsString()
-  endTime: string;
-
-  @ApiProperty({ example: true, required: false })
-  @IsBoolean()
-  @IsOptional()
-  isRecurring?: boolean;
-
-  @ApiProperty({ example: '2024-06-15', required: false })
+  @ApiProperty({ example: '2025-11-06T01:00:00', description: 'End time as ISO 8601 timestamp' })
   @IsDateString()
-  @IsOptional()
-  specificDate?: string;
+  endTime: string;
 }

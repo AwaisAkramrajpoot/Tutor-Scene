@@ -1,34 +1,32 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MailDataRequired } from '@sendgrid/mail';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const sgMail = require('@sendgrid/mail');
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
+  private transporter: nodemailer.Transporter;
+
   constructor(private readonly configService: ConfigService) {
-    const sendGridApiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    if (sendGridApiKey) {
-      sgMail.setApiKey(sendGridApiKey);
-    }
+    // Configure SMTP transporter with Gmail-specific settings
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: this.configService.get<string>('SMTP_USER'),
+        pass: this.configService.get<string>('SMTP_PASSWORD'),
+      },
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 10,
+    });
   }
 
   async sendResetPasswordEmail(to: string, resetToken: string): Promise<void> {
-    const sendGridApiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    
-    // If no API key is configured, just log the email
-    if (!sendGridApiKey) {
-      console.log(`EMAIL NOT SENT - SendGrid API key not configured. Reset token for ${to}: ${resetToken}`);
-      console.log(`To test this feature, add SENDGRID_API_KEY to your environment variables.`);
-      return;
-    }
-
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-    const msg: MailDataRequired = {
+    const mailOptions = {
+      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
       to,
-      from: this.configService.get<string>('SENDGRID_FROM_EMAIL', 'noreply@yourapp.com'),
       subject: 'Password Reset Request',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -54,10 +52,96 @@ export class MailService {
     };
 
     try {
-      await sgMail.send(msg);
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Password reset email sent to ${to}`);
     } catch (error) {
       console.error('Error sending email:', error);
       throw new InternalServerErrorException('Failed to send reset password email');
+    }
+  }
+
+  async sendBookingPaymentEmail(
+    to: string,
+    studentName: string,
+    bookingId: number,
+    amount: number,
+    classStartTime: Date,
+    paymentIntentId: string,
+  ): Promise<void> {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const paymentUrl = `${frontendUrl}/payments?bookingId=${bookingId}&paymentIntentId=${paymentIntentId}&amount=${amount}`;
+
+    // Format the class start time
+    const formattedDate = classStartTime.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const formattedTime = classStartTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    });
+
+    const mailOptions = {
+      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      to,
+      subject: 'Complete Your Booking Payment - Tutor Scene',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #333; margin: 0;">Tutor Scene</h1>
+          </div>
+          
+          <h2 style="color: #333;">Hi ${studentName},</h2>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            Thank you for booking your class! Your tutor has accepted your booking request.
+          </p>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #333;">Class Details</h3>
+            <p style="margin: 10px 0;"><strong>Date:</strong> ${formattedDate}</p>
+            <p style="margin: 10px 0;"><strong>Time:</strong> ${formattedTime}</p>
+            <p style="margin: 10px 0;"><strong>Amount:</strong> $${amount.toFixed(2)}</p>
+          </div>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            To confirm your booking, please complete the payment by clicking the button below:
+          </p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${paymentUrl}" 
+               style="background-color: #007bff; color: white; padding: 15px 30px; 
+                      text-decoration: none; border-radius: 5px; display: inline-block;
+                      font-size: 16px; font-weight: bold;">
+              Pay Now
+            </a>
+          </div>
+          
+          <p style="font-size: 14px; color: #666;">
+            If the button doesn't work, copy and paste this link into your browser:
+          </p>
+          <p style="font-size: 14px; color: #007bff; word-break: break-all;">
+            ${paymentUrl}
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+          
+          <p style="font-size: 12px; color: #999; text-align: center;">
+            This is an automated message from Tutor Scene. Please do not reply to this email.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Booking payment email sent to ${to}`);
+    } catch (error) {
+      console.error('Error sending booking payment email:', error);
+      throw new InternalServerErrorException('Failed to send booking payment email');
     }
   }
 }

@@ -23,8 +23,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any, info: any) {
+  handleRequest(err: any, user: any, info: any, context: any) {
     if (err || !user) {
+      console.error('JWT Auth Error:', {
+        error: err,
+        info: info,
+        hasUser: !!user,
+      });
       throw err || new UnauthorizedException('Authentication required');
     }
     return user;

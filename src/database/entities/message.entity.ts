@@ -1,10 +1,19 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
 
 @Entity('message')
 export class Message extends BaseEntity {
+  @Column({ name: 'conversation_id', nullable: true })
+  @Index()
+  conversationId: number;
+
+  @ManyToOne('Conversation', 'messages')
+  @JoinColumn({ name: 'conversation_id' })
+  conversation: any;
+
   @Column({ name: 'sender_id' })
+  @Index()
   senderId: number;
 
   @ManyToOne(() => User)
@@ -12,6 +21,7 @@ export class Message extends BaseEntity {
   sender: User;
 
   @Column({ name: 'receiver_id' })
+  @Index()
   receiverId: number;
 
   @ManyToOne(() => User)
@@ -25,6 +35,7 @@ export class Message extends BaseEntity {
   attachmentUrl: string;
 
   @Column({ type: 'boolean', default: false, name: 'is_read' })
+  @Index()
   isRead: boolean;
 
   @Column({ type: 'timestamp', nullable: true, name: 'read_at' })

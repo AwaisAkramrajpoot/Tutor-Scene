@@ -66,4 +66,24 @@ export class NotificationsService {
   async getUnreadCount(userId: number): Promise<number> {
     return this.notificationRepository.count({ where: { userId, isRead: false } });
   }
+
+  /**
+   * Mark all unread notifications as read for a user by action URL
+   * Used when user views a conversation to mark related notifications as read
+   */
+  async markAsReadByActionUrl(userId: number, actionUrl: string): Promise<number> {
+    const result = await this.notificationRepository.update(
+      {
+        userId,
+        actionUrl,
+        isRead: false,
+      },
+      {
+        isRead: true,
+        readAt: new Date(),
+      },
+    );
+
+    return result.affected || 0;
+  }
 }

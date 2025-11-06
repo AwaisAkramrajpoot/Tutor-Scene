@@ -1,31 +1,23 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
 
 @Entity('availability_slot')
+@Index(['tutorProfileId', 'startTime', 'endTime'])
 export class AvailabilitySlot extends BaseEntity {
   @Column({ name: 'tutor_profile_id' })
+  @Index()
   tutorProfileId: number;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'tutor_profile_id' })
   tutor: User;
 
-  @Column({ type: 'varchar', length: 10 })
-  dayOfWeek: string; // MONDAY, TUESDAY, etc.
+  @Column({ type: 'timestamp' })
+  @Index()
+  startTime: Date;
 
-  @Column({ type: 'time' })
-  startTime: string;
-
-  @Column({ type: 'time' })
-  endTime: string;
-
-  @Column({ type: 'boolean', default: true })
-  isRecurring: boolean;
-
-  @Column({ type: 'date', nullable: true })
-  specificDate: Date;
-
-  @Column({ type: 'boolean', default: true })
-  isAvailable: boolean;
+  @Column({ type: 'timestamp' })
+  endTime: Date;
 }
