@@ -24,9 +24,31 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
   constructor(private configService: ConfigService) {}
 
   createTypeOrmOptions(): TypeOrmModuleOptions {
-    const sslEnabled = this.configService.get<boolean>('DATABASE_SSL', false);
-    
-    return {
+    const parseBoolean = (value: string | boolean | undefined, defaultValue = false): boolean => {
+      if (typeof value === 'boolean') {
+        return value;
+      }
+
+      if (typeof value === 'string') {
+        return ['true', '1', 'yes', 'y'].includes(value.trim().toLowerCase());
+      }
+
+      return defaultValue;
+    };
+
+    const sslEnabled = parseBoolean(this.configService.get('DATABASE_SSL'), false);
+    const sslRejectUnauthorized = parseBoolean(
+      this.configService.get('DATABASE_SSL_REJECT_UNAUTHORIZED'),
+      false,
+    );
+
+    const sslOptions = sslEnabled
+      ? {
+          rejectUnauthorized: sslRejectUnauthorized,
+        }
+      : undefined;
+
+    const baseOptions: TypeOrmModuleOptions = {
       type: 'postgres',
       host: this.configService.get<string>('DATABASE_HOST', 'localhost'),
       port: this.configService.get<number>('DATABASE_PORT', 5432),
@@ -57,6 +79,19 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
       // Additional PostgreSQL-specific options
       extra: {
         connectionLimit: this.configService.get<number>('DATABASE_CONNECTION_LIMIT', 10),
+      },
+    };
+
+    if (!sslOptions) {
+      return baseOptions;
+    }
+
+    return {
+      ...baseOptions,
+      ssl: sslOptions,
+      extra: {
+        ...(baseOptions.extra ?? {}),
+        ssl: sslOptions,
       },
     };
   }
