@@ -2,6 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
 import { Booking } from './booking.entity';
+import { ReviewStatus } from './enums';
 
 @Entity('review')
 export class Review extends BaseEntity {
@@ -37,4 +38,11 @@ export class Review extends BaseEntity {
 
   @Column({ type: 'text', nullable: true, name: 'flag_reason' })
   flagReason: string;
+
+  @Column({ 
+    type: 'enum', 
+    enum: ReviewStatus, 
+    default: ReviewStatus.PENDING 
+  })
+  status: ReviewStatus;
 }

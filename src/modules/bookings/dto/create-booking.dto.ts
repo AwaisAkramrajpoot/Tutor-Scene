@@ -31,4 +31,9 @@ export class CreateBookingDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiProperty({ example: 'SAVE20', required: false, description: 'Discount coupon code' })
+  @IsString()
+  @IsOptional()
+  discountCode?: string;
 }

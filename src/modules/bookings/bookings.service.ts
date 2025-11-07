@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '@/database/entities/booking.entity';
@@ -9,9 +9,12 @@ import { BookingStatus } from '@/database/entities/enums';
 import { StripeService } from './services/stripe.service';
 import { ZoomService } from '../interviews/services/zoom.service';
 import { MailService } from '../auth/services/mail.service';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
@@ -22,6 +25,7 @@ export class BookingsService {
     private readonly stripeService: StripeService,
     private readonly zoomService: ZoomService,
     private readonly mailService: MailService,
+    private readonly promoCodesService: PromoCodesService,
   ) { }
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
@@ -39,6 +43,7 @@ export class BookingsService {
       throw new BadRequestException('Total price must be a positive number');
     }
 
+    // Store discount code if provided (will be validated when tutor accepts)
     const booking = this.bookingRepository.create({
       studentProfileId: createBookingDto.studentProfileId,
       tutorProfileId: createBookingDto.tutorProfileId,
@@ -47,6 +52,7 @@ export class BookingsService {
       endTime,
       status: BookingStatus.TUTOR_REVIEW, // Awaiting tutor approval
       totalPrice: createBookingDto.totalPrice,
+      discountCode: createBookingDto.discountCode || null,
     });
     return this.bookingRepository.save(booking);
   }
@@ -90,16 +96,75 @@ export class BookingsService {
       throw new NotFoundException('Student not found');
     }
 
-    // Create Stripe payment intent
+    // IMPORTANT: Always use the ORIGINAL totalPrice from the booking
+    // This ensures discount is calculated on the correct base amount
+    const originalPrice = Number(booking.totalPrice);
+    this.logger.log(`Accept booking - Original price from DB: ${originalPrice}`);
+    
+    let finalPrice = originalPrice;
+    let discountAmount = 0;
+    let stripeCouponId: string | undefined;
+
+    // Validate and apply discount code if provided
+    if (booking.discountCode) {
+      try {
+        this.logger.log(`Validating discount code: ${booking.discountCode} for original price: ${originalPrice}`);
+        
+        // ALWAYS validate against the ORIGINAL price, not any modified price
+        const validation = await this.promoCodesService.validate(
+          booking.discountCode,
+          originalPrice,
+        );
+        
+        if (validation.valid) {
+          discountAmount = validation.discount;
+          finalPrice = originalPrice - discountAmount;
+          
+          this.logger.log(`Discount calculation: ${originalPrice} - ${discountAmount} = ${finalPrice}`);
+          
+          // Get the Stripe coupon ID
+          const promoCode = await this.promoCodesService.findByCode(booking.discountCode);
+          stripeCouponId = promoCode.stripeCouponId;
+          
+          // Increment usage count
+          await this.promoCodesService.incrementUsage(booking.discountCode);
+          
+          this.logger.log(`Discount applied: ${booking.discountCode}, Amount: ${discountAmount}, Final Price: ${finalPrice}`);
+        }
+      } catch (error) {
+        this.logger.warn(`Invalid discount code: ${booking.discountCode} - ${error.message}`);
+        // Continue without discount if code is invalid
+        booking.discountCode = null;
+      }
+    }
+
+    // Create Stripe payment intent with discount
+    const paymentIntentParams: any = {
+      bookingId: booking.id.toString(),
+      studentId: booking.studentProfileId.toString(),
+      tutorId: booking.tutorProfileId.toString(),
+    };
+
+    if (booking.discountCode) {
+      paymentIntentParams.discountCode = booking.discountCode;
+    }
+
     const paymentIntent = await this.stripeService.createPaymentIntent(
-      Number(booking.totalPrice),
+      finalPrice,
       'usd',
-      {
-        bookingId: booking.id.toString(),
-        studentId: booking.studentProfileId.toString(),
-        tutorId: booking.tutorProfileId.toString(),
-      },
+      paymentIntentParams,
     );
+
+    // Apply Stripe coupon if available
+    if (stripeCouponId) {
+      try {
+        // Note: Coupons are typically applied at checkout, not to payment intent
+        // We'll store the discount info in the booking for reference
+        this.logger.log(`Stripe coupon available: ${stripeCouponId}`);
+      } catch (error) {
+        this.logger.error(`Failed to apply Stripe coupon: ${error.message}`);
+      }
+    }
 
     // Create Zoom meeting for the class
     const duration = Math.ceil(
@@ -111,19 +176,21 @@ export class BookingsService {
       duration,
     );
 
-    // Update booking with payment intent and Zoom details
+    // Update booking with payment intent, Zoom details, and discount info
     booking.stripePaymentIntentId = paymentIntent.id;
     booking.zoomMeetingId = zoomMeeting.id;
     booking.zoomJoinLink = zoomMeeting.join_url;
+    booking.discountAmount = discountAmount;
+    booking.finalPrice = finalPrice;
     booking.status = BookingStatus.PENDING; // Awaiting payment
     await this.bookingRepository.save(booking);
 
-    // Send payment email to student
+    // Send payment email to student with final price
     await this.mailService.sendBookingPaymentEmail(
       student.email,
       student.fullName,
       booking.id,
-      Number(booking.totalPrice),
+      finalPrice,
       booking.startTime,
       paymentIntent.id,
     );
@@ -186,14 +253,81 @@ export class BookingsService {
   }
 
   async cancelBooking(id: number, userId: number, reason?: string): Promise<Booking> {
-    const booking = await this.findOne(id);
-    if (![BookingStatus.TUTOR_REVIEW, BookingStatus.CONFIRMED].includes(booking.status)) {
-      throw new BadRequestException('Cannot cancel this booking');
+    const booking = await this.bookingRepository.findOne({
+      where: { id },
+      relations: ['student', 'tutor'],
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${id} not found`);
     }
+
+    // Only allow cancellation of confirmed bookings
+    if (booking.status !== BookingStatus.CONFIRMED) {
+      throw new BadRequestException('Only confirmed bookings can be cancelled');
+    }
+
+    // Check if user is either the student or tutor
+    const isStudent = booking.studentProfileId === userId;
+    const isTutor = booking.tutorProfileId === userId;
+
+    if (!isStudent && !isTutor) {
+      throw new BadRequestException('You can only cancel your own bookings');
+    }
+
+    // Get student and tutor details
+    const student = booking.student;
+    const tutor = booking.tutor;
+
+    if (!student || !tutor) {
+      throw new NotFoundException('Student or tutor information not found');
+    }
+
+    // Get tutor's user account for email
+    const tutorUser = await this.userRepository.findOne({
+      where: { id: tutor.userId },
+    });
+
+    if (!tutorUser) {
+      throw new NotFoundException('Tutor user account not found');
+    }
+
+    // Send appropriate email based on who is cancelling
+    if (isTutor) {
+      // Tutor is cancelling - send email to student
+      await this.mailService.sendBookingCancellationToStudent(
+        student.email,
+        student.fullName,
+        tutor.fullName,
+        booking.startTime,
+      );
+    } else {
+      // Student is cancelling - send email to tutor
+      await this.mailService.sendBookingCancellationToTutor(
+        tutorUser.email,
+        tutor.fullName,
+        student.fullName,
+        booking.startTime,
+      );
+    }
+
+    // Process refund if payment was made
+    if (booking.stripePaymentIntentId && !booking.hasRefunded) {
+      try {
+        await this.stripeService.refundPayment(booking.stripePaymentIntentId);
+        // Note: hasRefunded will be set to true via webhook when refund succeeds
+      } catch (error) {
+        this.logger.error(`Failed to process refund for booking ${id}: ${error.message}`);
+        throw new BadRequestException('Failed to process refund');
+      }
+    }
+
+    // Update booking status
     booking.status = BookingStatus.CANCELLED;
     booking.cancellationReason = reason;
     booking.cancelledAt = new Date();
     booking.cancelledBy = userId;
+
     return this.bookingRepository.save(booking);
   }
 
@@ -307,5 +441,20 @@ export class BookingsService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async markBookingAsRefunded(paymentIntentId: string): Promise<void> {
+    const booking = await this.bookingRepository.findOne({
+      where: { stripePaymentIntentId: paymentIntentId },
+    });
+
+    if (!booking) {
+      this.logger.warn(`No booking found for payment intent: ${paymentIntentId}`);
+      return;
+    }
+
+    booking.hasRefunded = true;
+    await this.bookingRepository.save(booking);
+    this.logger.log(`Booking ${booking.id} marked as refunded`);
   }
 }

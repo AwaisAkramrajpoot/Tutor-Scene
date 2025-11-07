@@ -52,11 +52,14 @@ async function bootstrap() {
   const swaggerPath = configService.get('SWAGGER_PATH', 'docs');
   SwaggerModule.setup(swaggerPath, app, document);
 
-  const port = configService.get('PORT', 3001);
+  // IMPORTANT: Use process.env.PORT for Elastic Beanstalk compatibility
+  // Elastic Beanstalk sets the PORT environment variable
+  const port = process.env.PORT || configService.get<number>('PORT', 3000);
   await app.listen(port);
   
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(`📚 Swagger documentation: http://localhost:${port}/${swaggerPath}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 }
 
 bootstrap();

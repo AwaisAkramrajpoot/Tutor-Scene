@@ -18,21 +18,33 @@ import { SupportTicket } from '../database/entities/support-ticket.entity';
 import { Interview } from '../database/entities/interview.entity';
 import { MessageRequest } from '../database/entities/message-request.entity';
 import { Conversation } from '../database/entities/conversation.entity';
+import { GradeLevel } from '../database/entities/grade-level.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
   constructor(private configService: ConfigService) {}
 
   createTypeOrmOptions(): TypeOrmModuleOptions {
-    const sslEnabled = this.configService.get<boolean>('DATABASE_SSL', false);
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
+    const isProduction = nodeEnv === 'production';
+    const sslEnabled = this.configService.get<string>('DB_SSL', 'false') === 'true';
+    
+    // Build SSL configuration
+    const sslConfig = sslEnabled
+      ? {
+          ssl: {
+            rejectUnauthorized: false, // Required for AWS RDS
+          },
+        }
+      : {};
     
     return {
       type: 'postgres',
-      host: this.configService.get<string>('DATABASE_HOST', 'localhost'),
-      port: this.configService.get<number>('DATABASE_PORT', 5432),
-      username: this.configService.get<string>('DATABASE_USERNAME', 'postgres'),
-      password: this.configService.get<string>('DATABASE_PASSWORD', 'password'),
-      database: this.configService.get<string>('DATABASE_NAME', 'nest'),
+      host: this.configService.get<string>('DB_HOST', 'localhost'),
+      port: this.configService.get<number>('DB_PORT', 5432),
+      username: this.configService.get<string>('DB_USERNAME', 'postgres'),
+      password: this.configService.get<string>('DB_PASSWORD', 'password'),
+      database: this.configService.get<string>('DB_NAME', 'nest'),
       entities: [
         User,
         Prospect,
@@ -51,12 +63,15 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         Interview,
         MessageRequest,
         Conversation,
+        GradeLevel,
       ],
-      synchronize: true, // Auto-create tables from entities
+      // IMPORTANT: Set synchronize to false in production to prevent data loss
+      synchronize: !isProduction,
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),
       // Additional PostgreSQL-specific options
       extra: {
         connectionLimit: this.configService.get<number>('DATABASE_CONNECTION_LIMIT', 10),
+        ...sslConfig,
       },
     };
   }

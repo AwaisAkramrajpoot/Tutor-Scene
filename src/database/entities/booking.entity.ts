@@ -65,4 +65,19 @@ export class Booking extends BaseEntity {
 
   @Column({ type: 'timestamp', nullable: true, name: 'completed_at' })
   completedAt: Date;
+
+  @Column({ type: 'boolean', default: false, name: 'review_added' })
+  reviewAdded: boolean;
+
+  @Column({ type: 'boolean', default: false, name: 'has_refunded' })
+  hasRefunded: boolean;
+
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'discount_code' })
+  discountCode: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'discount_amount' })
+  discountAmount: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'final_price' })
+  finalPrice: number;
 }

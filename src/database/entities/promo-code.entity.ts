@@ -33,4 +33,7 @@ export class PromoCode extends BaseEntity {
 
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'applicable_to' })
   applicableTo: string; // ALL, FIRST_TIME_USERS, etc.
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'stripe_coupon_id' })
+  stripeCouponId: string;
 }

@@ -7,10 +7,17 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { UpdateUserStatusDto } from './dto/update-user-status.dto';
+import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/modules/auth/guards/roles.guard';
+import { Roles } from '@/modules/auth/decorators/roles.decorator';
+import { UserRole } from '@/database/entities/enums';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -49,6 +56,31 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.update(id, updateUserDto);
+  }
+
+  @Get('students/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all students (Admin only)' })
+  @ApiQuery({ name: 'status', required: false, enum: ['active', 'inactive', 'suspended', 'pending'], description: 'Filter by user status' })
+  @ApiResponse({ status: 200, description: 'List of students' })
+  findAllStudents(@Query('status') status?: string) {
+    return this.usersService.findAllStudents(status);
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user status (Admin only)' })
+  @ApiResponse({ status: 200, description: 'User status updated successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateUserStatusDto: UpdateUserStatusDto,
+  ) {
+    return this.usersService.updateUserStatus(id, updateUserStatusDto);
   }
 
   @Delete(':id')

@@ -57,6 +57,10 @@ export class WebhooksService {
         await this.handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
         break;
       
+      case 'charge.refunded':
+        await this.handleChargeRefunded(event.data.object as Stripe.Charge);
+        break;
+      
       // Add more event handlers as needed
       default:
         this.logger.log(`Unhandled event type: ${event.type}`);
@@ -151,6 +155,30 @@ export class WebhooksService {
       }
     } catch (error) {
       this.logger.error(`Error handling payment_intent.payment_failed: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  private async handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
+    try {
+      this.logger.log(`Charge refunded: ${charge.id}`);
+      
+      // Get the payment intent ID from the charge
+      const paymentIntentId = typeof charge.payment_intent === 'string' 
+        ? charge.payment_intent 
+        : charge.payment_intent?.id;
+
+      if (!paymentIntentId) {
+        this.logger.warn(`No payment intent found for charge: ${charge.id}`);
+        return;
+      }
+
+      // Mark the booking as refunded
+      await this.bookingsService.markBookingAsRefunded(paymentIntentId);
+      
+      this.logger.log(`Booking refund processed for payment intent: ${paymentIntentId}`);
+    } catch (error) {
+      this.logger.error(`Error handling charge.refunded: ${error.message}`, error.stack);
       throw error;
     }
   }

@@ -6,6 +6,10 @@ export class CreateReviewDto {
   @IsNumber()
   bookingId: number;
 
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  studentProfileId: number;
+
   @ApiProperty({ example: 2 })
   @IsNumber()
   tutorProfileId: number;
