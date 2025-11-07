@@ -26,6 +26,7 @@ import { SeedingModule } from './database/seeding/seeding.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { InterviewsModule } from './modules/interviews/interviews.module';
 import { GradeLevelsModule } from './modules/grade-levels/grade-levels.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { GradeLevelsModule } from './modules/grade-levels/grade-levels.module';
     WebhooksModule,
     InterviewsModule,
     GradeLevelsModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [
