@@ -1,7 +1,8 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Home = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -39,7 +40,10 @@ const Home = () => {
                 <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-8 rounded-lg transition-colors">
                   I'm a Student / Parent
                 </button>
-                <button className="bg-white text-blue-600 hover:bg-gray-100 font-semibold py-4 px-8 rounded-lg border-2 border-blue-600 transition-colors">
+                <button 
+                  onClick={() => navigate('/become-tutor')}
+                  className="bg-white text-blue-600 hover:bg-gray-100 font-semibold py-4 px-8 rounded-lg border-2 border-blue-600 transition-colors"
+                >
                   I'm a Tutor
                 </button>
               </div>
@@ -450,7 +454,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Get Started?</h2>
           <p className="text-xl text-blue-100 mb-8">Join Tutor Scene today and discover the perfect learning experience.</p>
-          <button className="bg-white text-blue-600 hover:bg-gray-100 font-semibold py-4 px-8 rounded-lg transition-colors flex items-center mx-auto">
+          <button  onClick={() => navigate('/signin')} className="bg-white text-blue-600 hover:bg-gray-100 font-semibold py-4 px-8 rounded-lg transition-colors flex items-center mx-auto">
             Find a Tutor Now
             <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Alert, Snackbar } from '@mui/material';
 
 // Utility for Eye/Eye-Slash icons (Tailwind Heroicons v1.0 compatible)
 const EyeIcon = (props) => (
@@ -26,8 +27,14 @@ const SignIn = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('student');
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('johncarter@brix.com'); // Pre-fill like in the image
-  const [password, setPassword] = useState('password_hidden'); // Dummy value for display
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   // --- Design Colors/Constants from Image ---
   const COLOR_STUDENT_TAB_ACTIVE = '#b18e47'; // Closest to the gold/brown in the image
@@ -41,11 +48,107 @@ const SignIn = () => {
   };
   const COLOR_LINK_BLUE = '#3b82f6';
 
-  const handleSubmit = (e) => {
+  const handleCloseAlert = () => {
+    setAlert({ ...alert, open: false });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Sign in with:', { email, password, type: activeTab });
-    // Navigate to dashboard after successful sign in
-    navigate('/dashboard');
+
+    if (!email || !password) {
+      setAlert({
+        open: true,
+        message: 'Please enter both email and password',
+        severity: 'error'
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store user and token in localStorage
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+
+        setAlert({
+          open: true,
+          message: 'Login successful! Redirecting...',
+          severity: 'success'
+        });
+
+        // Role-based navigation
+        const userRole = data.user.role;
+
+        if (userRole === 'student') {
+          setTimeout(() => navigate('/find-tutors'), 1500);
+        } else if (userRole === 'admin') {
+          setTimeout(() => navigate('/admin-dashboard'), 1500);
+        } else if (userRole === 'tutor') {
+          // Check onboarding status for tutors
+          try {
+            const statusResponse = await fetch(
+              `${apiUrl}/api/v1/onboarding/status/${data.user.id}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${data.accessToken}`,
+                  'Content-Type': 'application/json',
+                }
+              }
+            );
+
+            const statusData = await statusResponse.json();
+
+            if (statusResponse.ok) {
+              if (statusData.status === 'active') {
+                setTimeout(() => navigate('/tutor-dashboard'), 1500);
+              } else {
+                setTimeout(() => navigate('/create-profile'), 1500);
+              }
+            } else {
+              // If status check fails, default to create-profile
+              setTimeout(() => navigate('/create-profile'), 1500);
+            }
+          } catch (statusError) {
+            console.error('Error checking onboarding status:', statusError);
+            setTimeout(() => navigate('/create-profile'), 1500);
+          }
+        } else {
+          // Default fallback
+          setTimeout(() => navigate('/dashboard'), 1500);
+        }
+      } else {
+        setAlert({
+          open: true,
+          message: data.message || 'Login failed. Please check your credentials.',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setAlert({
+        open: true,
+        message: error.message || 'Network error. Please check your connection.',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -163,12 +266,13 @@ const SignIn = () => {
             {/* Sign In Button - Created a custom gradient background to match the image */}
             <button
               type="submit"
-              className="w-full text-white font-semibold py-3 px-4 rounded-lg transition-shadow mb-4 text-base shadow-md"
+              disabled={loading}
+              className="w-full text-white font-semibold py-3 px-4 rounded-lg transition-shadow mb-4 text-base shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundImage: `linear-gradient(to right, ${COLOR_BUTTON_BLUE_GRADIENT.start}, ${COLOR_BUTTON_BLUE_GRADIENT.end})`,
               }}
             >
-              Sign in
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
 
             {/* Sign Up Link - Matched link color */}
@@ -287,6 +391,18 @@ const SignIn = () => {
           </div>
         </div>
       </div>
+
+      {/* Alert Snackbar */}
+      <Snackbar
+        open={alert.open}
+        autoHideDuration={6000}
+        onClose={handleCloseAlert}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseAlert} severity={alert.severity} sx={{ width: '100%' }}>
+          {alert.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

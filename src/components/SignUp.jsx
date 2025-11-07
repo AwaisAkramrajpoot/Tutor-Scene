@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Alert, Snackbar } from '@mui/material';
 
 // Utility for Eye/Eye-Slash icons (Tailwind Heroicons v1.0 compatible)
 const EyeIcon = (props) => (
@@ -24,18 +25,26 @@ const CheckIcon = (props) => (
 
 
 const SignUp = () => {
+  const navigate = useNavigate();
+
   // --- State Hooks ---
   const [activeTab, setActiveTab] = useState('student');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: 'john.doe@gmail.com', // Pre-fill like in the image
-    lastName: 'john.doe@gmail.com',  // Pre-fill like in the image
-    email: 'john.doe@gmail.com',      // Pre-fill like in the image
-    phone: '+1 (555) 000-0000',      // Pre-fill like in the image
-    password: 'password_hidden', // Dummy value for display
-    confirmPassword: 'password_hidden', // Dummy value for display
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
     agreeTerms: false
+  });
+  const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
   });
 
   // --- Handlers ---
@@ -47,10 +56,95 @@ const SignUp = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleCloseAlert = () => {
+    setAlert({ ...alert, open: false });
+  };
+
+  // Check if form is valid
+  const isFormValid = () => {
+    return (
+      formData.firstName.trim() !== '' &&
+      formData.lastName.trim() !== '' &&
+      formData.email.trim() !== '' &&
+      formData.phone.trim() !== '' &&
+      formData.password.trim() !== '' &&
+      formData.confirmPassword.trim() !== '' &&
+      formData.password === formData.confirmPassword &&
+      formData.agreeTerms
+    );
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Sign up with:', { ...formData, type: activeTab });
-    // Add real sign-up logic here
+
+    // Validation
+    if (!formData.agreeTerms) {
+      setAlert({
+        open: true,
+        message: 'Please agree to the Terms and Privacy Policies',
+        severity: 'error'
+      });
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setAlert({
+        open: true,
+        message: 'Passwords do not match',
+        severity: 'error'
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const payload = {
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        role: activeTab
+      };
+
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAlert({
+          open: true,
+          message: data.message || 'Registration successful! Redirecting to sign in...',
+          severity: 'success'
+        });
+        // Navigate to sign in page after 2 seconds
+        setTimeout(() => {
+          navigate('/signin');
+        }, 2000);
+      } else {
+        setAlert({
+          open: true,
+          message: data.message || 'Registration failed. Please try again.',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setAlert({
+        open: true,
+        message: error.message || 'Network error. Please check your connection.',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // --- Design Colors/Constants from Image ---
@@ -71,7 +165,7 @@ const SignUp = () => {
       <div className="w-full md:w-1/2 bg-white flex items-center justify-center px-8 overflow-y-auto">
         {/* Adjusted padding to center the content more vertically, and py for mobile space */}
         <div className="w-full max-w-md my-8 md:my-0">
-          
+
           {/* Back to login - Match font and alignment */}
           <Link to="/signin" className="flex items-center text-gray-700 hover:text-gray-900 mb-8 text-sm font-medium">
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,6 +223,7 @@ const SignUp = () => {
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
+                  required
                   // Match border color, rounded shape, and remove focus ring for a tighter match
                   className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none text-sm text-gray-600"
                 />
@@ -145,6 +240,7 @@ const SignUp = () => {
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleChange}
+                  required
                   // Match border color, rounded shape, and remove focus ring for a tighter match
                   className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none text-sm text-gray-600"
                 />
@@ -163,6 +259,7 @@ const SignUp = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
+                  required
                   // Match border color, rounded shape, and remove focus ring for a tighter match
                   className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none text-sm text-gray-600"
                 />
@@ -178,6 +275,7 @@ const SignUp = () => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
+                  required
                   // Match border color, rounded shape, and remove focus ring for a tighter match
                   className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none text-sm text-gray-600"
                 />
@@ -195,7 +293,8 @@ const SignUp = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="••••••••••••••••"
+                  required
+                  minLength={6}
                   // Match border color, padding, and size
                   className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none text-sm pr-10 text-gray-600"
                   style={{ fontFamily: showPassword ? 'inherit' : 'text-security-disc' }} // Simulating dots for password field
@@ -221,9 +320,13 @@ const SignUp = () => {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  placeholder="••••••••••••••••"
-                  // Match border color, padding, and size
-                  className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none text-sm pr-10 text-gray-600"
+                  required
+                  minLength={6}
+                  // Match border color, padding, and size - add red border if passwords don't match
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none text-sm pr-10 text-gray-600 ${formData.confirmPassword && formData.password !== formData.confirmPassword
+                    ? 'border-red-500'
+                    : 'border-gray-400'
+                    }`}
                   style={{ fontFamily: showConfirmPassword ? 'inherit' : 'text-security-disc' }} // Simulating dots for password field
                 />
                 <button
@@ -234,6 +337,9 @@ const SignUp = () => {
                   {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
+              )}
             </div>
 
             {/* Terms and Conditions - Matched checkbox style and link color */}
@@ -263,12 +369,13 @@ const SignUp = () => {
             {/* Sign Up Button - Created a custom gradient background to match the image */}
             <button
               type="submit"
-              className="w-full text-white font-semibold py-3.5 px-4 rounded-lg transition-shadow mb-4 text-base shadow-md"
+              disabled={loading || !isFormValid()}
+              className="w-full text-white font-semibold py-3.5 px-4 rounded-lg transition-shadow mb-4 text-base shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundImage: `linear-gradient(to right, ${COLOR_BUTTON_BLUE_GRADIENT.start}, ${COLOR_BUTTON_BLUE_GRADIENT.end})`,
               }}
             >
-              Sign up
+              {loading ? 'Signing up...' : 'Sign up'}
             </button>
 
             {/* Sign In Link - Matched link color */}
@@ -314,7 +421,7 @@ const SignUp = () => {
         <div className="relative z-10 text-center text-white flex flex-col justify-end h-full pb-8">
           {/* Spacer to push content to bottom */}
           <div className="flex-grow"></div>
-          
+
           {/* Welcome Text - Moved to bottom */}
           <h2 className="text-4xl font-bold mb-4 leading-snug">
             Start Your Learning
@@ -346,6 +453,18 @@ const SignUp = () => {
           </div>
         </div>
       </div>
+
+      {/* Alert Snackbar */}
+      <Snackbar
+        open={alert.open}
+        autoHideDuration={6000}
+        onClose={handleCloseAlert}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseAlert} severity={alert.severity} sx={{ width: '100%' }}>
+          {alert.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

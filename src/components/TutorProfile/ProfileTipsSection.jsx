@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export const ProfileTipsSection = () => {
@@ -6,8 +6,99 @@ export const ProfileTipsSection = () => {
   const [aboutMe, setAboutMe] = useState("");
   const [subjects, setSubjects] = useState("");
   const [hourlyRate, setHourlyRate] = useState("50");
+  const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
+  const [isDraggingVideo, setIsDraggingVideo] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [selectedVideo, setSelectedVideo] = useState(null);
+  const [selectedCV, setSelectedCV] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [isDraggingCV, setIsDraggingCV] = useState(false);
 
   const maxAboutMeLength = 250;
+
+  const handlePhotoClick = () => {
+    document.getElementById('profile-photo').click();
+  };
+
+  const handleVideoClick = () => {
+    document.getElementById('intro-video').click();
+  };
+
+  const handlePhotoDragOver = (e) => {
+    e.preventDefault();
+    setIsDraggingPhoto(true);
+  };
+
+  const handlePhotoDragLeave = () => {
+    setIsDraggingPhoto(false);
+  };
+
+  const handlePhotoDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingPhoto(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handlePhotoFile(files[0]);
+    }
+  };
+
+  const handlePhotoFile = (file) => {
+    setSelectedPhoto(file);
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleVideoDragOver = (e) => {
+    e.preventDefault();
+    setIsDraggingVideo(true);
+  };
+
+  const handleVideoDragLeave = () => {
+    setIsDraggingVideo(false);
+  };
+
+  const handleVideoDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingVideo(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleVideoFile(files[0]);
+    }
+  };
+
+  const handleVideoFile = (file) => {
+    setSelectedVideo(file);
+  };
+
+  const handleCVClick = () => {
+    document.getElementById('cv-upload').click();
+  };
+
+  const handleCVDragOver = (e) => {
+    e.preventDefault();
+    setIsDraggingCV(true);
+  };
+
+  const handleCVDragLeave = () => {
+    setIsDraggingCV(false);
+  };
+
+  const handleCVDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingCV(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleCVFile(files[0]);
+    }
+  };
+
+  const handleCVFile = (file) => {
+    setSelectedCV(file);
+  };
 
   const profileTips = [
     "Use a professional, friendly photo where your face is clearly visible",
@@ -30,28 +121,57 @@ export const ProfileTipsSection = () => {
           <label htmlFor="profile-photo" className="block text-base text-[#101727] mb-3 font-normal">
             Profile Photo
           </label>
-          <div className="relative w-full h-64 rounded-xl border-2 border-dashed border-[#d0d5db] bg-white hover:border-[#4A8FCC] transition-colors">
-            <button
-              type="button"
-              className="absolute inset-0 w-full h-full cursor-pointer flex flex-col items-center justify-center"
-              aria-label="Upload profile photo"
-            >
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <span className="text-4xl text-gray-400">👤</span>
+          <div
+            className={`relative w-full h-64 rounded-xl border-2 ${selectedPhoto
+              ? 'border-solid border-green-500 bg-green-50'
+              : isDraggingPhoto
+                ? 'border-dashed border-[#4A8FCC] bg-blue-50'
+                : 'border-dashed border-[#d0d5db] bg-white'
+              } hover:border-[#4A8FCC] transition-colors cursor-pointer overflow-hidden`}
+            onClick={handlePhotoClick}
+            onDragOver={handlePhotoDragOver}
+            onDragLeave={handlePhotoDragLeave}
+            onDrop={handlePhotoDrop}
+          >
+            {selectedPhoto && photoPreview ? (
+              <div className="absolute inset-0 w-full h-full">
+                <img
+                  src={photoPreview}
+                  alt="Profile preview"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="text-white text-center">
+                    <p className="text-lg font-medium mb-2">✓ Photo Selected</p>
+                    <p className="text-sm">{selectedPhoto.name}</p>
+                    <p className="text-xs mt-1">Click to change</p>
+                  </div>
+                </div>
               </div>
-              <p className="text-base text-[#495565] mb-1">
-                Click to upload or drag and drop
-              </p>
-              <p className="text-sm text-[#697282]">
-                PNG, JPG up to 5MB
-              </p>
-            </button>
+            ) : (
+              <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center pointer-events-none">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <span className="text-4xl text-gray-400">👤</span>
+                </div>
+                <p className="text-base text-[#495565] mb-1">
+                  Click to upload or drag and drop
+                </p>
+                <p className="text-sm text-[#697282]">
+                  PNG, JPG up to 5MB
+                </p>
+              </div>
+            )}
             <input
               type="file"
               id="profile-photo"
-              className="sr-only"
+              className="hidden"
               accept="image/png,image/jpeg"
               aria-label="Upload profile photo"
+              onChange={(e) => {
+                if (e.target.files.length > 0) {
+                  handlePhotoFile(e.target.files[0]);
+                }
+              }}
             />
           </div>
         </div>
@@ -124,28 +244,127 @@ export const ProfileTipsSection = () => {
           <label htmlFor="intro-video" className="block text-base text-[#101727] mb-3 font-normal">
             Upload Intro Video (Optional)
           </label>
-          <div className="relative w-full h-56 rounded-xl border-2 border-dashed border-[#d0d5db] bg-white hover:border-[#4A8FCC] transition-colors">
-            <button
-              type="button"
-              className="absolute inset-0 w-full h-full cursor-pointer flex flex-col items-center justify-center"
-              aria-label="Upload intro video"
-            >
-              <div className="w-16 h-16 flex items-center justify-center mb-3">
-                <span className="text-5xl">📤</span>
-              </div>
-              <p className="text-base text-[#495565] mb-1">
-                Upload a 1-minute intro video
-              </p>
-              <p className="text-sm text-[#697282]">
-                MP4, MOV up to 100MB
-              </p>
-            </button>
+          <div
+            className={`relative w-full h-56 rounded-xl border-2 ${selectedVideo
+              ? 'border-solid border-green-500 bg-green-50'
+              : isDraggingVideo
+                ? 'border-dashed border-[#4A8FCC] bg-blue-50'
+                : 'border-dashed border-[#d0d5db] bg-white'
+              } hover:border-[#4A8FCC] transition-colors cursor-pointer`}
+            onClick={handleVideoClick}
+            onDragOver={handleVideoDragOver}
+            onDragLeave={handleVideoDragLeave}
+            onDrop={handleVideoDrop}
+          >
+            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center pointer-events-none">
+              {selectedVideo ? (
+                <>
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                    <span className="text-4xl">✓</span>
+                  </div>
+                  <p className="text-base text-green-700 font-medium mb-1">
+                    Video Selected
+                  </p>
+                  <p className="text-sm text-[#495565] mb-2 px-4 text-center">
+                    {selectedVideo.name}
+                  </p>
+                  <p className="text-xs text-[#697282]">
+                    {(selectedVideo.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                  <p className="text-xs text-[#697282] mt-2">
+                    Click to change video
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 flex items-center justify-center mb-3">
+                    <span className="text-5xl">📤</span>
+                  </div>
+                  <p className="text-base text-[#495565] mb-1">
+                    Upload a 1-minute intro video
+                  </p>
+                  <p className="text-sm text-[#697282]">
+                    MP4, MOV up to 100MB
+                  </p>
+                </>
+              )}
+            </div>
             <input
               type="file"
               id="intro-video"
-              className="sr-only"
+              className="hidden"
               accept="video/mp4,video/quicktime"
               aria-label="Upload intro video"
+              onChange={(e) => {
+                if (e.target.files.length > 0) {
+                  handleVideoFile(e.target.files[0]);
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Upload CV */}
+        <div className="mb-6">
+          <label htmlFor="cv-upload" className="block text-base text-[#101727] mb-3 font-normal">
+            Upload CV (Optional)
+          </label>
+          <div
+            className={`relative w-full h-48 rounded-xl border-2 ${selectedCV
+              ? 'border-solid border-green-500 bg-green-50'
+              : isDraggingCV
+                ? 'border-dashed border-[#4A8FCC] bg-blue-50'
+                : 'border-dashed border-[#d0d5db] bg-white'
+              } hover:border-[#4A8FCC] transition-colors cursor-pointer`}
+            onClick={handleCVClick}
+            onDragOver={handleCVDragOver}
+            onDragLeave={handleCVDragLeave}
+            onDrop={handleCVDrop}
+          >
+            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center pointer-events-none">
+              {selectedCV ? (
+                <>
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                    <span className="text-4xl">✓</span>
+                  </div>
+                  <p className="text-base text-green-700 font-medium mb-1">
+                    CV Selected
+                  </p>
+                  <p className="text-sm text-[#495565] mb-2 px-4 text-center">
+                    {selectedCV.name}
+                  </p>
+                  <p className="text-xs text-[#697282]">
+                    {(selectedCV.size / 1024).toFixed(2)} KB
+                  </p>
+                  <p className="text-xs text-[#697282] mt-2">
+                    Click to change CV
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 flex items-center justify-center mb-3">
+                    <span className="text-5xl">📄</span>
+                  </div>
+                  <p className="text-base text-[#495565] mb-1">
+                    Upload your CV/Resume
+                  </p>
+                  <p className="text-sm text-[#697282]">
+                    PDF up to 10MB
+                  </p>
+                </>
+              )}
+            </div>
+            <input
+              type="file"
+              id="cv-upload"
+              className="hidden"
+              accept="application/pdf"
+              aria-label="Upload CV"
+              onChange={(e) => {
+                if (e.target.files.length > 0) {
+                  handleCVFile(e.target.files[0]);
+                }
+              }}
             />
           </div>
         </div>

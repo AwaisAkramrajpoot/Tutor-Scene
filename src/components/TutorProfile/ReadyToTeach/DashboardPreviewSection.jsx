@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
 
 // Inline, offline-safe SVG placeholder (no network request)
@@ -31,7 +30,7 @@ const dashboardFeaturesData = [
 
 export const DashboardPreviewSection = () => {
   const navigate = useNavigate();
-  
+
   return (
     <section className="w-full">
       <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -114,7 +113,7 @@ export const DashboardPreviewSection = () => {
             </div>
           </article>
 
-          <button 
+          <button
             onClick={() => navigate('/tutor-dashboard')}
             className="w-full h-14 rounded-lg bg-gradient-to-r from-[#47A6E2] to-[#004D94] text-white"
           >

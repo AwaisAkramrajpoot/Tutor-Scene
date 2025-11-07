@@ -15,6 +15,7 @@ import { StartTeachingPage } from './components/TutorProfile/ReadyToTeach/index'
 import { TutorDashboard } from './components/TutorProfile/TutorDashboard/index';
 import { AboutPage } from './components/About/Index';
 import { Home as BecomeTutorPage } from './components/TutorProfile/Home/index';
+import AdminDashboard from './components/AdminDashboard';
 function App() {
   return (
     <Router>
@@ -28,11 +29,12 @@ function App() {
         <Route path="/my-sessions" element={<Layout><MySessions /></Layout>} />
         <Route path="/session/:id" element={<Layout><SessionRoom /></Layout>} />
         <Route path="/create-profile" element={<Layout><CreateProfilePage /></Layout>} />
-        <Route path="/verify-identity" element={<Layout><GetVerified/></Layout>} />
+        <Route path="/verify-identity" element={<Layout><GetVerified /></Layout>} />
         <Route path="/ready-to-teach" element={<Layout><StartTeachingPage /></Layout>} />
         <Route path="/tutor-dashboard" element={<Layout><TutorDashboard /></Layout>} />
         <Route path="/about" element={<Layout><AboutPage /></Layout>} />
         <Route path="/become-tutor" element={<Layout><BecomeTutorPage /></Layout>} />
+        <Route path="/admin-dashboard" element={<Layout><AdminDashboard /></Layout>} />
       </Routes>
     </Router>
   );
