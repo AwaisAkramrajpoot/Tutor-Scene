@@ -48,7 +48,11 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         }
       : undefined;
 
-    const baseOptions: TypeOrmModuleOptions = {
+    const baseExtraOptions = {
+      connectionLimit: this.configService.get<number>('DATABASE_CONNECTION_LIMIT', 10),
+    };
+
+    const options: TypeOrmModuleOptions = {
       type: 'postgres',
       host: this.configService.get<string>('DATABASE_HOST', 'localhost'),
       port: this.configService.get<number>('DATABASE_PORT', 5432),
@@ -78,21 +82,19 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),
       // Additional PostgreSQL-specific options
       extra: {
-        connectionLimit: this.configService.get<number>('DATABASE_CONNECTION_LIMIT', 10),
+        ...baseExtraOptions,
+        ...(sslOptions
+          ? {
+              ssl: sslOptions,
+            }
+          : {}),
       },
+      ...(sslOptions
+        ? {
+            ssl: sslOptions,
+          }
+        : {}),
     };
-
-    if (!sslOptions) {
-      return baseOptions;
-    }
-
-    return {
-      ...baseOptions,
-      ssl: sslOptions,
-      extra: {
-        ...(baseOptions.extra ?? {}),
-        ssl: sslOptions,
-      },
-    };
+    return options;
   }
 }

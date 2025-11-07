@@ -48,4 +48,66 @@ export class StripeService {
       throw error;
     }
   }
+
+  async refundPayment(paymentIntentId: string): Promise<Stripe.Refund> {
+    try {
+      const refund = await this.stripe.refunds.create({
+        payment_intent: paymentIntentId,
+      });
+
+      this.logger.log(`Refund created: ${refund.id} for payment intent: ${paymentIntentId}`);
+      return refund;
+    } catch (error) {
+      this.logger.error(`Failed to create refund: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async createStripeCoupon(
+    code: string,
+    discountType: 'percentage' | 'fixed',
+    discountValue: number,
+  ): Promise<Stripe.Coupon> {
+    try {
+      const couponData: Stripe.CouponCreateParams = {
+        id: code,
+        name: code,
+      };
+
+      if (discountType === 'percentage') {
+        couponData.percent_off = discountValue;
+      } else {
+        // Convert to cents for Stripe
+        couponData.amount_off = Math.round(discountValue * 100);
+        couponData.currency = 'usd';
+      }
+
+      const coupon = await this.stripe.coupons.create(couponData);
+      this.logger.log(`Stripe coupon created: ${coupon.id}`);
+      return coupon;
+    } catch (error) {
+      this.logger.error(`Failed to create Stripe coupon: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async retrieveStripeCoupon(couponId: string): Promise<Stripe.Coupon> {
+    try {
+      return await this.stripe.coupons.retrieve(couponId);
+    } catch (error) {
+      this.logger.error(`Failed to retrieve Stripe coupon: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async deleteStripeCoupon(couponId: string): Promise<Stripe.DeletedCoupon> {
+    try {
+      const deleted = await this.stripe.coupons.del(couponId);
+      this.logger.log(`Stripe coupon deleted: ${couponId}`);
+      return deleted;
+    } catch (error) {
+      this.logger.error(`Failed to delete Stripe coupon: ${error.message}`);
+      throw error;
+    }
+  }
 }

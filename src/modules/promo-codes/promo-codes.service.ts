@@ -4,12 +4,14 @@ import { Repository } from 'typeorm';
 import { PromoCode } from '@/database/entities/promo-code.entity';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 import { PromoCodeDiscountType } from '@/database/entities/enums';
+import { StripeService } from '../bookings/services/stripe.service';
 
 @Injectable()
 export class PromoCodesService {
   constructor(
     @InjectRepository(PromoCode)
     private readonly promoCodeRepository: Repository<PromoCode>,
+    private readonly stripeService: StripeService,
   ) {}
 
   async create(createDto: CreatePromoCodeDto): Promise<PromoCode> {
@@ -18,10 +20,19 @@ export class PromoCodesService {
       throw new BadRequestException('Promo code already exists');
     }
 
+    // Create Stripe coupon
+    const discountType = createDto.discountType === PromoCodeDiscountType.PERCENTAGE ? 'percentage' : 'fixed';
+    const stripeCoupon = await this.stripeService.createStripeCoupon(
+      createDto.code,
+      discountType,
+      createDto.discountValue,
+    );
+
     const promoCode = this.promoCodeRepository.create({
       ...createDto,
       validFrom: new Date(createDto.validFrom),
       validUntil: new Date(createDto.validUntil),
+      stripeCouponId: stripeCoupon.id,
     });
     return this.promoCodeRepository.save(promoCode);
   }
@@ -55,6 +66,9 @@ export class PromoCodesService {
     }
 
     if (now < promoCode.validFrom || now > promoCode.validUntil) {
+     console.log(promoCode.validFrom, "Valid from")
+     console.log(promoCode.validUntil, "Valid until")
+
       throw new BadRequestException('Promo code is expired or not yet valid');
     }
 
@@ -69,10 +83,13 @@ export class PromoCodesService {
     let discount = 0;
     if (promoCode.discountType === PromoCodeDiscountType.PERCENTAGE) {
       discount = (bookingAmount * promoCode.discountValue) / 100;
+      console.log(`Percentage discount calculation: ${bookingAmount} * ${promoCode.discountValue} / 100 = ${discount}`);
     } else {
       discount = promoCode.discountValue;
+      console.log(`Fixed discount: ${discount}`);
     }
 
+    console.log(`Booking amount: ${bookingAmount}, Discount: ${discount}, Final: ${bookingAmount - discount}`);
     return { valid: true, discount };
   }
 
@@ -85,6 +102,17 @@ export class PromoCodesService {
   async deactivate(id: number): Promise<PromoCode> {
     const promoCode = await this.findOne(id);
     promoCode.isActive = false;
+    
+    // Optionally delete the Stripe coupon
+    if (promoCode.stripeCouponId) {
+      try {
+        await this.stripeService.deleteStripeCoupon(promoCode.stripeCouponId);
+      } catch (error) {
+        // Log but don't fail if Stripe deletion fails
+        console.error(`Failed to delete Stripe coupon: ${error.message}`);
+      }
+    }
+    
     return this.promoCodeRepository.save(promoCode);
   }
 }

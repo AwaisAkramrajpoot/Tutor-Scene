@@ -47,6 +47,6 @@ export default new DataSource({
     Conversation,
   ],
   migrations: ['src/database/migrations/*.ts'],
-  synchronize: false,
+  synchronize: true,
   logging: false,
 });
