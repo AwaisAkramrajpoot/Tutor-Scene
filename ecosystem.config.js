@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'tutor-scene-backend',
-      cwd: '/home/ubuntu/projects/tutor-scene/tutor-scene-backend',
+      cwd: '/home/ubuntu/tutor-scene-backend',
       script: 'dist/main.js',
       exec_mode: 'fork',
       instances: 1,
