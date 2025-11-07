@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { apiRequest } from '../utils/api';
 
 // Icons
 const SearchIcon = (props) => (
@@ -34,71 +35,64 @@ const DollarIcon = (props) => (
 
 const FindTutorsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [subject, setSubject] = useState('All Subjects');
-  const [level, setLevel] = useState('All Levels');
-  const [priceRange, setPriceRange] = useState('All Prices');
+  const [subject, setSubject] = useState('');
+  const [level, setLevel] = useState('');
+  const [priceRange, setPriceRange] = useState('');
   const [sortBy, setSortBy] = useState('Most Relevant');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [tutors, setTutors] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
 
-  const tutors = [
-    {
-      id: 1,
-      name: 'Sarah Mitchell',
-      image: '/images/tutor-placeholder.jpg',
-      subjects: ['Mathematics', 'Physics'],
-      description: 'Experienced mathematics and physics tutor with over 8 years of teaching experience. I specialize in making complex concepts simple and engaging.',
-      rate: 45,
-      availability: '3 days/week',
-    },
-    {
-      id: 2,
-      name: 'James Chen',
-      image: '/images/tutor-placeholder.jpg',
-      subjects: ['Computer Science', 'Programming'],
-      description: 'Software engineer and passionate educator. I teach Python, JavaScript, and web development to students of all levels.',
-      rate: 70,
-      availability: '3 days/week',
-    },
-    {
-      id: 3,
-      name: 'Emily Rodriguez',
-      image: '/images/tutor-placeholder.jpg',
-      subjects: ['English', 'Literature'],
-      description: 'English literature graduate with a passion for helping students improve their writing and reading comprehension skills.',
-      rate: 80,
-      availability: '3 days/week',
-    },
-    {
-      id: 4,
-      name: 'Michael Thompson',
-      image: '/images/tutor-placeholder.jpg',
-      subjects: ['Chemistry', 'Biology'],
-      description: 'PhD in Chemistry with extensive experience in tutoring high school and college students. I make science fun and accessible.',
-      rate: 50,
-      availability: '3 days/week',
-    },
-    {
-      id: 5,
-      name: 'Aisha Patel',
-      image: '/images/tutor-placeholder.jpg',
-      subjects: ['History', 'Social Studies'],
-      description: 'History enthusiast dedicated to bringing the past to life for students. I focus on critical thinking and essay writing.',
-      rate: 38,
-      availability: '3 days/week',
-    },
-    {
-      id: 6,
-      name: 'David Lee',
-      image: '/images/tutor-placeholder.jpg',
-      subjects: ['Music', 'Piano'],
-      description: 'Professional pianist and music teacher. I offer lessons for beginners to advanced students in piano and music theory.',
-      rate: 60,
-      availability: '3 days/week',
-    },
-  ];
+  // Get today's date in YYYY-MM-DD format for min date
+  const today = new Date().toISOString().split('T')[0];
+
+  // Fetch subjects on component mount
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const response = await apiRequest('/api/v1/subjects');
+        const subjectsList = response.subjects || response.data || response || [];
+        setAvailableSubjects(subjectsList);
+      } catch (error) {
+        console.error('Error fetching subjects:', error);
+      }
+    };
+
+    fetchSubjects();
+    fetchTutors();
+  }, []);
+
+  const fetchTutors = async () => {
+    try {
+      setLoading(true);
+
+      // Build query params
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('searchString', searchQuery);
+      if (subject) params.append('subject', subject);
+      if (level) params.append('level', level);
+      if (priceRange) params.append('priceRange', priceRange);
+      if (selectedDate) params.append('availability', selectedDate);
+
+      const queryString = params.toString();
+      const endpoint = queryString ? `/api/v1/onboarding/tutor?${queryString}` : '/api/v1/onboarding/tutor';
+
+      const response = await apiRequest(endpoint);
+      const tutorsList = response.tutors || response.data || response || [];
+      setTutors(tutorsList);
+    } catch (error) {
+      console.error('Error fetching tutors:', error);
+      setTutors([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    console.log('Searching for tutors with query:', searchQuery);
+    fetchTutors();
   };
 
   return (
@@ -120,15 +114,33 @@ const FindTutorsPage = () => {
         <div className="bg-white rounded-xl shadow-lg p-6 md:p-8 lg:p-10 border border-gray-200">
           {/* Main Search Input */}
           <form onSubmit={handleSearchSubmit} className="mb-6">
-            <div className="relative">
-              <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search"
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="relative flex gap-2">
+              <div className="relative flex-1">
+  {/* The icon needs to be absolutely positioned inside the relative parent */}
+  <svg 
+    className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 20 20" 
+    fill="currentColor"
+  >
+    {/* Assuming SearchIcon is an SVG, replacing with a generic search path for demonstration */}
+    <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.44 4.19l3.58 3.58a1 1 0 01-1.42 1.42l-3.58-3.58A7 7 0 012 9z" clipRule="evenodd" />
+  </svg>
+  
+  <input
+    type="text"
+    placeholder="Search for tutors..."
+    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+  />
+</div>
+              <button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+              >
+                Search
+              </button>
             </div>
           </form>
 
@@ -141,14 +153,12 @@ const FindTutorsPage = () => {
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
               >
-                <option>All Subjects</option>
-                <option>Mathematics</option>
-                <option>Physics</option>
-                <option>Computer Science</option>
-                <option>English</option>
-                <option>Chemistry</option>
-                <option>History</option>
-                <option>Music</option>
+                <option value="">All Subjects</option>
+                {availableSubjects.map((subj) => (
+                  <option key={subj.id} value={subj.name}>
+                    {subj.name}
+                  </option>
+                ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 <ChevronDownIcon />
@@ -162,7 +172,7 @@ const FindTutorsPage = () => {
                 value={level}
                 onChange={(e) => setLevel(e.target.value)}
               >
-                <option>All Levels</option>
+                <option value="">All Levels</option>
                 <option>Beginner</option>
                 <option>Intermediate</option>
                 <option>Advanced</option>
@@ -179,11 +189,9 @@ const FindTutorsPage = () => {
                 value={priceRange}
                 onChange={(e) => setPriceRange(e.target.value)}
               >
-                <option>All Prices</option>
-                <option>$0 - $25</option>
-                <option>$25 - $50</option>
-                <option>$50 - $75</option>
-                <option>$75+</option>
+                <option value="">All Prices</option>
+                <option value="lowToHigh">Low to High</option>
+                <option value="highToLow">High to Low</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 <ChevronDownIcon />
@@ -191,77 +199,165 @@ const FindTutorsPage = () => {
             </div>
 
             {/* Filter by Time Button */}
-            <button className="flex items-center justify-center bg-white border border-gray-300 rounded-lg py-3 px-4 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+            <button
+              onClick={() => setShowDatePicker(true)}
+              className="flex items-center justify-center bg-white border border-gray-300 rounded-lg py-3 px-4 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            >
               <FilterIcon className="mr-2" />
-              Filter by Time
+              {selectedDate ? `Date: ${selectedDate}` : 'Filter by Time'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Tutor List Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header for tutor list */}
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-xl font-semibold text-gray-800">Showing {tutors.length} tutors</h2>
-          <div className="relative">
-            <select
-              className="block appearance-none bg-white border border-gray-300 rounded-lg py-2 pl-4 pr-10 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option>Most Relevant</option>
-              <option>Price: Low to High</option>
-              <option>Price: High to Low</option>
-              <option>Rating</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-              <ChevronDownIcon />
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Select Date</h3>
+              <button
+                onClick={() => setShowDatePicker(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Choose a date (today or future dates only)
+              </label>
+              <input
+                type="date"
+                min={today}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDatePicker(false);
+                  fetchTutors();
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Apply Filter
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedDate('');
+                  setShowDatePicker(false);
+                  fetchTutors();
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Clear
+              </button>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Tutor Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {tutors.map((tutor) => (
-            <div key={tutor.id} className="bg-white rounded-xl shadow-md p-6 text-center border border-gray-200 hover:shadow-lg transition-shadow">
-              <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <div className="text-center text-gray-600">
-                  <svg className="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                  </svg>
-                  <p className="text-xs">Tutor Image</p>
+      {/* Tutor List Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Header for tutor list */}
+
+
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-gray-600">Loading tutors...</p>
+            </div>
+          </div>
+        ) : tutors.length === 0 ? (
+          <div className="text-center py-20">
+            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No tutors found</h3>
+            <p className="text-gray-600">Try adjusting your search filters</p>
+          </div>
+        ) : (
+          /* Tutor Cards Grid */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {tutors.map((tutor) => (
+              <div key={tutor.id} className="bg-white rounded-xl shadow-md p-6 text-center border border-gray-200 hover:shadow-lg transition-shadow">
+                {/* Profile Picture */}
+                {tutor.profilePic ? (
+                  <img
+                    src={tutor.profilePic}
+                    alt={tutor.fullName}
+                    className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
+                  />
+                ) : (
+                  <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <svg className="w-12 h-12 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                    </svg>
+                  </div>
+                )}
+
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{tutor.fullName}</h3>
+
+                {/* Subjects */}
+                <div className="flex flex-wrap justify-center gap-2 mb-4">
+                  {(Array.isArray(tutor.subjects)
+                    ? tutor.subjects
+                    : tutor.subjects?.split(',').map(s => s.trim()) || []
+                  ).map((subject, index) => (
+                    <span key={index} className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
+                      {subject}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Teaching Philosophy */}
+                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                  {tutor.teachingPhilosophy || 'Passionate educator dedicated to student success'}
+                </p>
+
+                {/* Grade Levels */}
+                {tutor.gradeLevels && (
+                  <p className="text-gray-500 text-xs mb-3">
+                    Grade Levels: {tutor.gradeLevels}
+                  </p>
+                )}
+
+                {/* Years of Experience */}
+                {tutor.yearsOfExperience && (
+                  <p className="text-gray-500 text-xs mb-3">
+                    {tutor.yearsOfExperience} years of experience
+                  </p>
+                )}
+
+                {/* Fee */}
+                <div className="flex items-center justify-center mb-6">
+                  <DollarIcon className="text-gray-500 mr-1" />
+                  <span className="text-2xl font-bold text-gray-900">${tutor.fee || '0'}</span>
+                  <span className="text-gray-600">/hour</span>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-4 justify-center">
+                  <Link to={`/tutor/${tutor.id}`} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                    View Profile
+                  </Link>
+                  {/* <button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                    Check Availability
+                  </button> */}
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{tutor.name}</h3>
-              <div className="flex flex-wrap justify-center gap-2 mb-4">
-                {tutor.subjects.map((subject, index) => (
-                  <span key={index} className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
-                    {subject}
-                  </span>
-                ))}
-              </div>
-              <p className="text-gray-600 text-sm mb-4 line-clamp-3">{tutor.description}</p>
-              <div className="flex items-center justify-center mb-2">
-                <DollarIcon className="text-gray-500 mr-1" />
-                <span className="text-2xl font-bold text-gray-900">${tutor.rate}</span>
-                <span className="text-gray-600">/hour</span>
-              </div>
-              <div className="flex items-center justify-center text-gray-500 text-sm mb-6">
-                <ClockIcon className="mr-1" />
-                <span>Available {tutor.availability}</span>
-              </div>
-              <div className="flex gap-4 justify-center">
-                <Link to={`/tutor/${tutor.id}`} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
-                  View Profile
-                </Link>
-                <button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
-                  Check Availability
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

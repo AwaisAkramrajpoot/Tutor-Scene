@@ -1,10 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { uploadOnboardingFile, apiRequest } from "../../utils/api";
+import { getTutorOnboarding, setTutorOnboarding } from "../../utils/onboarding";
 
 export const ProfileTipsSection = () => {
   const navigate = useNavigate();
   const [aboutMe, setAboutMe] = useState("");
   const [subjects, setSubjects] = useState("");
+  const [selectedSubjects, setSelectedSubjects] = useState([]);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [isSubjectsDropdownOpen, setIsSubjectsDropdownOpen] = useState(false);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const subjectsDropdownRef = useRef(null);
+  const [gradeLevels, setGradeLevels] = useState("");
+  const [selectedGradeLevels, setSelectedGradeLevels] = useState([]);
+  const [availableGradeLevels, setAvailableGradeLevels] = useState([]);
+  const [isGradeLevelsDropdownOpen, setIsGradeLevelsDropdownOpen] = useState(false);
+  const [loadingGradeLevels, setLoadingGradeLevels] = useState(false);
+  const gradeLevelsDropdownRef = useRef(null);
+  const [yearsOfExperience, setYearsOfExperience] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [interviewTime, setInterviewTime] = useState("");
   const [hourlyRate, setHourlyRate] = useState("50");
   const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
   const [isDraggingVideo, setIsDraggingVideo] = useState(false);
@@ -13,8 +30,117 @@ export const ProfileTipsSection = () => {
   const [selectedCV, setSelectedCV] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [isDraggingCV, setIsDraggingCV] = useState(false);
+  const [uploading, setUploading] = useState({ photo: false, video: false, cv: false });
+  const [uploadedUrls, setUploadedUrls] = useState({ profilePic: "", introVideo: "", cv: "" });
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        setLoadingSubjects(true);
+        const response = await apiRequest('/api/v1/subjects');
+        const subjectsList = response.subjects || response.data || response || [];
+        setAvailableSubjects(subjectsList);
+      } catch (error) {
+        console.error('Failed to fetch subjects:', error);
+      } finally {
+        setLoadingSubjects(false);
+      }
+    };
+
+    const fetchGradeLevels = async () => {
+      try {
+        setLoadingGradeLevels(true);
+        const response = await apiRequest('/api/v1/grade-levels');
+        const gradeLevelsList = response.gradeLevels || response.data || response || [];
+        setAvailableGradeLevels(gradeLevelsList);
+      } catch (error) {
+        console.error('Failed to fetch grade levels:', error);
+      } finally {
+        setLoadingGradeLevels(false);
+      }
+    };
+
+    fetchSubjects();
+    fetchGradeLevels();
+
+    const saved = getTutorOnboarding();
+    if (saved.teachingPhilosophy) setAboutMe(saved.teachingPhilosophy);
+    if (saved.subjects) {
+      setSubjects(saved.subjects);
+      // Parse saved subjects and match with available subjects
+      const savedSubjectNames = saved.subjects.split(',').map(s => s.trim());
+      setSelectedSubjects(savedSubjectNames);
+    }
+    if (saved.gradeLevels) {
+      setGradeLevels(saved.gradeLevels);
+      const savedGradeLevelNames = saved.gradeLevels.split(',').map(s => s.trim());
+      setSelectedGradeLevels(savedGradeLevelNames);
+    }
+    if (saved.yearsOfExperience) setYearsOfExperience(String(saved.yearsOfExperience));
+    if (saved.fullName) setFullName(saved.fullName);
+    if (saved.dateOfBirth) setDateOfBirth(saved.dateOfBirth);
+    if (saved.interviewTime) setInterviewTime(saved.interviewTime);
+    if (saved.profilePic) { setUploadedUrls((u)=>({ ...u, profilePic: saved.profilePic })); setPhotoPreview(saved.profilePic); }
+    if (saved.cv) setUploadedUrls((u)=>({ ...u, cv: saved.cv }));
+    if (saved.introVideo) setUploadedUrls((u)=>({ ...u, introVideo: saved.introVideo }));
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (subjectsDropdownRef.current && !subjectsDropdownRef.current.contains(event.target)) {
+        setIsSubjectsDropdownOpen(false);
+      }
+      if (gradeLevelsDropdownRef.current && !gradeLevelsDropdownRef.current.contains(event.target)) {
+        setIsGradeLevelsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Update subjects string when selectedSubjects changes
+  useEffect(() => {
+    const subjectsString = selectedSubjects.join(', ');
+    setSubjects(subjectsString);
+  }, [selectedSubjects]);
+
+  // Update grade levels string when selectedGradeLevels changes
+  useEffect(() => {
+    const gradeLevelsString = selectedGradeLevels.join(', ');
+    setGradeLevels(gradeLevelsString);
+  }, [selectedGradeLevels]);
 
   const maxAboutMeLength = 250;
+
+  const toggleSubject = (subjectName) => {
+    setSelectedSubjects(prev => {
+      if (prev.includes(subjectName)) {
+        return prev.filter(s => s !== subjectName);
+      } else {
+        return [...prev, subjectName];
+      }
+    });
+  };
+
+  const removeSubject = (subjectName) => {
+    setSelectedSubjects(prev => prev.filter(s => s !== subjectName));
+  };
+
+  const toggleGradeLevel = (gradeLevelName) => {
+    setSelectedGradeLevels(prev => {
+      if (prev.includes(gradeLevelName)) {
+        return prev.filter(g => g !== gradeLevelName);
+      } else {
+        return [...prev, gradeLevelName];
+      }
+    });
+  };
+
+  const removeGradeLevel = (gradeLevelName) => {
+    setSelectedGradeLevels(prev => prev.filter(g => g !== gradeLevelName));
+  };
 
   const handlePhotoClick = () => {
     document.getElementById('profile-photo').click();
@@ -42,15 +168,29 @@ export const ProfileTipsSection = () => {
     }
   };
 
-  const handlePhotoFile = (file) => {
-    setSelectedPhoto(file);
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result);
-    };
-    reader.readAsDataURL(file);
+const handlePhotoFile = async (file) => {
+  setSelectedPhoto(file);
+  // Quick local preview
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    setPhotoPreview(reader.result);
   };
+  reader.readAsDataURL(file);
+  // Upload to S3 via API
+  try {
+    setUploading((u) => ({ ...u, photo: true }));
+    const res = await uploadOnboardingFile(file);
+    const url = res.url || res.Location || res.fileUrl || res.data?.url;
+    if (!url) throw new Error('No URL returned from upload');
+    setUploadedUrls((u) => ({ ...u, profilePic: url }));
+    setTutorOnboarding({ profilePic: url });
+  } catch (e) {
+    console.error(e);
+    alert('Failed to upload profile photo.');
+  } finally {
+    setUploading((u) => ({ ...u, photo: false }));
+  }
+};
 
   const handleVideoDragOver = (e) => {
     e.preventDefault();
@@ -70,9 +210,22 @@ export const ProfileTipsSection = () => {
     }
   };
 
-  const handleVideoFile = (file) => {
-    setSelectedVideo(file);
-  };
+const handleVideoFile = async (file) => {
+  setSelectedVideo(file);
+  try {
+    setUploading((u) => ({ ...u, video: true }));
+    const res = await uploadOnboardingFile(file);
+    const url = res.url || res.Location || res.fileUrl || res.data?.url;
+    if (!url) throw new Error('No URL returned from upload');
+    setUploadedUrls((u) => ({ ...u, introVideo: url }));
+    setTutorOnboarding({ introVideo: url });
+  } catch (e) {
+    console.error(e);
+    alert('Failed to upload video.');
+  } finally {
+    setUploading((u) => ({ ...u, video: false }));
+  }
+};
 
   const handleCVClick = () => {
     document.getElementById('cv-upload').click();
@@ -96,9 +249,22 @@ export const ProfileTipsSection = () => {
     }
   };
 
-  const handleCVFile = (file) => {
-    setSelectedCV(file);
-  };
+const handleCVFile = async (file) => {
+  setSelectedCV(file);
+  try {
+    setUploading((u) => ({ ...u, cv: true }));
+    const res = await uploadOnboardingFile(file);
+    const url = res.url || res.Location || res.fileUrl || res.data?.url;
+    if (!url) throw new Error('No URL returned from upload');
+    setUploadedUrls((u) => ({ ...u, cv: url }));
+    setTutorOnboarding({ cv: url });
+  } catch (e) {
+    console.error(e);
+    alert('Failed to upload CV.');
+  } finally {
+    setUploading((u) => ({ ...u, cv: false }));
+  }
+};
 
   const profileTips = [
     "Use a professional, friendly photo where your face is clearly visible",
@@ -142,9 +308,9 @@ export const ProfileTipsSection = () => {
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
                   <div className="text-white text-center">
-                    <p className="text-lg font-medium mb-2">✓ Photo Selected</p>
-                    <p className="text-sm">{selectedPhoto.name}</p>
-                    <p className="text-xs mt-1">Click to change</p>
+                    <p className="text-lg font-medium mb-2">{uploading.photo ? 'Uploading...' : 'Photo Selected'}</p>
+                    <p className="text-sm">{selectedPhoto?.name || 'Profile Picture'}</p>
+                    <p className="text-xs mt-1">{uploadedUrls.profilePic ? 'Uploaded ✅' : 'Click to change'}</p>
                   </div>
                 </div>
               </div>
@@ -195,23 +361,264 @@ export const ProfileTipsSection = () => {
           </div>
         </div>
 
-        {/* Subjects You Teach */}
+        {/* Full Name */}
         <div className="mb-6">
-          <label htmlFor="subjects" className="block text-base text-[#101727] mb-3 font-normal">
-            Subjects You Teach
+          <label htmlFor="full-name" className="block text-base text-[#101727] mb-3 font-normal">
+            Full Name
           </label>
           <input
             type="text"
-            id="subjects"
-            value={subjects}
-            onChange={(e) => setSubjects(e.target.value)}
-            placeholder="e.g., Mathematics, English, Physics"
+            id="full-name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="e.g., John Smith"
             className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
-            aria-describedby="subjects-help"
           />
+        </div>
+
+        {/* Date of Birth */}
+        <div className="mb-6">
+          <label htmlFor="dob" className="block text-base text-[#101727] mb-3 font-normal">
+            Date of Birth
+          </label>
+          <input
+            type="date"
+            id="dob"
+            value={dateOfBirth}
+            onChange={(e) => setDateOfBirth(e.target.value)}
+            className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
+          />
+        </div>
+
+        {/* Subjects You Teach */}
+        <div className="mb-6" ref={subjectsDropdownRef}>
+          <label htmlFor="subjects" className="block text-base text-[#101727] mb-3 font-normal">
+            Subjects You Teach
+          </label>
+          
+          {/* Selected Subjects Display */}
+          <div className="mb-2">
+            {selectedSubjects.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {selectedSubjects.map((subject, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
+                  >
+                    {subject}
+                    <button
+                      type="button"
+                      onClick={() => removeSubject(subject)}
+                      className="ml-1 hover:text-blue-900 focus:outline-none"
+                      aria-label={`Remove ${subject}`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Dropdown Button */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsSubjectsDropdownOpen(!isSubjectsDropdownOpen)}
+              className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-left text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors flex items-center justify-between"
+              aria-describedby="subjects-help"
+            >
+              <span className={selectedSubjects.length === 0 ? 'text-[#717182]' : 'text-[#101727]'}>
+                {selectedSubjects.length === 0 
+                  ? 'Select subjects...' 
+                  : `${selectedSubjects.length} subject${selectedSubjects.length > 1 ? 's' : ''} selected`}
+              </span>
+              <svg 
+                className={`w-5 h-5 transition-transform ${isSubjectsDropdownOpen ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Dropdown Menu */}
+            {isSubjectsDropdownOpen && (
+              <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                {loadingSubjects ? (
+                  <div className="px-4 py-3 text-center text-[#697282]">
+                    Loading subjects...
+                  </div>
+                ) : availableSubjects.length === 0 ? (
+                  <div className="px-4 py-3 text-center text-[#697282]">
+                    No subjects available
+                  </div>
+                ) : (
+                  availableSubjects.map((subject) => {
+                    const subjectName = subject.name || subject;
+                    const isSelected = selectedSubjects.includes(subjectName);
+                    
+                    return (
+                      <button
+                        key={subject.id || subjectName}
+                        type="button"
+                        onClick={() => toggleSubject(subjectName)}
+                        className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center justify-between ${
+                          isSelected ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <span className={`text-base ${isSelected ? 'text-[#4A8FCC] font-medium' : 'text-[#101727]'}`}>
+                          {subjectName}
+                        </span>
+                        {isSelected && (
+                          <svg className="w-5 h-5 text-[#4A8FCC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
           <p id="subjects-help" className="text-sm text-[#697282] mt-2">
-            Separate multiple subjects with commas
+            Select one or more subjects you teach
           </p>
+        </div>
+
+        {/* Grade Levels */}
+        <div className="mb-6" ref={gradeLevelsDropdownRef}>
+          <label htmlFor="grade-levels" className="block text-base text-[#101727] mb-3 font-normal">
+            Grade Levels
+          </label>
+          
+          {/* Selected Grade Levels Display */}
+          <div className="mb-2">
+            {selectedGradeLevels.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {selectedGradeLevels.map((gradeLevel, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                  >
+                    {gradeLevel}
+                    <button
+                      type="button"
+                      onClick={() => removeGradeLevel(gradeLevel)}
+                      className="ml-1 hover:text-purple-900 focus:outline-none"
+                      aria-label={`Remove ${gradeLevel}`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Dropdown Button */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsGradeLevelsDropdownOpen(!isGradeLevelsDropdownOpen)}
+              className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-left text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors flex items-center justify-between"
+              aria-describedby="grade-levels-help"
+            >
+              <span className={selectedGradeLevels.length === 0 ? 'text-[#717182]' : 'text-[#101727]'}>
+                {selectedGradeLevels.length === 0 
+                  ? 'Select grade levels...' 
+                  : `${selectedGradeLevels.length} grade level${selectedGradeLevels.length > 1 ? 's' : ''} selected`}
+              </span>
+              <svg 
+                className={`w-5 h-5 transition-transform ${isGradeLevelsDropdownOpen ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Dropdown Menu */}
+            {isGradeLevelsDropdownOpen && (
+              <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                {loadingGradeLevels ? (
+                  <div className="px-4 py-3 text-center text-[#697282]">
+                    Loading grade levels...
+                  </div>
+                ) : availableGradeLevels.length === 0 ? (
+                  <div className="px-4 py-3 text-center text-[#697282]">
+                    No grade levels available
+                  </div>
+                ) : (
+                  availableGradeLevels.map((gradeLevel) => {
+                    const gradeLevelName = gradeLevel.name || gradeLevel;
+                    const isSelected = selectedGradeLevels.includes(gradeLevelName);
+                    
+                    return (
+                      <button
+                        key={gradeLevel.id || gradeLevelName}
+                        type="button"
+                        onClick={() => toggleGradeLevel(gradeLevelName)}
+                        className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center justify-between ${
+                          isSelected ? 'bg-purple-50' : ''
+                        }`}
+                      >
+                        <span className={`text-base ${isSelected ? 'text-[#6a3de8] font-medium' : 'text-[#101727]'}`}>
+                          {gradeLevelName}
+                        </span>
+                        {isSelected && (
+                          <svg className="w-5 h-5 text-[#6a3de8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
+          <p id="grade-levels-help" className="text-sm text-[#697282] mt-2">
+            Select one or more grade levels you teach
+          </p>
+        </div>
+
+        {/* Years of Experience */}
+        <div className="mb-6">
+          <label htmlFor="yoe" className="block text-base text-[#101727] mb-3 font-normal">
+            Years of Experience
+          </label>
+          <input
+            type="number"
+            id="yoe"
+            value={yearsOfExperience}
+            onChange={(e) => setYearsOfExperience(e.target.value)}
+            min="0"
+            className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
+          />
+        </div>
+
+        {/* Interview Time */}
+        <div className="mb-6">
+          <label htmlFor="interview" className="block text-base text-[#101727] mb-3 font-normal">
+            Preferred Interview Time (UTC)
+          </label>
+          <input
+            type="datetime-local"
+            id="interview"
+            value={interviewTime}
+            onChange={(e) => setInterviewTime(e.target.value)}
+            className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
+          />
         </div>
 
         {/* Hourly Rate */}
@@ -263,7 +670,7 @@ export const ProfileTipsSection = () => {
                     <span className="text-4xl">✓</span>
                   </div>
                   <p className="text-base text-green-700 font-medium mb-1">
-                    Video Selected
+                    {uploading.video ? 'Uploading...' : 'Video Selected'}
                   </p>
                   <p className="text-sm text-[#495565] mb-2 px-4 text-center">
                     {selectedVideo.name}
@@ -272,7 +679,7 @@ export const ProfileTipsSection = () => {
                     {(selectedVideo.size / (1024 * 1024)).toFixed(2)} MB
                   </p>
                   <p className="text-xs text-[#697282] mt-2">
-                    Click to change video
+                    {uploadedUrls.introVideo ? 'Uploaded ✅' : 'Click to change video'}
                   </p>
                 </>
               ) : (
@@ -328,7 +735,7 @@ export const ProfileTipsSection = () => {
                     <span className="text-4xl">✓</span>
                   </div>
                   <p className="text-base text-green-700 font-medium mb-1">
-                    CV Selected
+                    {uploading.cv ? 'Uploading...' : 'CV Selected'}
                   </p>
                   <p className="text-sm text-[#495565] mb-2 px-4 text-center">
                     {selectedCV.name}
@@ -337,7 +744,7 @@ export const ProfileTipsSection = () => {
                     {(selectedCV.size / 1024).toFixed(2)} KB
                   </p>
                   <p className="text-xs text-[#697282] mt-2">
-                    Click to change CV
+                    {uploadedUrls.cv ? 'Uploaded ✅' : 'Click to change CV'}
                   </p>
                 </>
               ) : (
@@ -371,9 +778,24 @@ export const ProfileTipsSection = () => {
 
         {/* Submit Button */}
         <button
-          type="submit"
-          onClick={() => navigate('/verify-identity')}
+          type="button"
+          onClick={() => {
+            setTutorOnboarding({
+              fullName,
+              dateOfBirth,
+              subjects,
+              gradeLevels,
+              yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
+              teachingPhilosophy: aboutMe,
+              interviewTime,
+              profilePic: uploadedUrls.profilePic || undefined,
+              cv: uploadedUrls.cv || undefined,
+              introVideo: uploadedUrls.introVideo || undefined,
+            });
+            navigate('/verify-identity');
+          }}
           className="w-full h-14 rounded-xl bg-gradient-to-r from-[#5BA3D8] to-[#1B5A94] text-white text-base font-medium hover:opacity-90 transition-opacity shadow-sm"
+          disabled={uploading.photo || uploading.video || uploading.cv}
         >
           Save and Continue
         </button>

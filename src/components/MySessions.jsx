@@ -1,5 +1,7 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiRequest } from '../utils/api';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Rating } from '@mui/material';
 
 // Icons
 const SearchIcon = (props) => (
@@ -28,16 +30,301 @@ const CalendarIcon = (props) => (
 
 const StarIcon = (props) => (
   <svg {...props} className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
   </svg>
 );
 
 const MySessions = () => {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = React.useState('upcoming');
+  const [activeTab, setActiveTab] = useState('upcoming');
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 10;
 
-  const sessions = [
+  // Review dialog state
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState(null);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+
+  // Cancel booking dialog state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [sessionToCancel, setSessionToCancel] = useState(null);
+  const [cancellingBooking, setCancellingBooking] = useState(false);
+
+  // Fetch sessions when tab or page changes
+  useEffect(() => {
+    fetchSessions();
+  }, [activeTab, currentPage]);
+
+  const fetchSessions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get student ID from localStorage
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        setError('User not found. Please log in again.');
+        return;
+      }
+
+      const user = JSON.parse(userStr);
+      const studentId = user.id || user.userId;
+
+      if (!studentId) {
+        setError('Student ID not found. Please log in again.');
+        return;
+      }
+
+      // Fetch sessions from API
+      const response = await apiRequest(
+        `/api/v1/bookings/student/${studentId}/sessions?status=${activeTab}&page=${currentPage}&limit=${limit}`,
+        'GET'
+      );
+
+      setSessions(response.data || []);
+      setTotal(response.total || 0);
+      setTotalPages(response.totalPages || 1);
+    } catch (err) {
+      console.error('Failed to fetch sessions:', err);
+      setError(err.message || 'Failed to load sessions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1); // Reset to first page when changing tabs
+  };
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const handleOpenReviewDialog = (session) => {
+    setSelectedSession(session);
+    setReviewRating(0);
+    setReviewComment('');
+    setReviewError(null);
+    setReviewSuccess(false);
+    setReviewDialogOpen(true);
+  };
+
+  const handleCloseReviewDialog = () => {
+    setReviewDialogOpen(false);
+    setSelectedSession(null);
+    setReviewRating(0);
+    setReviewComment('');
+    setReviewError(null);
+    setReviewSuccess(false);
+  };
+
+  const handleOpenCancelDialog = (session) => {
+    setSessionToCancel(session);
+    setCancelDialogOpen(true);
+  };
+
+  const handleCloseCancelDialog = () => {
+    setCancelDialogOpen(false);
+    setSessionToCancel(null);
+  };
+
+  const handleCancelBooking = async () => {
+    if (!sessionToCancel) return;
+
+    setCancellingBooking(true);
+
+    try {
+      await apiRequest(`/api/v1/bookings/${sessionToCancel.id}/cancel`, {
+        method: 'PATCH'
+      });
+
+      // Remove cancelled session from list or update its status
+      setSessions(prevSessions =>
+        prevSessions.filter(s => s.id !== sessionToCancel.id)
+      );
+
+      handleCloseCancelDialog();
+
+      // Refresh sessions list
+      fetchSessions();
+    } catch (err) {
+      console.error('Failed to cancel booking:', err);
+      alert(err.message || 'Failed to cancel booking. Please try again.');
+    } finally {
+      setCancellingBooking(false);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    // Validation
+    if (reviewRating === 0) {
+      setReviewError('Please select a rating');
+      return;
+    }
+
+    if (!reviewComment.trim()) {
+      setReviewError('Please write a comment');
+      return;
+    }
+
+    if (reviewComment.trim().length < 10) {
+      setReviewError('Comment must be at least 10 characters long');
+      return;
+    }
+
+    setSubmittingReview(true);
+    setReviewError(null);
+
+    try {
+      // Get student profile ID from localStorage
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        setReviewError('User not found. Please log in again.');
+        setSubmittingReview(false);
+        return;
+      }
+
+      const user = JSON.parse(userStr);
+      const studentProfileId = user.id || user.userId;
+
+      if (!studentProfileId) {
+        setReviewError('Student profile ID not found. Please log in again.');
+        setSubmittingReview(false);
+        return;
+      }
+
+      const payload = {
+        bookingId: selectedSession.id,
+        tutorProfileId: selectedSession.tutorProfileId,
+        studentProfileId: studentProfileId,
+        rating: reviewRating,
+        comment: reviewComment.trim()
+      };
+
+      await apiRequest('/api/v1/reviews', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      // Update the session in the list to mark review as added
+      setSessions(prevSessions =>
+        prevSessions.map(s =>
+          s.id === selectedSession.id
+            ? { ...s, reviewAdded: true }
+            : s
+        )
+      );
+
+      // Show success message
+      setReviewSuccess(true);
+
+      // Close dialog after 2 seconds
+      setTimeout(() => {
+        handleCloseReviewDialog();
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      setReviewError(err.message || 'Failed to submit review. Please try again.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      upcoming: 'bg-blue-100 text-blue-800',
+      completed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-100 text-red-800',
+      pending: 'bg-yellow-100 text-yellow-800'
+    };
+    return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTime = (startTime, endTime) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    const startStr = start.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    const endStr = end.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    return `${startStr} - ${endStr}`;
+  };
+
+  const calculateDuration = (startTime, endTime) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diffMs = end - start;
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    if (diffHours < 1) {
+      const diffMins = Math.round(diffMs / (1000 * 60));
+      return `${diffMins} min`;
+    }
+
+    return `${diffHours.toFixed(1)} hour${diffHours > 1 ? 's' : ''}`;
+  };
+
+  const renderPagination = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <button
+          key={i}
+          onClick={() => handlePageChange(i)}
+          className={`w-10 h-10 flex items-center justify-center rounded-lg ${currentPage === i
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-700 hover:bg-gray-100'
+            }`}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    return pages;
+  };
+
+  const mockSessions = [
     {
       id: 1,
       tutor: 'Sarah Mitchell',
@@ -136,126 +423,420 @@ const MySessions = () => {
         <div className="border-b border-gray-200 mb-6">
           <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setActiveTab('upcoming')}
+              onClick={() => handleTabChange('upcoming')}
               className={`${activeTab === 'upcoming' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Upcoming
-              <span className="ml-2 bg-gray-100 text-gray-900 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {sessions.filter(s => s.status === 'Upcoming').length}
-              </span>
+              {activeTab === 'upcoming' && (
+                <span className="ml-2 bg-gray-100 text-gray-900 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                  {total}
+                </span>
+              )}
             </button>
             <button
-              onClick={() => setActiveTab('completed')}
+              onClick={() => handleTabChange('completed')}
               className={`${activeTab === 'completed' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Completed
-              <span className="ml-2 bg-gray-100 text-gray-900 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {sessions.filter(s => s.status === 'Completed').length}
-              </span>
+              {activeTab === 'completed' && (
+                <span className="ml-2 bg-gray-100 text-gray-900 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                  {total}
+                </span>
+              )}
             </button>
             <button
-              onClick={() => setActiveTab('cancelled')}
+              onClick={() => handleTabChange('cancelled')}
               className={`${activeTab === 'cancelled' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Cancelled
-              <span className="ml-2 bg-gray-100 text-gray-900 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {sessions.filter(s => s.status === 'Cancelled').length}
-              </span>
+              {activeTab === 'cancelled' && (
+                <span className="ml-2 bg-gray-100 text-gray-900 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                  {total}
+                </span>
+              )}
             </button>
           </nav>
         </div>
 
-        {/* Sessions List */}
-        <div className="space-y-4">
-          {sessions
-            .filter(session => {
-              if (activeTab === 'upcoming') return session.status === 'Upcoming';
-              if (activeTab === 'completed') return session.status === 'Completed';
-              if (activeTab === 'cancelled') return session.status === 'Cancelled';
-              return true;
-            })
-            .map((session) => (
-            <div key={session.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-              <div className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between">
-                  <div className="flex items-center space-x-4 mb-4 md:mb-0">
-                    <img 
-                      src={session.avatar} 
-                      alt={session.tutor} 
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div>
-                      <h3 className="font-bold text-lg text-gray-900">{session.tutor}</h3>
-                      <p className="text-gray-600">{session.subject}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-6">
-                    <div className="text-center">
-                      <p className="text-sm text-gray-500">Date</p>
-                      <p className="font-medium">{session.date}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-500">Time</p>
-                      <p className="font-medium">{session.time}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-500">Duration</p>
-                      <p className="font-medium">{session.duration}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-500">Status</p>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        {session.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">Loading sessions...</span>
+          </div>
+        )}
 
-                {session.review && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-center mb-2">
-                      <div className="flex">
-                        {[...Array(5)].map((_, i) => (
-                          <StarIcon key={i} className={`${i < session.rating ? 'text-yellow-500' : 'text-gray-300'}`} />
-                        ))}
-                      </div>
-                      <span className="ml-2 text-sm text-gray-600">{session.rating}.0</span>
-                    </div>
-                    <p className="text-gray-700">{session.review}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pagination */}
-        <div className="mt-8 flex items-center justify-between">
-          <button 
-            className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            disabled
-          >
-            Previous
-          </button>
-          <div className="flex items-center space-x-1">
-            <button className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-600 text-white">
-              1
-            </button>
-            <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100">
-              2
-            </button>
-            <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100">
-              3
-            </button>
-            <span className="px-2">...</span>
-            <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100">
-              10
+        {/* Error State */}
+        {error && !loading && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <svg className="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-red-800 font-medium mb-2">Error Loading Sessions</p>
+            <p className="text-red-600 text-sm mb-4">{error}</p>
+            <button
+              onClick={fetchSessions}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Try Again
             </button>
           </div>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50">
-            Next
-          </button>
-        </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && sessions.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No {activeTab} sessions</h3>
+            <p className="text-gray-500 mb-4">You don't have any {activeTab} sessions at the moment.</p>
+            <button
+              onClick={() => navigate('/find-tutors')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Find a Tutor
+            </button>
+          </div>
+        )}
+
+        {/* Sessions List */}
+        {!loading && !error && sessions.length > 0 && (
+          <div className="space-y-4">
+            {sessions.map((session) => (
+              <div key={session.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                <div className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between">
+                    <div className="flex items-center space-x-4 mb-4 md:mb-0">
+                      <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+                        {session.tutor?.profilePic ? (
+                          <img
+                            src={session.tutor.profilePic}
+                            alt={session.tutor?.fullName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-lg font-bold text-gray-600">
+                            {session.tutor?.fullName?.charAt(0) || 'T'}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-900">{session.tutor?.fullName || 'Unknown Tutor'}</h3>
+                        <p className="text-gray-600">{session.subject?.name || 'Subject'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-6">
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500">Date</p>
+                        <p className="font-medium">{formatDate(session.startTime)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500">Time</p>
+                        <p className="font-medium text-sm">{formatTime(session.startTime, session.endTime)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500">Duration</p>
+                        <p className="font-medium">{calculateDuration(session.startTime, session.endTime)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500">Status</p>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
+                          {session.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions for Upcoming Sessions */}
+                  {session.status === 'upcoming' && (
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
+                      {session.zoomJoinLink && (
+                        <a
+                          href={session.zoomJoinLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Join Zoom Meeting
+                        </a>
+                      )}
+                      {session.status === 'confirmed' && (
+                        <button
+                          onClick={() => handleOpenCancelDialog(session)}
+                          className="inline-flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          Cancel Booking
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Cancellation Reason */}
+                  {session.status === 'cancelled' && session.cancellationReason && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Reason:</span> {session.cancellationReason}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Leave Review Button for Completed Sessions */}
+                  {session.status === 'completed' && !session.reviewAdded && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <button
+                        onClick={() => handleOpenReviewDialog(session)}
+                        className="inline-flex items-center bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                        Leave a Review
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Review Already Added */}
+                  {session.status === 'completed' && session.reviewAdded && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center text-green-600 text-sm">
+                        <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Review submitted
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Cancel Booking Confirmation Dialog */}
+        <Dialog
+          open={cancelDialogOpen}
+          onClose={handleCloseCancelDialog}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>
+            <div className="flex items-center justify-between">
+              <span className="text-xl font-bold text-gray-900">Cancel Booking</span>
+              <button
+                onClick={handleCloseCancelDialog}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={cancellingBooking}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </DialogTitle>
+          <DialogContent>
+            <div className="py-4">
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                Are you sure you want to proceed with this action?
+              </h3>
+              <p className="text-gray-600 text-center text-sm">
+                This will cancel your booking with {sessionToCancel?.tutor?.fullName}. This action cannot be undone.
+              </p>
+            </div>
+          </DialogContent>
+          <DialogActions className="px-6 pb-4">
+            <Button
+              onClick={handleCloseCancelDialog}
+              color="inherit"
+              disabled={cancellingBooking}
+            >
+              No, Keep Booking
+            </Button>
+            <Button
+              onClick={handleCancelBooking}
+              variant="contained"
+              color="error"
+              disabled={cancellingBooking}
+            >
+              {cancellingBooking ? 'Cancelling...' : 'Yes, Cancel Booking'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Review Dialog */}
+        <Dialog 
+          open={reviewDialogOpen} 
+          onClose={handleCloseReviewDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <div className="flex items-center justify-between">
+              <span className="text-xl font-bold text-gray-900">Leave a Review</span>
+              <button
+                onClick={handleCloseReviewDialog}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </DialogTitle>
+          <DialogContent>
+            {selectedSession && (
+              <div className="space-y-6 pt-2">
+                {/* Success Message */}
+                {reviewSuccess ? (
+                  <div className="text-center py-8">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Review Submitted!</h3>
+                    <p className="text-gray-600">Thank you for your feedback. Your review will be visible after admin approval.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Tutor Info */}
+                    <div className="flex items-center space-x-3 pb-4 border-b border-gray-200">
+                      <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+                        {selectedSession.tutor?.profilePic ? (
+                          <img
+                            src={selectedSession.tutor.profilePic}
+                            alt={selectedSession.tutor?.fullName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-lg font-bold text-gray-600">
+                            {selectedSession.tutor?.fullName?.charAt(0) || 'T'}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{selectedSession.tutor?.fullName}</h3>
+                        <p className="text-sm text-gray-600">{selectedSession.subject?.name}</p>
+                      </div>
+                    </div>
+
+                    {/* Rating */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Rating <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <Rating
+                          name="review-rating"
+                          value={reviewRating}
+                          onChange={(event, newValue) => {
+                            setReviewRating(newValue);
+                            setReviewError(null);
+                          }}
+                          size="large"
+                          precision={1}
+                        />
+                        {reviewRating > 0 && (
+                          <span className="text-sm text-gray-600 ml-2">
+                            {reviewRating} out of 5
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Comment */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Your Review <span className="text-red-500">*</span>
+                      </label>
+                      <TextField
+                        multiline
+                        rows={4}
+                        fullWidth
+                        variant="outlined"
+                        placeholder="Share your experience with this tutor..."
+                        value={reviewComment}
+                        onChange={(e) => {
+                          setReviewComment(e.target.value);
+                          setReviewError(null);
+                        }}
+                        inputProps={{ maxLength: 500 }}
+                      />
+                      <div className="flex justify-between items-center mt-1">
+                        <p className="text-xs text-gray-500">Minimum 10 characters</p>
+                        <p className="text-xs text-gray-500">{reviewComment.length}/500</p>
+                      </div>
+                    </div>
+
+                    {/* Error Message */}
+                    {reviewError && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className="text-sm text-red-800">{reviewError}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </DialogContent>
+          <DialogActions className="px-6 pb-4">
+            {!reviewSuccess && (
+              <>
+                <Button
+                  onClick={handleCloseReviewDialog}
+                  color="inherit"
+                  disabled={submittingReview}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmitReview}
+                  variant="contained"
+                  color="primary"
+                  disabled={submittingReview || reviewRating === 0 || !reviewComment.trim()}
+                >
+                  {submittingReview ? 'Submitting...' : 'Submit Review'}
+                </Button>
+              </>
+            )}
+          </DialogActions>
+        </Dialog>
+
+        {/* Pagination */}
+        {!loading && !error && totalPages > 1 && (
+          <div className="mt-8 flex items-center justify-between">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <div className="flex items-center space-x-1">
+              {renderPagination()}
+            </div>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

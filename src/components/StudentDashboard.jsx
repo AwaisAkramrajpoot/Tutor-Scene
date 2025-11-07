@@ -1,5 +1,7 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiRequest } from '../utils/api';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 
 // Icons
 const SearchIcon = (props) => (
@@ -40,16 +42,146 @@ const StarIcon = (props) => (
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
+  const [upcomingSessions, setUpcomingSessions] = useState([]);
+  const [recentTutors, setRecentTutors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingTutors, setLoadingTutors] = useState(true);
+  const [error, setError] = useState(null);
+  const [tutorsError, setTutorsError] = useState(null);
+  const [user, setUser] = useState(null);
 
-  const handleJoinSession = (tutorId) => {
-    navigate(`/session/${tutorId}`);
+  // Cancel booking dialog state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [sessionToCancel, setSessionToCancel] = useState(null);
+  const [cancellingBooking, setCancellingBooking] = useState(false);
+
+  useEffect(() => {
+    // Get user from localStorage
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const userData = JSON.parse(userStr);
+      setUser(userData);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchUpcomingSessions = async () => {
+      if (!user?.id) return;
+
+      try {
+        setLoading(true);
+        const response = await apiRequest(
+          `/api/v1/bookings/student/${user.id}/sessions?status=upcoming`,
+          'GET'
+        );
+        setUpcomingSessions(response.data || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching upcoming sessions:', err);
+        setError('Failed to load upcoming sessions');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUpcomingSessions();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const fetchRecentTutors = async () => {
+      if (!user?.id) return;
+
+      try {
+        setLoadingTutors(true);
+        const response = await apiRequest(
+          `/api/v1/conversations/student/${user.id}/recent-tutors`,
+          'GET'
+        );
+        setRecentTutors(response.data || response || []);
+        setTutorsError(null);
+      } catch (err) {
+        console.error('Error fetching recent tutors:', err);
+        setTutorsError('Failed to load recent tutors');
+      } finally {
+        setLoadingTutors(false);
+      }
+    };
+
+    fetchRecentTutors();
+  }, [user?.id]);
+
+  const handleJoinSession = (zoomLink) => {
+    if (zoomLink) {
+      window.open(zoomLink, '_blank');
+    } else {
+      alert('Zoom link not available for this session');
+    }
   };
+
+  const handleViewInChat = () => {
+    navigate('/messages');
+  };
+
+  const handleFindTutors = () => {
+    navigate('/find-tutors');
+  };
+
+  const handleMySessions = () => {
+    navigate('/my-sessions');
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleOpenCancelDialog = (session) => {
+    setSessionToCancel(session);
+    setCancelDialogOpen(true);
+  };
+
+  const handleCloseCancelDialog = () => {
+    setCancelDialogOpen(false);
+    setSessionToCancel(null);
+  };
+
+  const handleCancelBooking = async () => {
+    if (!sessionToCancel) return;
+
+    setCancellingBooking(true);
+
+    try {
+      await apiRequest(`/api/v1/bookings/${sessionToCancel.id}/cancel`, {
+        method: 'PATCH'
+      });
+
+      // Remove cancelled session from list
+      setUpcomingSessions(prevSessions =>
+        prevSessions.filter(s => s.id !== sessionToCancel.id)
+      );
+
+      handleCloseCancelDialog();
+    } catch (err) {
+      console.error('Failed to cancel booking:', err);
+      alert(err.message || 'Failed to cancel booking. Please try again.');
+    } finally {
+      setCancellingBooking(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold mb-2">Welcome Back, Alex!</h1>
+          <h1 className="text-4xl font-bold mb-2">
+            Welcome Back, {user?.firstName || 'Student'}!
+          </h1>
           <p className="text-xl text-blue-100">Ready to continue your learning journey?</p>
         </div>
       </div>
@@ -64,7 +196,10 @@ const StudentDashboard = () => {
             {/* Quick Action Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Find New Tutor Card */}
-              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer">
+              <div 
+                onClick={handleFindTutors}
+                className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+              >
                 <div className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
                     <SearchIcon className="text-white" />
@@ -77,7 +212,10 @@ const StudentDashboard = () => {
               </div>
 
               {/* My Sessions Card */}
-              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer">
+              <div 
+                onClick={handleMySessions}
+                className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+              >
                 <div className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
                     <BookIcon className="text-white" />
@@ -97,180 +235,140 @@ const StudentDashboard = () => {
                 <h2 className="text-xl font-bold text-gray-900">Upcoming Sessions</h2>
               </div>
               
-              <div className="space-y-4">
-                {/* Session 1 - Sarah Mitchell */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <img 
-                      src="https://placehold.co/48x48/E0E0E0/333333?text=SM" 
-                      alt="Sarah Mitchell" 
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div>
-                      <h3 className="font-bold text-gray-900">Sarah Mitchell</h3>
-                      <div className="flex space-x-2 mt-1">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                          Mathematics
-                        </span>
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                          Physics
-                        </span>
+              {loading ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600">{error}</p>
+                </div>
+              ) : upcomingSessions.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No upcoming sessions scheduled</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {upcomingSessions.map((session) => (
+                    <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <img 
+                          src={session.tutor?.profilePicture || `https://placehold.co/48x48/E0E0E0/333333?text=${session.tutor?.firstName?.[0] || 'T'}${session.tutor?.lastName?.[0] || 'T'}`}
+                          alt={`${session.tutor?.fullName || ''}`}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                        <div>
+                          <h3 className="font-bold text-gray-900">
+                            {session.tutor?.fullName}
+                          </h3>
+                          {session.subject && (
+                            <div className="flex space-x-2 mt-1">
+                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                                {session.subject.name || session.subject}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+                            <div className="flex items-center space-x-1">
+                              <CalendarIcon className="w-4 h-4" />
+                              <span>{formatDate(session.startTime)}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <ClockIcon className="w-4 h-4" />
+                              <span>{formatTime(session.endTime)}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                        <div className="flex items-center space-x-1">
-                          <CalendarIcon className="w-4 h-4" />
-                          <span>Oct 20</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <ClockIcon className="w-4 h-4" />
-                          <span>02:00 PM</span>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleJoinSession(session.zoomJoinLink)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          Join Session
+                        </button>
+                        {session.status === 'confirmed' && (
+                          <button
+                            onClick={() => handleOpenCancelDialog(session)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                            title="Cancel Booking"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
-                  </div>
-                  <button 
-                    onClick={() => handleJoinSession('sarah-mitchell')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                  >
-                    Join Session
-                  </button>
+                  ))}
                 </div>
-
-                {/* Session 2 - James Chen */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <img 
-                      src="https://placehold.co/48x48/E0E0E0/333333?text=JC" 
-                      alt="James Chen" 
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div>
-                      <h3 className="font-bold text-gray-900">James Chen</h3>
-                      <div className="flex space-x-2 mt-1">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                          Computer Science
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                        <div className="flex items-center space-x-1">
-                          <CalendarIcon className="w-4 h-4" />
-                          <span>Oct 22</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <ClockIcon className="w-4 h-4" />
-                          <span>04:00 PM</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => handleJoinSession('sarah-mitchell')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                  >
-                    Join Session
-                  </button>
-                </div>
-
-                {/* Session 3 - Maria Garcia */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <img 
-                      src="https://placehold.co/48x48/E0E0E0/333333?text=MG" 
-                      alt="Maria Garcia" 
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div>
-                      <h3 className="font-bold text-gray-900">Maria Garcia</h3>
-                      <div className="flex space-x-2 mt-1">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                          Mathematics
-                        </span>
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                          Physics
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                        <div className="flex items-center space-x-1">
-                          <CalendarIcon className="w-4 h-4" />
-                          <span>Oct 20</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <ClockIcon className="w-4 h-4" />
-                          <span>02:00 PM</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => handleJoinSession('sarah-mitchell')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                  >
-                    Join Session
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Recent Tutors Contacted */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Tutors Contacted</h2>
               
-              <div className="space-y-4">
-                {/* Tutor 1 - Emily Rodriguez */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <img 
-                      src="https://placehold.co/48x48/E0E0E0/333333?text=ER" 
-                      alt="Emily Rodriguez" 
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div>
-                      <h3 className="font-bold text-gray-900">Emily Rodriguez</h3>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <StarIcon className="text-green-500" />
-                        <span className="text-sm text-green-600 font-medium">4.8</span>
-                      </div>
-                      <div className="flex space-x-2 mt-2">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                          Mathematics
-                        </span>
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                          Physics
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                    Join Session
-                  </button>
+              {loadingTutors ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
-
-                {/* Tutor 2 - James Chen */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <img 
-                      src="https://placehold.co/48x48/E0E0E0/333333?text=JC" 
-                      alt="James Chen" 
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div>
-                      <h3 className="font-bold text-gray-900">James Chen</h3>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <StarIcon className="text-green-500" />
-                        <span className="text-sm text-green-600 font-medium">4.8</span>
-                      </div>
-                      <div className="flex space-x-2 mt-2">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                          Computer Science
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                    Join Session
-                  </button>
+              ) : tutorsError ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600">{tutorsError}</p>
                 </div>
-              </div>
+              ) : recentTutors.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No recent tutors contacted</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentTutors.map((item) => {
+                    const tutorInfo = item.tutor || {};
+                    const prospectInfo = item.prospectInfo || {};
+                    const subjects = prospectInfo.subjects ? prospectInfo.subjects.split(', ') : [];
+                    
+                    return (
+                      <div key={item.tutorId || item.conversationId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <img 
+                            src={prospectInfo.profilePic || tutorInfo.profilePhotoUrl || `https://placehold.co/48x48/E0E0E0/333333?text=${tutorInfo.firstName?.[0] || 'T'}${tutorInfo.lastName?.[0] || 'T'}`}
+                            alt={`${tutorInfo.firstName} ${tutorInfo.lastName}`}
+                            className="w-12 h-12 rounded-full object-cover"
+                          />
+                          <div>
+                            <h3 className="font-bold text-gray-900">
+                              {prospectInfo.fullName || `${tutorInfo.firstName} ${tutorInfo.lastName}`}
+                            </h3>
+                            {prospectInfo.yearsOfExperience && (
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className="text-sm text-gray-600">
+                                  {prospectInfo.yearsOfExperience} years experience
+                                </span>
+                              </div>
+                            )}
+                            {subjects.length > 0 && (
+                              <div className="flex space-x-2 mt-2 flex-wrap">
+                                {subjects.slice(0, 2).map((subject, index) => (
+                                  <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                                    {subject.trim()}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <button 
+                          onClick={handleViewInChat}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          View in Chat
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -365,6 +463,63 @@ const StudentDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Cancel Booking Confirmation Dialog */}
+      <Dialog
+        open={cancelDialogOpen}
+        onClose={handleCloseCancelDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-bold text-gray-900">Cancel Booking</span>
+            <button
+              onClick={handleCloseCancelDialog}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={cancellingBooking}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </DialogTitle>
+        <DialogContent>
+          <div className="py-4">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+              Are you sure you want to proceed with this action?
+            </h3>
+            <p className="text-gray-600 text-center text-sm">
+              This will cancel your booking with {sessionToCancel?.tutor?.fullName}. This action cannot be undone.
+            </p>
+          </div>
+        </DialogContent>
+        <DialogActions className="px-6 pb-4">
+          <Button
+            onClick={handleCloseCancelDialog}
+            color="inherit"
+            disabled={cancellingBooking}
+          >
+            No, Keep Booking
+          </Button>
+          <Button
+            onClick={handleCancelBooking}
+            variant="contained"
+            color="error"
+            disabled={cancellingBooking}
+          >
+            {cancellingBooking ? 'Cancelling...' : 'Yes, Cancel Booking'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

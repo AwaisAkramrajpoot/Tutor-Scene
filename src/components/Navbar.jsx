@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import { getConversations } from '../services/messagingService';
 
 // Icons
 const SearchIcon = (props) => (
@@ -17,19 +18,47 @@ const ChevronDownIcon = (props) => (
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     // Check if user is logged in
     const userStr = localStorage.getItem('user');
     if (userStr) {
-      setUser(JSON.parse(userStr));
+      const userData = JSON.parse(userStr);
+      setUser(userData);
     }
   }, []);
+
+  // Fetch unread message count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (!user) return;
+
+      try {
+        const conversations = await getConversations();
+        const totalUnread = conversations.reduce(
+          (sum, conv) => sum + (conv.unreadCount || 0),
+          0
+        );
+        setUnreadCount(totalUnread);
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Poll for updates every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+
+    return () => clearInterval(interval);
+  }, [user?.id]); // Only depend on user ID, not the entire user object
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -42,6 +71,18 @@ const Navbar = () => {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleDashboardClick = () => {
+    handleMenuClose();
+    // Route based on user role
+    if (user.role === 'tutor') {
+      navigate('/tutor-dashboard');
+    } else if (user.role === 'student') {
+      navigate('/dashboard');
+    } else if (user.role === 'admin') {
+      navigate('/admin-dashboard');
+    }
   };
 
   const handleLogoutClick = () => {
@@ -148,12 +189,36 @@ const Navbar = () => {
           {/* Navigation Links */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-8">
-              <Link
-                to="/"
-                className="text-blue-600 hover:text-blue-800 px-3 py-2 text-sm font-medium transition-colors"
-              >
-                Home
-              </Link>
+              {/* Show Home only when user is not authenticated */}
+              {!user && (
+                <Link
+                  to="/"
+                  className="text-blue-600 hover:text-blue-800 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Home
+                </Link>
+              )}
+              {/* Show Dashboard for authenticated students, tutors (active), and admins */}
+              {user && (user.role === 'student' || user.role === 'admin' || (user.role === 'tutor' && user.prospectStatus === 'active')) && (
+                <Link
+                  to={
+                    user.role === 'student' 
+                      ? '/dashboard' 
+                      : user.role === 'tutor' 
+                      ? '/tutor-dashboard' 
+                      : '/admin-dashboard'
+                  }
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                    (location.pathname === '/dashboard' && user.role === 'student') ||
+                    (location.pathname === '/tutor-dashboard' && user.role === 'tutor') ||
+                    (location.pathname === '/admin-dashboard' && user.role === 'admin')
+                      ? 'text-blue-600 hover:text-blue-800'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Dashboard
+                </Link>
+              )}
               {/* Show Find Tutors only if user is logged in and role is student */}
               {user && user.role === 'student' && (
                 <Link
@@ -163,18 +228,64 @@ const Navbar = () => {
                   Find Tutors
                 </Link>
               )}
-              <Link
-                to="/become-tutor"
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
-              >
-                Become a Tutor
-              </Link>
-              <Link
-                to="/about"
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
-              >
-                About
-              </Link>
+              {/* Show Availability only for authenticated tutors with active status */}
+              {user && user.role === 'tutor' && user.prospectStatus === 'active' && (
+                <Link
+                  to="/tutor/availability"
+                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Availability
+                </Link>
+              )}
+              {/* Show Interviews link for authenticated tutors and admins */}
+              {user && (user.role === 'tutor' || user.role === 'admin') && (
+                <Link
+                  to="/interviews"
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                    location.pathname === '/interviews'
+                      ? 'text-blue-600 hover:text-blue-800'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Interviews
+                </Link>
+              )}
+              {/* Show Messages link for authenticated users (students always, tutors only if active) */}
+              {user && (user.role === 'student' || user.role === 'admin' || (user.role === 'tutor' && user.prospectStatus === 'active')) && (
+                <Link
+                  to="/messages"
+                  className={`relative px-3 py-2 text-sm font-medium transition-colors ${
+                    location.pathname.startsWith('/messages')
+                      ? 'text-blue-600 hover:text-blue-800'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Messages
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+              {/* Hide "Become a Tutor" if user is already a tutor (active or pending) */}
+              {(!user || user.role !== 'tutor') && (
+                <Link
+                  to="/become-tutor"
+                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Become a Tutor
+                </Link>
+              )}
+              {/* Show About only when user is not authenticated */}
+              {!user && (
+                <Link
+                  to="/about"
+                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  About
+                </Link>
+              )}
             </div>
           </div>
 
@@ -203,7 +314,7 @@ const Navbar = () => {
                     horizontal: 'right',
                   }}
                 >
-                  <MenuItem onClick={handleLogoutClick}>Logout</MenuItem>
+                  <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>
                 </Menu>
               </>
             ) : (
