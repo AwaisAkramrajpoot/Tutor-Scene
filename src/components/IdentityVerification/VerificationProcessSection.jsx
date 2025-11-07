@@ -1,14 +1,31 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getCurrentUser, submitTutorOnboarding, uploadOnboardingFile } from "../../utils/api";
+import { getTutorOnboarding, setTutorOnboarding, clearTutorOnboarding } from "../../utils/onboarding";
 
 export const VerificationProcessSection = () => {
   const navigate = useNavigate();
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [govIdUrl, setGovIdUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setUploadedFile(file.name);
+    if (!file) return;
+    setUploadedFile(file.name);
+    setUploading(true);
+    try {
+      const res = await uploadOnboardingFile(file);
+      const url = res.url || res.Location || res.fileUrl || res.data?.url;
+      if (!url) throw new Error('No URL returned');
+      setGovIdUrl(url);
+      setTutorOnboarding({ govId: url });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload ID.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -64,7 +81,7 @@ export const VerificationProcessSection = () => {
           <h3 className="text-xl font-normal text-[#101727] mb-6">
             Upload Government-Issued ID
           </h3>
-          
+
           <div className="relative w-full h-72 rounded-xl border-2 border-dashed border-[#d0d5db] bg-white hover:border-[#4A8FCC] transition-colors">
             <label
               htmlFor="id-upload"
@@ -111,7 +128,7 @@ export const VerificationProcessSection = () => {
           <h3 className="text-xl font-normal text-[#101727] mb-6">
             Background Check Status
           </h3>
-          
+
           <div className="space-y-5">
             {/* Step 1 - Active */}
             <div className="flex items-center gap-5 p-6 bg-gray-50 rounded-xl">
@@ -178,11 +195,42 @@ export const VerificationProcessSection = () => {
 
         {/* Submit Button */}
         <button
-          type="submit"
-          onClick={() => navigate('/ready-to-teach')}
-          className="w-full h-14 rounded-xl bg-gradient-to-b from-[#2A66B8] to-[#0F3E78] text-white text-base font-normal hover:opacity-90 transition-opacity shadow-sm"
+          type="button"
+          onClick={async () => {
+            try {
+              setSubmitting(true);
+              const user = getCurrentUser();
+              const userId = user?.id || user?._id || user?.userId;
+              if (!userId) throw new Error('User not found in local storage');
+              const ob = getTutorOnboarding();
+              const payload = {
+                userId,
+                fullName: ob.fullName,
+                dateOfBirth: ob.dateOfBirth,
+                subjects: ob.subjects,
+                gradeLevels: ob.gradeLevels,
+                yearsOfExperience: ob.yearsOfExperience,
+                teachingPhilosophy: ob.teachingPhilosophy,
+                cv: ob.cv,
+                introVideo: ob.introVideo,
+                interviewTime: ob.interviewTime ? new Date(ob.interviewTime).toISOString() : undefined,
+                govId: ob.govId || govIdUrl,
+                profilePic: ob.profilePic,
+              };
+              await submitTutorOnboarding(payload);
+              clearTutorOnboarding();
+              navigate('/profile-under-review');
+            } catch (err) {
+              console.error(err);
+              alert(err.message || 'Failed to submit onboarding');
+            } finally {
+              setSubmitting(false);
+            }
+          }}
+          className="w-full h-14 rounded-xl bg-gradient-to-b from-[#2A66B8] to-[#0F3E78] text-white text-base font-normal hover:opacity-90 transition-opacity shadow-sm disabled:opacity-60"
+          disabled={uploading || submitting}
         >
-          Submit Verification
+          {submitting ? 'Submitting...' : 'Submit Verification'}
         </button>
       </div>
 

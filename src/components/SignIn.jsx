@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Alert, Snackbar } from '@mui/material';
+import { startTokenRefreshScheduler } from '../utils/api';
 
 // Utility for Eye/Eye-Slash icons (Tailwind Heroicons v1.0 compatible)
 const EyeIcon = (props) => (
@@ -87,6 +88,9 @@ const SignIn = () => {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
 
+        // Start automatic token refresh scheduler
+        startTokenRefreshScheduler();
+
         setAlert({
           open: true,
           message: 'Login successful! Redirecting...',
@@ -114,10 +118,31 @@ const SignIn = () => {
             );
 
             const statusData = await statusResponse.json();
+            console.log('Onboarding status data:', statusData);
 
             if (statusResponse.ok) {
-              if (statusData.status === 'active') {
-                setTimeout(() => navigate('/tutor-dashboard'), 1500);
+              const status = statusData.status || statusData.data?.status;
+              // Get paymentOnBoarded from login response user object
+              const paymentOnBoarded = data.user.paymentOnBoarded;
+              
+              console.log('Status:', status);
+              console.log('PaymentOnBoarded:', paymentOnBoarded);
+
+              if (status === 'active') {
+                // Check if payment onboarding is complete
+                if (paymentOnBoarded === false) {
+                  console.log('Redirecting to payment setup');
+                  setTimeout(() => navigate('/tutor/payment-setup'), 1500);
+                } else {
+                  console.log('Redirecting to tutor dashboard');
+                  setTimeout(() => navigate('/tutor-dashboard'), 1500);
+                }
+              } else if (status === 'awaiting_interview') {
+                console.log('Redirecting to interviews page');
+                setTimeout(() => navigate('/interviews'), 1500);
+              } else if (status === 'pending') {
+                console.log('Redirecting to create profile');
+                setTimeout(() => navigate('/create-profile'), 1500);
               } else {
                 setTimeout(() => navigate('/create-profile'), 1500);
               }

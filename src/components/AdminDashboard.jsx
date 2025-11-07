@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { Menu, MenuItem, IconButton } from '@mui/material';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from '@mui/material';
+import { apiRequest } from '../utils/api';
 
 const DotsVerticalIcon = (props) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -84,40 +86,213 @@ const Table = ({ columns, data }) => (
 );
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('students');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
+  const [tutorStatusFilter, setTutorStatusFilter] = useState('active');
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuRow, setMenuRow] = useState(null);
+  const [tutors, setTutors] = useState([]);
+  const [loadingTutors, setLoadingTutors] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [subjectForm, setSubjectForm] = useState({ name: '', description: '', category: '' });
+  const [submittingSubject, setSubmittingSubject] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [updatingReview, setUpdatingReview] = useState(null);
 
-  // Mock data – replace with API calls when available
-  const students = useMemo(() => ([
-    { id: 1, name: 'Alice Johnson', status: 'active' },
-    { id: 2, name: 'Brian Smith', status: 'inactive' },
-    { id: 3, name: 'Carla Gomez', status: 'active' },
-    { id: 4, name: 'David Lee', status: 'pending' },
-    { id: 5, name: 'Emma Wilson', status: 'active' },
-  ]), []);
+  // Students state
+  const [students, setStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
-  const tutors = [
-    { id: 201, name: 'Prof. Miller', subject: 'Mathematics', status: 'active' },
-    { id: 202, name: 'Dr. Chen', subject: 'Physics', status: 'pending' },
-    { id: 203, name: 'Ms. Patel', subject: 'English', status: 'inactive' },
-  ];
+  // Promo codes state
+  const [promoCodes, setPromoCodes] = useState([]);
+  const [loadingPromoCodes, setLoadingPromoCodes] = useState(false);
+  const [showPromoCodeModal, setShowPromoCodeModal] = useState(false);
+  const [promoCodeForm, setPromoCodeForm] = useState({
+    code: '',
+    discountType: 'percentage',
+    discountValue: '',
+    validFrom: '',
+    validUntil: '',
+    usageLimit: '',
+  });
+  const [submittingPromoCode, setSubmittingPromoCode] = useState(false);
 
-  const discounts = [
-    { id: 'DISC10', name: 'New User 10%', status: 'active', usage: 124 },
-    { id: 'FALL20', name: 'Fall 20%', status: 'expired', usage: 89 },
-  ];
+  // Grade levels state
+  const [gradeLevels, setGradeLevels] = useState([]);
+  const [loadingGradeLevels, setLoadingGradeLevels] = useState(false);
+  const [showGradeLevelModal, setShowGradeLevelModal] = useState(false);
+  const [gradeLevelForm, setGradeLevelForm] = useState({ name: '' });
+  const [submittingGradeLevel, setSubmittingGradeLevel] = useState(false);
+  const [editingGradeLevel, setEditingGradeLevel] = useState(null);
 
-  const reviews = [
-    { id: 9001, by: 'Alice', for: 'Dr. Chen', rating: 4, comment: 'Clear explanations!' },
-    { id: 9002, by: 'Brian', for: 'Ms. Patel', rating: 5, comment: 'Very engaging.' },
-  ];
+  // Fetch tutors when tab is active or filter changes
+  useEffect(() => {
+    if (activeTab === 'tutors') {
+      const fetchTutors = async () => {
+        setLoadingTutors(true);
+        try {
+          const data = await apiRequest(`/api/v1/onboarding/tutors/list?status=${tutorStatusFilter}`);
+          // Handle various response shapes
+          let list = [];
+          if (Array.isArray(data)) {
+            list = data;
+          } else if (Array.isArray(data.prospects)) {
+            list = data.prospects;
+          } else if (Array.isArray(data.tutors)) {
+            list = data.tutors;
+          } else if (Array.isArray(data.data)) {
+            list = data.data;
+          }
+          setTutors(list);
+        } catch (err) {
+          console.error('Failed to fetch tutors:', err);
+          setTutors([]);
+        } finally {
+          setLoadingTutors(false);
+        }
+      };
+      fetchTutors();
+    }
+  }, [activeTab, tutorStatusFilter]);
 
-  const filteredStudents = useMemo(() => {
-    if (statusFilter === 'all') return students;
-    return students.filter((s) => s.status === statusFilter);
-  }, [students, statusFilter]);
+  // Fetch subjects when tab is active
+  useEffect(() => {
+    if (activeTab === 'subjects') {
+      const fetchSubjects = async () => {
+        setLoadingSubjects(true);
+        try {
+          const data = await apiRequest('/api/v1/subjects');
+          let list = [];
+          if (Array.isArray(data)) {
+            list = data;
+          } else if (Array.isArray(data.subjects)) {
+            list = data.subjects;
+          } else if (Array.isArray(data.data)) {
+            list = data.data;
+          }
+          setSubjects(list);
+        } catch (err) {
+          console.error('Failed to fetch subjects:', err);
+          setSubjects([]);
+        } finally {
+          setLoadingSubjects(false);
+        }
+      };
+      fetchSubjects();
+    }
+  }, [activeTab]);
+
+  // Fetch reviews when tab is active
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      const fetchReviews = async () => {
+        setLoadingReviews(true);
+        try {
+          const data = await apiRequest('/api/v1/reviews?status=pending');
+          let list = [];
+          if (Array.isArray(data)) {
+            list = data;
+          } else if (Array.isArray(data.reviews)) {
+            list = data.reviews;
+          } else if (Array.isArray(data.data)) {
+            list = data.data;
+          }
+          setReviews(list);
+        } catch (err) {
+          console.error('Failed to fetch reviews:', err);
+          setReviews([]);
+        } finally {
+          setLoadingReviews(false);
+        }
+      };
+      fetchReviews();
+    }
+  }, [activeTab]);
+
+  // Fetch students when tab is active or filter changes
+  useEffect(() => {
+    if (activeTab === 'students') {
+      const fetchStudents = async () => {
+        setLoadingStudents(true);
+        try {
+          const data = await apiRequest(`/api/v1/users/students/all?status=${statusFilter}`);
+          let list = [];
+          if (Array.isArray(data)) {
+            list = data;
+          } else if (Array.isArray(data.students)) {
+            list = data.students;
+          } else if (Array.isArray(data.data)) {
+            list = data.data;
+          }
+          setStudents(list);
+        } catch (err) {
+          console.error('Failed to fetch students:', err);
+          setStudents([]);
+        } finally {
+          setLoadingStudents(false);
+        }
+      };
+      fetchStudents();
+    }
+  }, [activeTab, statusFilter]);
+
+  // Fetch promo codes when tab is active
+  useEffect(() => {
+    if (activeTab === 'discounts') {
+      const fetchPromoCodes = async () => {
+        setLoadingPromoCodes(true);
+        try {
+          const data = await apiRequest('/api/v1/promo-codes');
+          let list = [];
+          if (Array.isArray(data)) {
+            list = data;
+          } else if (Array.isArray(data.promoCodes)) {
+            list = data.promoCodes;
+          } else if (Array.isArray(data.data)) {
+            list = data.data;
+          }
+          setPromoCodes(list);
+        } catch (err) {
+          console.error('Failed to fetch promo codes:', err);
+          setPromoCodes([]);
+        } finally {
+          setLoadingPromoCodes(false);
+        }
+      };
+      fetchPromoCodes();
+    }
+  }, [activeTab]);
+
+  // Fetch grade levels when tab is active
+  useEffect(() => {
+    if (activeTab === 'gradeLevels') {
+      const fetchGradeLevels = async () => {
+        setLoadingGradeLevels(true);
+        try {
+          const data = await apiRequest('/api/v1/grade-levels');
+          let list = [];
+          if (Array.isArray(data)) {
+            list = data;
+          } else if (Array.isArray(data.gradeLevels)) {
+            list = data.gradeLevels;
+          } else if (Array.isArray(data.data)) {
+            list = data.data;
+          }
+          setGradeLevels(list);
+        } catch (err) {
+          console.error('Failed to fetch grade levels:', err);
+          setGradeLevels([]);
+        } finally {
+          setLoadingGradeLevels(false);
+        }
+      };
+      fetchGradeLevels();
+    }
+  }, [activeTab]);
 
   const openMenu = (event, row) => {
     setMenuAnchor(event.currentTarget);
@@ -129,10 +304,259 @@ export default function AdminDashboard() {
   };
 
   const viewRow = () => {
-    // hook up routing or modal as needed
-    // eslint-disable-next-line no-alert
-    alert(`View details for: ${menuRow?.name || menuRow?.id}`);
+    if (menuRow?.id) {
+      navigate(`/admin/tutor/${menuRow.id}`);
+    }
     closeMenu();
+  };
+
+  const handleOpenSubjectModal = () => {
+    setSubjectForm({ name: '', description: '', category: '' });
+    setShowSubjectModal(true);
+  };
+
+  const handleCloseSubjectModal = () => {
+    setShowSubjectModal(false);
+    setSubjectForm({ name: '', description: '', category: '' });
+  };
+
+  const handleSubjectFormChange = (field, value) => {
+    setSubjectForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreateSubject = async () => {
+    if (!subjectForm.name || !subjectForm.category) {
+      alert('Name and Category are required');
+      return;
+    }
+    setSubmittingSubject(true);
+    try {
+      await apiRequest('/api/v1/subjects', {
+        method: 'POST',
+        body: JSON.stringify(subjectForm),
+      });
+      handleCloseSubjectModal();
+      // Refresh subjects list
+      const data = await apiRequest('/api/v1/subjects');
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (Array.isArray(data.subjects)) {
+        list = data.subjects;
+      } else if (Array.isArray(data.data)) {
+        list = data.data;
+      }
+      setSubjects(list);
+    } catch (err) {
+      console.error('Failed to create subject:', err);
+      alert(err.message || 'Failed to create subject');
+    } finally {
+      setSubmittingSubject(false);
+    }
+  };
+
+  const handleUpdateReviewStatus = async (reviewId, status) => {
+    setUpdatingReview(reviewId);
+    try {
+      await apiRequest(`/api/v1/reviews/${reviewId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+      // Remove the review from the list after successful update
+      setReviews(prev => prev.filter(r => r.id !== reviewId));
+    } catch (err) {
+      console.error('Failed to update review status:', err);
+      alert(err.message || 'Failed to update review status');
+    } finally {
+      setUpdatingReview(null);
+    }
+  };
+
+  const handleOpenPromoCodeModal = () => {
+    setPromoCodeForm({
+      code: '',
+      discountType: 'percentage',
+      discountValue: '',
+      validFrom: '',
+      validUntil: '',
+      usageLimit: '',
+    });
+    setShowPromoCodeModal(true);
+  };
+
+  const handleClosePromoCodeModal = () => {
+    setShowPromoCodeModal(false);
+    setPromoCodeForm({
+      code: '',
+      discountType: 'percentage',
+      discountValue: '',
+      validFrom: '',
+      validUntil: '',
+      usageLimit: '',
+    });
+  };
+
+  const handlePromoCodeFormChange = (field, value) => {
+    setPromoCodeForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreatePromoCode = async () => {
+    if (!promoCodeForm.code || !promoCodeForm.discountValue) {
+      alert('Code and Discount Value are required');
+      return;
+    }
+    setSubmittingPromoCode(true);
+    try {
+      const payload = {
+        code: promoCodeForm.code,
+        discountType: promoCodeForm.discountType,
+        discountValue: parseFloat(promoCodeForm.discountValue),
+      };
+
+      // Add optional fields only if they have values
+      if (promoCodeForm.validFrom) {
+        payload.validFrom = new Date(promoCodeForm.validFrom).toISOString();
+      }
+      if (promoCodeForm.validUntil) {
+        payload.validUntil = new Date(promoCodeForm.validUntil).toISOString();
+      }
+      if (promoCodeForm.usageLimit) {
+        payload.usageLimit = parseInt(promoCodeForm.usageLimit);
+      }
+
+      await apiRequest('/api/v1/promo-codes', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      handleClosePromoCodeModal();
+      // Refresh promo codes list
+      const data = await apiRequest('/api/v1/promo-codes');
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (Array.isArray(data.promoCodes)) {
+        list = data.promoCodes;
+      } else if (Array.isArray(data.data)) {
+        list = data.data;
+      }
+      setPromoCodes(list);
+    } catch (err) {
+      console.error('Failed to create promo code:', err);
+      alert(err.message || 'Failed to create promo code');
+    } finally {
+      setSubmittingPromoCode(false);
+    }
+  };
+
+  const handleDeactivatePromoCode = async (promoCodeId) => {
+    if (!window.confirm('Are you sure you want to deactivate this promo code?')) {
+      return;
+    }
+    try {
+      await apiRequest(`/api/v1/promo-codes/${promoCodeId}/deactivate`, {
+        method: 'PATCH'
+      });
+      // Refresh promo codes list
+      const data = await apiRequest('/api/v1/promo-codes');
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (Array.isArray(data.promoCodes)) {
+        list = data.promoCodes;
+      } else if (Array.isArray(data.data)) {
+        list = data.data;
+      }
+      setPromoCodes(list);
+    } catch (err) {
+      console.error('Failed to deactivate promo code:', err);
+      alert(err.message || 'Failed to deactivate promo code');
+    }
+  };
+
+  const handleOpenGradeLevelModal = (gradeLevel = null) => {
+    if (gradeLevel) {
+      setEditingGradeLevel(gradeLevel);
+      setGradeLevelForm({ name: gradeLevel.name });
+    } else {
+      setEditingGradeLevel(null);
+      setGradeLevelForm({ name: '' });
+    }
+    setShowGradeLevelModal(true);
+  };
+
+  const handleCloseGradeLevelModal = () => {
+    setShowGradeLevelModal(false);
+    setGradeLevelForm({ name: '' });
+    setEditingGradeLevel(null);
+  };
+
+  const handleGradeLevelFormChange = (field, value) => {
+    setGradeLevelForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveGradeLevel = async () => {
+    if (!gradeLevelForm.name) {
+      alert('Name is required');
+      return;
+    }
+    setSubmittingGradeLevel(true);
+    try {
+      if (editingGradeLevel) {
+        // Update existing grade level
+        await apiRequest(`/api/v1/grade-levels/${editingGradeLevel.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(gradeLevelForm),
+        });
+      } else {
+        // Create new grade level
+        await apiRequest('/api/v1/grade-levels', {
+          method: 'POST',
+          body: JSON.stringify(gradeLevelForm),
+        });
+      }
+      handleCloseGradeLevelModal();
+      // Refresh grade levels list
+      const data = await apiRequest('/api/v1/grade-levels');
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (Array.isArray(data.gradeLevels)) {
+        list = data.gradeLevels;
+      } else if (Array.isArray(data.data)) {
+        list = data.data;
+      }
+      setGradeLevels(list);
+    } catch (err) {
+      console.error('Failed to save grade level:', err);
+      alert(err.message || 'Failed to save grade level');
+    } finally {
+      setSubmittingGradeLevel(false);
+    }
+  };
+
+  const handleDeleteGradeLevel = async (gradeLevelId) => {
+    if (!window.confirm('Are you sure you want to delete this grade level?')) {
+      return;
+    }
+    try {
+      await apiRequest(`/api/v1/grade-levels/${gradeLevelId}`, {
+        method: 'DELETE'
+      });
+      // Refresh grade levels list
+      const data = await apiRequest('/api/v1/grade-levels');
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (Array.isArray(data.gradeLevels)) {
+        list = data.gradeLevels;
+      } else if (Array.isArray(data.data)) {
+        list = data.data;
+      }
+      setGradeLevels(list);
+    } catch (err) {
+      console.error('Failed to delete grade level:', err);
+      alert(err.message || 'Failed to delete grade level');
+    }
   };
 
   const statIcon = (
@@ -151,15 +575,17 @@ export default function AdminDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard title="Active Students" value={students.filter(s=>s.status==='active').length} subtitle="Current active learners" icon={statIcon} />
-        <StatCard title="Active Tutors" value={tutors.filter(t=>t.status==='active').length} subtitle="Available tutors" icon={statIcon} />
-        <StatCard title="Active Discounts" value={discounts.filter(d=>d.status==='active').length} subtitle="Public promotions" icon={statIcon} />
+        <StatCard title="Active Students" value={statusFilter === 'active' && !loadingStudents ? students.length : '—'} subtitle="Current active learners" icon={statIcon} />
+        <StatCard title="Active Tutors" value={activeTab === 'tutors' && !loadingTutors ? tutors.length : '—'} subtitle="Available tutors" icon={statIcon} />
+        <StatCard title="Active Promo Codes" value={activeTab === 'discounts' && !loadingPromoCodes ? promoCodes.filter(p=>p.isActive).length : '—'} subtitle="Active promotions" icon={statIcon} />
       </div>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
         <TabButton active={activeTab==='students'} onClick={()=>setActiveTab('students')}>Students</TabButton>
         <TabButton active={activeTab==='tutors'} onClick={()=>setActiveTab('tutors')}>Tutors</TabButton>
+        <TabButton active={activeTab==='subjects'} onClick={()=>setActiveTab('subjects')}>Subjects</TabButton>
+        <TabButton active={activeTab==='gradeLevels'} onClick={()=>setActiveTab('gradeLevels')}>Grade Levels</TabButton>
         <TabButton active={activeTab==='discounts'} onClick={()=>setActiveTab('discounts')}>Discounts</TabButton>
         <TabButton active={activeTab==='reviews'} onClick={()=>setActiveTab('reviews')}>Reviews</TabButton>
       </div>
@@ -174,28 +600,51 @@ export default function AdminDashboard() {
                 value={statusFilter}
                 onChange={setStatusFilter}
                 options={[
-                  { value: 'all', label: 'All Statuses' },
                   { value: 'active', label: 'Active' },
                   { value: 'inactive', label: 'Inactive' },
+                  { value: 'suspended', label: 'Suspended' },
                   { value: 'pending', label: 'Pending' },
                 ]}
               />
             }
           />
-          <Table
-            columns={[
-              { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
-              { key: 'name', header: "Student's Name" },
-              { key: 'actions', header: '', render: (row) => (
-                <div className="flex justify-end">
-                  <IconButton size="small" onClick={(e)=>openMenu(e, row)}>
-                    <DotsVerticalIcon />
-                  </IconButton>
-                </div>
-              ) },
-            ]}
-            data={filteredStudents}
-          />
+          {loadingStudents ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : students.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No students found for this status.</div>
+          ) : (
+            <Table
+              columns={[
+                { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
+                { key: 'firstName', header: 'First Name' },
+                { key: 'lastName', header: 'Last Name' },
+                { key: 'email', header: 'Email' },
+                { key: 'status', header: 'Status', render: (row) => {
+                  const statusColors = {
+                    active: 'bg-green-50 text-green-700',
+                    inactive: 'bg-gray-50 text-gray-700',
+                    suspended: 'bg-red-50 text-red-700',
+                    pending: 'bg-amber-50 text-amber-700',
+                  };
+                  return (
+                    <span className={`px-2 py-1 rounded text-xs ${statusColors[row.status] || 'bg-gray-100 text-gray-600'}`}>
+                      {row.status}
+                    </span>
+                  );
+                } },
+                { key: 'actions', header: '', render: (row) => (
+                  <div className="flex justify-end">
+                    <IconButton size="small" onClick={(e)=>openMenu(e, row)}>
+                      <DotsVerticalIcon />
+                    </IconButton>
+                  </div>
+                ) },
+              ]}
+              data={students}
+            />
+          )}
 
           <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu} anchorOrigin={{vertical:'bottom', horizontal:'right'}} transformOrigin={{vertical:'top', horizontal:'right'}}>
             <MenuItem onClick={viewRow}>View</MenuItem>
@@ -205,80 +654,464 @@ export default function AdminDashboard() {
 
       {activeTab === 'tutors' && (
         <section className="space-y-4">
-          <SectionHeader title="Tutors" right={
-            <div className="text-sm text-gray-500">Total: {tutors.length}</div>
-          } />
-          <Table
-            columns={[
-              { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
-              { key: 'name', header: 'Name' },
-              { key: 'subject', header: 'Subject' },
-              { key: 'status', header: 'Status', render: (row) => (
-                <span className={`px-2 py-1 rounded text-xs ${row.status==='active' ? 'bg-green-50 text-green-700' : row.status==='pending' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>{row.status}</span>
-              ) },
-              { key: 'actions', header: '', render: (row) => (
-                <div className="flex justify-end">
-                  <IconButton size="small" onClick={(e)=>openMenu(e, row)}>
-                    <DotsVerticalIcon />
-                  </IconButton>
-                </div>
-              ) },
-            ]}
-            data={tutors}
+          <SectionHeader
+            title="Tutors"
+            right={
+              <FilterDropdown
+                value={tutorStatusFilter}
+                onChange={setTutorStatusFilter}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'awaiting_interview', label: 'Awaiting Interview' },
+                  { value: 'suspended', label: 'Suspended' },
+                  { value: 'rejected', label: 'Rejected' },
+                  { value: 'deactivated', label: 'Deactivated' },
+                ]}
+              />
+            }
           />
+          {loadingTutors ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : tutors.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No tutors found for this status.</div>
+          ) : (
+            <Table
+              columns={[
+                { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
+                { key: 'fullName', header: 'Name' },
+                { key: 'subjects', header: 'Subjects' },
+                { key: 'status', header: 'Status', render: (row) => {
+                  const statusColors = {
+                    active: 'bg-green-50 text-green-700',
+                    pending: 'bg-amber-50 text-amber-700',
+                    awaiting_interview: 'bg-blue-50 text-blue-700',
+                    suspended: 'bg-red-50 text-red-700',
+                    rejected: 'bg-gray-50 text-gray-700',
+                    deactivated: 'bg-gray-100 text-gray-600',
+                  };
+                  return (
+                    <span className={`px-2 py-1 rounded text-xs ${statusColors[row.status] || 'bg-gray-100 text-gray-600'}`}>
+                      {row.status?.replace('_', ' ')}
+                    </span>
+                  );
+                } },
+                { key: 'actions', header: '', render: (row) => (
+                  <div className="flex justify-end">
+                    <IconButton size="small" onClick={(e)=>openMenu(e, row)}>
+                      <DotsVerticalIcon />
+                    </IconButton>
+                  </div>
+                ) },
+              ]}
+              data={tutors}
+            />
+          )}
           <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
             <MenuItem onClick={viewRow}>View</MenuItem>
           </Menu>
+        </section>
+      )}
+
+      {activeTab === 'subjects' && (
+        <section className="space-y-4">
+          <SectionHeader
+            title="Subjects"
+            right={
+              <button
+                onClick={handleOpenSubjectModal}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                Add Subject
+              </button>
+            }
+          />
+          {loadingSubjects ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : subjects.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No subjects found.</div>
+          ) : (
+            <Table
+              columns={[
+                { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
+                { key: 'name', header: 'Name' },
+                { key: 'category', header: 'Category' },
+                { key: 'description', header: 'Description', render: (row) => (
+                  <span className="text-gray-600">{row.description || 'N/A'}</span>
+                ) },
+                { key: 'actions', header: '', render: (row) => (
+                  <div className="flex justify-end">
+                    <IconButton size="small" onClick={(e)=>openMenu(e, row)}>
+                      <DotsVerticalIcon />
+                    </IconButton>
+                  </div>
+                ) },
+              ]}
+              data={subjects}
+            />
+          )}
+          <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
+            <MenuItem onClick={viewRow}>View</MenuItem>
+          </Menu>
+        </section>
+      )}
+
+      {activeTab === 'gradeLevels' && (
+        <section className="space-y-4">
+          <SectionHeader
+            title="Grade Levels"
+            right={
+              <button
+                onClick={() => handleOpenGradeLevelModal()}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                Add Grade Level
+              </button>
+            }
+          />
+          {loadingGradeLevels ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : gradeLevels.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No grade levels found.</div>
+          ) : (
+            <Table
+              columns={[
+                { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
+                { key: 'name', header: 'Name' },
+                { key: 'actions', header: '', render: (row) => (
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => handleOpenGradeLevelModal(row)}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteGradeLevel(row.id)}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) },
+              ]}
+              data={gradeLevels}
+            />
+          )}
         </section>
       )}
 
       {activeTab === 'discounts' && (
         <section className="space-y-4">
-          <SectionHeader title="Discounts" right={<button className="bg-amber-600 hover:bg-amber-700 text-white text-sm px-3 py-2 rounded-md">Create Discount</button>} />
-          <Table
-            columns={[
-              { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
-              { key: 'id', header: 'Code' },
-              { key: 'name', header: 'Name' },
-              { key: 'status', header: 'Status', render: (row) => (
-                <span className={`px-2 py-1 rounded text-xs ${row.status==='active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{row.status}</span>
-              ) },
-              { key: 'usage', header: 'Usage' },
-              { key: 'actions', header: '', render: (row) => (
-                <div className="flex justify-end">
-                  <IconButton size="small" onClick={(e)=>openMenu(e, row)}>
-                    <DotsVerticalIcon />
-                  </IconButton>
-                </div>
-              ) },
-            ]}
-            data={discounts}
+          <SectionHeader 
+            title="Promo Codes" 
+            right={
+              <button 
+                onClick={handleOpenPromoCodeModal}
+                className="bg-amber-600 hover:bg-amber-700 text-white text-sm px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                Create Promo Code
+              </button>
+            } 
           />
-          <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
-            <MenuItem onClick={viewRow}>View</MenuItem>
-          </Menu>
+          {loadingPromoCodes ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : promoCodes.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No promo codes found.</div>
+          ) : (
+            <Table
+              columns={[
+                { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
+                { key: 'code', header: 'Code' },
+                { key: 'discountType', header: 'Type', render: (row) => (
+                  <span className="capitalize">{row.discountType}</span>
+                ) },
+                { key: 'discountValue', header: 'Value', render: (row) => (
+                  <span>{row.discountType === 'percentage' ? `${row.discountValue}%` : `$${row.discountValue}`}</span>
+                ) },
+                { key: 'usedCount', header: 'Used', render: (row) => (
+                  <span>{row.usedCount || 0} / {row.usageLimit || '∞'}</span>
+                ) },
+                { key: 'validUntil', header: 'Expires', render: (row) => (
+                  <span className="text-xs">
+                    {row.validUntil 
+                      ? new Date(row.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : 'Never'}
+                  </span>
+                ) },
+                { key: 'isActive', header: 'Status', render: (row) => (
+                  <span className={`px-2 py-1 rounded text-xs ${row.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {row.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                ) },
+                { key: 'actions', header: '', render: (row) => (
+                  <div className="flex justify-end gap-2">
+                    {row.isActive && (
+                      <button
+                        onClick={() => handleDeactivatePromoCode(row.id)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Deactivate
+                      </button>
+                    )}
+                  </div>
+                ) },
+              ]}
+              data={promoCodes}
+            />
+          )}
         </section>
       )}
 
       {activeTab === 'reviews' && (
         <section className="space-y-4">
-          <SectionHeader title="Reviews" right={<div className="text-sm text-gray-500">Recent: {reviews.length}</div>} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {reviews.map((r) => (
-              <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium text-gray-900">{r.by} → {r.for}</div>
-                  <div className="text-amber-600 font-medium">{Array.from({length: r.rating}).map((_,i)=>'★').join('')}</div>
+          <SectionHeader title="Pending Reviews" right={<div className="text-sm text-gray-500">Pending: {reviews.length}</div>} />
+          {loadingReviews ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No pending reviews to moderate.</div>
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((review) => (
+                <div key={review.id} className="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="font-semibold text-gray-900">
+                          {review.student?.firstName} {review.student?.lastName}
+                        </div>
+                        <span className="text-gray-400">→</span>
+                        <div className="font-medium text-gray-700">
+                          {review.tutor?.fullName || 'Unknown Tutor'}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="text-amber-500 font-medium text-lg">
+                          {Array.from({length: review.rating || 0}).map((_,i)=>'★').join('')}
+                          {Array.from({length: 5 - (review.rating || 0)}).map((_,i)=>'☆').join('')}
+                        </div>
+                        <span className="text-sm text-gray-500">({review.rating}/5)</span>
+                      </div>
+                      <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+                      {review.createdAt && (
+                        <p className="text-xs text-gray-400 mt-2">
+                          Submitted: {new Date(review.createdAt).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={() => handleUpdateReviewStatus(review.id, 'rejected')}
+                      disabled={updatingReview === review.id}
+                      className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updatingReview === review.id ? 'Processing...' : 'Reject'}
+                    </button>
+                    <button
+                      onClick={() => handleUpdateReviewStatus(review.id, 'approved')}
+                      disabled={updatingReview === review.id}
+                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updatingReview === review.id ? 'Processing...' : 'Approve'}
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-600">{r.comment}</p>
-                <div className="flex justify-end">
-                  <button onClick={()=>alert('View review '+r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">View</button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
+
+      {/* Add Subject Modal */}
+      <Dialog open={showSubjectModal} onClose={handleCloseSubjectModal} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New Subject</DialogTitle>
+        <DialogContent>
+          <div className="space-y-4 pt-2">
+            <TextField
+              label="Name"
+              required
+              fullWidth
+              value={subjectForm.name}
+              onChange={(e) => handleSubjectFormChange('name', e.target.value)}
+              variant="outlined"
+            />
+            <TextField
+              label="Category"
+              required
+              fullWidth
+              value={subjectForm.category}
+              onChange={(e) => handleSubjectFormChange('category', e.target.value)}
+              variant="outlined"
+            />
+            <TextField
+              label="Description"
+              fullWidth
+              multiline
+              rows={3}
+              value={subjectForm.description}
+              onChange={(e) => handleSubjectFormChange('description', e.target.value)}
+              variant="outlined"
+            />
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseSubjectModal} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateSubject}
+            variant="contained"
+            color="primary"
+            disabled={submittingSubject || !subjectForm.name || !subjectForm.category}
+          >
+            {submittingSubject ? 'Creating...' : 'Create Subject'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add/Edit Grade Level Modal */}
+      <Dialog open={showGradeLevelModal} onClose={handleCloseGradeLevelModal} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingGradeLevel ? 'Edit Grade Level' : 'Add New Grade Level'}</DialogTitle>
+        <DialogContent>
+          <div className="space-y-4 pt-2">
+            <TextField
+              label="Name"
+              required
+              fullWidth
+              value={gradeLevelForm.name}
+              onChange={(e) => handleGradeLevelFormChange('name', e.target.value)}
+              variant="outlined"
+              placeholder="e.g., High School"
+            />
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseGradeLevelModal} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveGradeLevel}
+            variant="contained"
+            color="primary"
+            disabled={submittingGradeLevel || !gradeLevelForm.name}
+          >
+            {submittingGradeLevel ? (editingGradeLevel ? 'Updating...' : 'Creating...') : (editingGradeLevel ? 'Update' : 'Create')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Promo Code Modal */}
+      <Dialog open={showPromoCodeModal} onClose={handleClosePromoCodeModal} maxWidth="sm" fullWidth>
+        <DialogTitle>Create Promo Code</DialogTitle>
+        <DialogContent>
+          <div className="space-y-4 pt-2">
+            <TextField
+              label="Promo Code"
+              required
+              fullWidth
+              value={promoCodeForm.code}
+              onChange={(e) => handlePromoCodeFormChange('code', e.target.value.toUpperCase())}
+              variant="outlined"
+              placeholder="e.g., WELCOME2025"
+            />
+            <TextField
+              label="Discount Type"
+              required
+              fullWidth
+              select
+              value={promoCodeForm.discountType}
+              onChange={(e) => handlePromoCodeFormChange('discountType', e.target.value)}
+              variant="outlined"
+              SelectProps={{ native: true }}
+            >
+              <option value="percentage">Percentage</option>
+              <option value="fixed">Fixed Amount</option>
+            </TextField>
+            <TextField
+              label={promoCodeForm.discountType === 'percentage' ? 'Discount Percentage' : 'Discount Amount'}
+              required
+              fullWidth
+              type="number"
+              value={promoCodeForm.discountValue}
+              onChange={(e) => handlePromoCodeFormChange('discountValue', e.target.value)}
+              variant="outlined"
+              placeholder={promoCodeForm.discountType === 'percentage' ? 'e.g., 30' : 'e.g., 5'}
+            />
+            <TextField
+              label="Valid From (Optional)"
+              fullWidth
+              type="datetime-local"
+              value={promoCodeForm.validFrom}
+              onChange={(e) => handlePromoCodeFormChange('validFrom', e.target.value)}
+              variant="outlined"
+              InputLabelProps={{ shrink: true }}
+              helperText="When the promo code becomes active"
+            />
+            <TextField
+              label="Valid Until (Optional)"
+              fullWidth
+              type="datetime-local"
+              value={promoCodeForm.validUntil}
+              onChange={(e) => handlePromoCodeFormChange('validUntil', e.target.value)}
+              variant="outlined"
+              InputLabelProps={{ shrink: true }}
+              helperText="When the promo code expires"
+            />
+            <TextField
+              label="Usage Limit (Optional)"
+              fullWidth
+              type="number"
+              value={promoCodeForm.usageLimit}
+              onChange={(e) => handlePromoCodeFormChange('usageLimit', e.target.value)}
+              variant="outlined"
+              placeholder="Leave empty for unlimited"
+              helperText="Maximum number of times this code can be used"
+            />
+            <div className="flex items-center gap-2 pt-2">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={promoCodeForm.isActive}
+                onChange={(e) => handlePromoCodeFormChange('isActive', e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="isActive" className="text-sm text-gray-700">
+                Active (code can be used immediately)
+              </label>
+            </div>
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClosePromoCodeModal} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreatePromoCode}
+            variant="contained"
+            color="primary"
+            disabled={submittingPromoCode || !promoCodeForm.code || !promoCodeForm.discountValue}
+          >
+            {submittingPromoCode ? 'Creating...' : 'Create Promo Code'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
