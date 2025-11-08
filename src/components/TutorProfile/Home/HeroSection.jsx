@@ -53,9 +53,9 @@ export const HeroSection = () => {
           <div className="relative">
             <div className="rounded-full border-4 border-[#fcb209] p-8">
               <img
-                src={TUTOR_PLACEHOLDER}
+                src="/images/tutorbg.png"
                 alt="Professional tutor"
-                className="w-full h-auto rounded-full"
+                className="w-full h-auto rounded-full object-cover"
               />
             </div>
 
