@@ -806,13 +806,9 @@ const handleCVFile = async (file) => {
         {/* Hero Image Placeholder */}
         <div className="w-full h-80 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl overflow-hidden shadow-md">
           <img
-            src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&h=600&fit=crop"
+            src="/images/TutorProfile.jpg"
             alt="Professional tutor"
             className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-6xl text-gray-400">📷</div>';
-            }}
           />
         </div>
 

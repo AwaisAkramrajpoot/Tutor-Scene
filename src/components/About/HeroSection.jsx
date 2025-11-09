@@ -19,10 +19,7 @@ export const HeroSection = () => {
             <img
               className="w-full h-auto object-cover"
               alt="Tutor Scene Team"
-              src={HERO_IMAGE}
-              onError={(e) => {
-                e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='700' height='400'><rect width='100%' height='100%' fill='%2347A6E2'/></svg>";
-              }}
+              src="/images/AboutPage.jpg"
             />
           </div>
         </div>

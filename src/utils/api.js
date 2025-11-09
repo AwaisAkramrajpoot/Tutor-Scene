@@ -1,6 +1,6 @@
 // API utility to handle requests with authorization token and automatic token refresh
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_URL = process.env.REACT_APP_API_URL || 'http://tutor-scene-alb-470637409.us-east-1.elb.amazonaws.com';
 
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;

@@ -79,37 +79,54 @@ const Home = () => {
 
             {/* Right Side - Student Image and Statistics */}
             <div className="relative">
-              {/* Student Image Placeholder */}
+              {/* Student Image */}
               <div className="relative">
-                <div className="w-full h-96 bg-gray-300 rounded-lg flex items-center justify-center">
-                  <div className="text-center text-gray-600">
-                    <svg className="w-16 h-16 mx-auto mb-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                    <p className="text-sm">Student Image Placeholder</p>
-                  </div>
-                </div>
+                <img 
+                  src="/images/homebannerheader.png" 
+                  alt="Student learning" 
+                  className="w-full h-auto max-h-[500px] object-contain rounded-lg"
+                />
               </div>
 
               {/* Statistics Cards */}
-              <div className="absolute -top-4 -right-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
-                <div className="text-center">
+              {/* Top Left - Subjects Available */}
+              <div className="absolute top-8 -left-4 bg-white rounded-xl shadow-lg p-4 flex items-center gap-3 max-w-xs">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+                <div>
                   <div className="text-2xl font-bold text-gray-900">20+</div>
-                  <div className="text-sm text-gray-600">Verified Tutors</div>
+                  <div className="text-xs text-gray-600">Subjects Available</div>
                 </div>
               </div>
 
-              <div className="absolute top-1/2 -right-8 bg-white rounded-lg shadow-lg p-4 max-w-xs">
+              {/* Top Right - Successful Lessons */}
+              <div className="absolute top-8 -right-4 bg-white rounded-xl shadow-lg p-4 max-w-xs">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900">10K+</div>
-                  <div className="text-sm text-gray-600">Successful Lessons</div>
+                  <div className="text-xs text-gray-600">Successful Lessons</div>
                 </div>
               </div>
 
-              <div className="absolute -bottom-4 -right-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
-                <div className="text-center">
+              {/* Bottom Right - Tutors */}
+              <div className="absolute bottom-8 -right-4 bg-white rounded-xl shadow-lg p-4 flex items-center gap-3 max-w-xs">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Tutors</div>
                   <div className="text-2xl font-bold text-gray-900">250+</div>
-                  <div className="text-sm text-gray-600">Subjects</div>
                 </div>
               </div>
             </div>
@@ -312,14 +329,11 @@ const Home = () => {
 
             {/* Right Side - Thoughtful Student Image */}
             <div className="relative">
-              <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
-                <div className="text-center text-gray-600">
-                  <svg className="w-16 h-16 mx-auto mb-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                  </svg>
-                  <p className="text-sm">Thoughtful Student Image Placeholder</p>
-                </div>
-              </div>
+              <img 
+                src="/images/studentHome.png" 
+                alt="Thoughtful student learning" 
+                className="w-full h-auto max-h-96 object-contain rounded-lg"
+              />
               
               {/* Floating Decorative Elements */}
               <div className="absolute -top-4 -right-4 w-12 h-12 bg-blue-400 rounded-full opacity-60"></div>
@@ -398,49 +412,42 @@ const Home = () => {
             </div>
 
             {/* Right Side - Testimonial Card and Image */}
-            <div className="relative">
-              {/* Student Image */}
-              <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center mb-6">
-                <div className="text-center text-gray-600">
-                  <svg className="w-16 h-16 mx-auto mb-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            <div className="relative max-w-lg mx-auto lg:mx-0">
+              {/* Student Image with rounded corners */}
+              <div className="relative">
+                <img 
+                  src="/images/testimonials.jpg" 
+                  alt="Happy student with books" 
+                  className="w-full h-auto rounded-3xl shadow-xl object-cover"
+                />
+                
+                {/* Navigation Arrow */}
+                <button className="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                  <p className="text-sm">Student Image Placeholder</p>
-                </div>
+                </button>
               </div>
 
-              {/* Testimonial Card */}
-              <div className="bg-white rounded-lg shadow-lg p-6 relative">
-                <div className="flex justify-between items-start mb-4">
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-                
-                <blockquote className="text-gray-700 mb-4 italic">
+              {/* Testimonial Card - Overlapping bottom */}
+              <div className="relative -mt-32 mx-4 bg-white rounded-2xl shadow-2xl p-8 border-l-4 border-red-500">
+                <blockquote className="text-gray-600 mb-6 text-base leading-relaxed">
                   "Tutor Scene made finding the right tutor so easy! My lessons are interactive, flexible, and actually fun. I've improved more in a few weeks than I expected."
                 </blockquote>
                 
-                <div className="flex items-center justify-between">
+                <div className="flex items-end justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900">Clara Rose</p>
-                    <div className="flex items-center mt-1">
-                      <div className="flex text-yellow-400">
-                        {[...Array(5)].map((_, i) => (
-                          <svg key={i} className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                          </svg>
-                        ))}
-                      </div>
-                      <span className="text-sm text-gray-600 ml-2">Tutor Scene for Students</span>
+                    <p className="font-bold text-gray-900 text-lg">Gloria Rose</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex text-yellow-400 mb-1 justify-end">
+                      {[...Array(5)].map((_, i) => (
+                        <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                      ))}
                     </div>
+                    <p className="text-xs text-gray-500">Rated 5 Stars by Students</p>
                   </div>
                 </div>
               </div>
