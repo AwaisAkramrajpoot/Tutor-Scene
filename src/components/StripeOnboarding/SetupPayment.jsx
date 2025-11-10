@@ -48,9 +48,9 @@ const SetupPayment = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-brand-light-blue to-white flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-brand-medium-blue mb-4"></div>
           <p className="text-gray-600 text-lg">Loading payment setup...</p>
         </div>
       </div>
@@ -71,7 +71,7 @@ const SetupPayment = () => {
             <p className="text-gray-600 mb-6">{error}</p>
             <button
               onClick={() => navigate('/tutor-dashboard')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg"
             >
               Go to Dashboard
             </button>
@@ -86,8 +86,8 @@ const SetupPayment = () => {
       <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8 md:p-12">
         {/* Icon */}
         <div className="flex justify-center mb-6">
-          <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center">
-            <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-24 h-24 bg-brand-light-blue rounded-full flex items-center justify-center border-4 border-brand-gold">
+            <svg className="w-12 h-12 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
             </svg>
           </div>
@@ -105,16 +105,16 @@ const SetupPayment = () => {
         </p>
 
         {/* Info Box */}
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-8 rounded-r-lg">
+        <div className="bg-brand-light-blue border-l-4 border-brand-gold p-6 mb-8 rounded-r-lg">
           <div className="flex items-start">
             <div className="flex-shrink-0">
-              <svg className="w-6 h-6 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-6 h-6 text-brand-medium-blue" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
             </div>
             <div className="ml-4">
-              <h3 className="text-sm font-semibold text-blue-900 mb-2">What you'll need:</h3>
-              <ul className="text-sm text-blue-800 space-y-2">
+              <h3 className="text-sm font-semibold text-brand-dark-blue mb-2">What you'll need:</h3>
+              <ul className="text-sm text-brand-dark-blue space-y-2">
                 <li className="flex items-start">
                   <span className="mr-2">•</span>
                   <span>Bank account details for receiving payments</span>

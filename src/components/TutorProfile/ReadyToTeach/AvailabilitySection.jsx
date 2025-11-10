@@ -14,7 +14,7 @@ export const AvailabilitySection = () => {
         <h1 className="mt-6 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal">
           You&#39;re Ready to Teach!
         </h1>
-        <p className="mt-4 text-blue-100 text-base sm:text-lg max-w-3xl mx-auto">
+        <p className="mt-4 text-brand-light-blue text-base sm:text-lg max-w-3xl mx-auto">
           Once approved, set your schedule and start connecting with students from around the world.
         </p>
         <nav aria-label="Progress steps" className="mt-8 inline-flex items-center gap-2 bg-white/10 rounded-full px-3 py-2">
@@ -26,7 +26,7 @@ export const AvailabilitySection = () => {
                 </div>
                 <span className="text-sm whitespace-nowrap">{step.label}</span>
               </div>
-              {i < steps.length - 1 && <span className="text-blue-200">→</span>}
+              {i < steps.length - 1 && <span className="text-brand-gold">→</span>}
             </div>
           ))}
         </nav>

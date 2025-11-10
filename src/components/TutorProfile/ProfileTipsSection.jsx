@@ -291,9 +291,9 @@ const handleCVFile = async (file) => {
             className={`relative w-full h-64 rounded-xl border-2 ${selectedPhoto
               ? 'border-solid border-green-500 bg-green-50'
               : isDraggingPhoto
-                ? 'border-dashed border-[#4A8FCC] bg-blue-50'
+                ? 'border-dashed border-brand-medium-blue bg-brand-light-blue'
                 : 'border-dashed border-[#d0d5db] bg-white'
-              } hover:border-[#4A8FCC] transition-colors cursor-pointer overflow-hidden`}
+              } hover:border-brand-medium-blue transition-colors cursor-pointer overflow-hidden`}
             onClick={handlePhotoClick}
             onDragOver={handlePhotoDragOver}
             onDragLeave={handlePhotoDragLeave}
@@ -403,13 +403,13 @@ const handleCVFile = async (file) => {
                 {selectedSubjects.map((subject, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-brand-light-blue text-brand-dark-blue rounded-full text-sm font-medium border border-brand-gold"
                   >
                     {subject}
                     <button
                       type="button"
                       onClick={() => removeSubject(subject)}
-                      className="ml-1 hover:text-blue-900 focus:outline-none"
+                      className="ml-1 hover:text-brand-dark-blue focus:outline-none"
                       aria-label={`Remove ${subject}`}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -467,7 +467,7 @@ const handleCVFile = async (file) => {
                         type="button"
                         onClick={() => toggleSubject(subjectName)}
                         className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center justify-between ${
-                          isSelected ? 'bg-blue-50' : ''
+                          isSelected ? 'bg-brand-light-blue border-l-4 border-brand-gold' : ''
                         }`}
                       >
                         <span className={`text-base ${isSelected ? 'text-[#4A8FCC] font-medium' : 'text-[#101727]'}`}>
@@ -655,9 +655,9 @@ const handleCVFile = async (file) => {
             className={`relative w-full h-56 rounded-xl border-2 ${selectedVideo
               ? 'border-solid border-green-500 bg-green-50'
               : isDraggingVideo
-                ? 'border-dashed border-[#4A8FCC] bg-blue-50'
+                ? 'border-dashed border-brand-medium-blue bg-brand-light-blue'
                 : 'border-dashed border-[#d0d5db] bg-white'
-              } hover:border-[#4A8FCC] transition-colors cursor-pointer`}
+              } hover:border-brand-medium-blue transition-colors cursor-pointer`}
             onClick={handleVideoClick}
             onDragOver={handleVideoDragOver}
             onDragLeave={handleVideoDragLeave}
@@ -720,9 +720,9 @@ const handleCVFile = async (file) => {
             className={`relative w-full h-48 rounded-xl border-2 ${selectedCV
               ? 'border-solid border-green-500 bg-green-50'
               : isDraggingCV
-                ? 'border-dashed border-[#4A8FCC] bg-blue-50'
+                ? 'border-dashed border-brand-medium-blue bg-brand-light-blue'
                 : 'border-dashed border-[#d0d5db] bg-white'
-              } hover:border-[#4A8FCC] transition-colors cursor-pointer`}
+              } hover:border-brand-medium-blue transition-colors cursor-pointer`}
             onClick={handleCVClick}
             onDragOver={handleCVDragOver}
             onDragLeave={handleCVDragLeave}
