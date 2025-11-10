@@ -245,15 +245,15 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
           <div className="bg-white rounded-xl p-8 shadow-2xl max-w-sm mx-4 transform transition-all duration-300 ease-in-out">
             {/* Checkmark Icon */}
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-brand-light-blue rounded-full flex items-center justify-center border-4 border-brand-gold">
+                <svg className="w-8 h-8 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
             </div>
 
             {/* Title */}
-            <h2 className="text-2xl font-bold text-blue-600 text-center mb-3">
+            <h2 className="text-2xl font-bold text-brand-medium-blue text-center mb-3">
               Booking confirmed!
             </h2>
 
@@ -303,10 +303,10 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">{tutorData.name}</h3>
                     <div className="flex space-x-2 mt-2">
-                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                      <span className="bg-brand-light-blue text-brand-dark-blue px-3 py-1 rounded-full text-sm font-medium border border-brand-gold">
                         Mathematics
                       </span>
-                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                      <span className="bg-brand-light-blue text-brand-dark-blue px-3 py-1 rounded-full text-sm font-medium border border-brand-gold">
                         Physics
                       </span>
                     </div>
@@ -318,7 +318,7 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
               {loadingAvailability && (
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
                     <span className="ml-3 text-gray-600">Loading availability...</span>
                   </div>
                 </div>
@@ -371,8 +371,8 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                         key={index}
                         onClick={() => setSelectedSubject(index + 1)}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${selectedSubject === index + 1
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          ? 'bg-brand-medium-blue text-white border-brand-gold shadow-lg'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-brand-light-blue'
                           }`}
                       >
                         {subject}
@@ -411,7 +411,7 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                   <button
                     onClick={handleValidateDiscountCode}
                     disabled={validatingCode || !discountCode.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     {validatingCode ? 'Validating...' : 'Apply'}
                   </button>
@@ -521,7 +521,7 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                 <button
                   onClick={handleConfirmBooking}
                   disabled={isBooking || !selectedSubject || !selectedEvent}
-                  className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="w-full mt-6 bg-brand-medium-blue hover:bg-brand-dark-blue text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-lg hover:shadow-xl border-2 border-transparent hover:border-brand-gold disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   {isBooking ? 'Booking...' : 'Confirm Booking'}
                 </button>

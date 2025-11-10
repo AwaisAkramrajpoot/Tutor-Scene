@@ -177,12 +177,12 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white py-12">
+      <div className="bg-gradient-to-r from-brand-dark-blue to-brand-medium-blue text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold mb-2">
             Welcome Back, {user?.firstName || 'Student'}!
           </h1>
-          <p className="text-xl text-blue-100">Ready to continue your learning journey?</p>
+          <p className="text-xl text-brand-light-blue">Ready to continue your learning journey?</p>
         </div>
       </div>
 
@@ -201,7 +201,7 @@ const StudentDashboard = () => {
                 className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
               >
                 <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                  <div className="w-16 h-16 bg-brand-medium-blue rounded-full flex items-center justify-center border-2 border-brand-gold">
                     <SearchIcon className="text-white" />
                   </div>
                   <div>
@@ -217,7 +217,7 @@ const StudentDashboard = () => {
                 className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
               >
                 <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                  <div className="w-16 h-16 bg-brand-medium-blue rounded-full flex items-center justify-center border-2 border-brand-gold">
                     <BookIcon className="text-white" />
                   </div>
                   <div>
@@ -231,13 +231,13 @@ const StudentDashboard = () => {
             {/* Upcoming Sessions */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex items-center space-x-2 mb-6">
-                <CalendarIcon className="text-blue-600" />
+                <CalendarIcon className="text-brand-medium-blue" />
                 <h2 className="text-xl font-bold text-gray-900">Upcoming Sessions</h2>
               </div>
               
               {loading ? (
                 <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
                 </div>
               ) : error ? (
                 <div className="text-center py-8">
@@ -263,7 +263,7 @@ const StudentDashboard = () => {
                           </h3>
                           {session.subject && (
                             <div className="flex space-x-2 mt-1">
-                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                              <span className="bg-brand-light-blue text-brand-dark-blue px-2 py-1 rounded-full text-xs font-medium">
                                 {session.subject.name || session.subject}
                               </span>
                             </div>
@@ -283,7 +283,7 @@ const StudentDashboard = () => {
                       <div className="flex items-center gap-2">
                         <button 
                           onClick={() => handleJoinSession(session.zoomJoinLink)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                          className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg hover:shadow-xl"
                         >
                           Join Session
                         </button>
@@ -311,7 +311,7 @@ const StudentDashboard = () => {
               
               {loadingTutors ? (
                 <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
                 </div>
               ) : tutorsError ? (
                 <div className="text-center py-8">
@@ -350,7 +350,7 @@ const StudentDashboard = () => {
                             {subjects.length > 0 && (
                               <div className="flex space-x-2 mt-2 flex-wrap">
                                 {subjects.slice(0, 2).map((subject, index) => (
-                                  <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                                  <span key={index} className="bg-brand-light-blue text-brand-dark-blue px-2 py-1 rounded-full text-xs font-medium">
                                     {subject.trim()}
                                   </span>
                                 ))}
@@ -360,7 +360,7 @@ const StudentDashboard = () => {
                         </div>
                         <button 
                           onClick={handleViewInChat}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                          className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg hover:shadow-xl"
                         >
                           View in Chat
                         </button>
@@ -376,7 +376,7 @@ const StudentDashboard = () => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex items-center space-x-2 mb-6">
-                <BellIcon className="text-blue-600" />
+                <BellIcon className="text-brand-medium-blue" />
                 <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
               </div>
 

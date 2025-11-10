@@ -245,7 +245,7 @@ const MySessions = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      upcoming: 'bg-blue-100 text-blue-800',
+      upcoming: 'bg-brand-light-blue text-brand-dark-blue border border-brand-gold',
       completed: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
       pending: 'bg-yellow-100 text-yellow-800'
@@ -312,7 +312,7 @@ const MySessions = () => {
           key={i}
           onClick={() => handlePageChange(i)}
           className={`w-10 h-10 flex items-center justify-center rounded-lg ${currentPage === i
-              ? 'bg-blue-600 text-white'
+              ? 'bg-brand-medium-blue text-white border-2 border-brand-gold'
               : 'text-gray-700 hover:bg-gray-100'
             }`}
         >
@@ -413,7 +413,7 @@ const MySessions = () => {
               <FilterIcon />
               <span>Filter</span>
             </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <button className="px-4 py-2 bg-brand-medium-blue text-white rounded-lg hover:bg-brand-dark-blue transition-colors shadow-lg">
               New Session
             </button>
           </div>
@@ -424,7 +424,7 @@ const MySessions = () => {
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => handleTabChange('upcoming')}
-              className={`${activeTab === 'upcoming' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              className={`${activeTab === 'upcoming' ? 'border-brand-medium-blue text-brand-medium-blue font-semibold' : 'border-transparent text-gray-500 hover:text-brand-medium-blue hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Upcoming
               {activeTab === 'upcoming' && (
@@ -435,7 +435,7 @@ const MySessions = () => {
             </button>
             <button
               onClick={() => handleTabChange('completed')}
-              className={`${activeTab === 'completed' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              className={`${activeTab === 'completed' ? 'border-brand-medium-blue text-brand-medium-blue font-semibold' : 'border-transparent text-gray-500 hover:text-brand-medium-blue hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Completed
               {activeTab === 'completed' && (
@@ -446,7 +446,7 @@ const MySessions = () => {
             </button>
             <button
               onClick={() => handleTabChange('cancelled')}
-              className={`${activeTab === 'cancelled' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              className={`${activeTab === 'cancelled' ? 'border-brand-medium-blue text-brand-medium-blue font-semibold' : 'border-transparent text-gray-500 hover:text-brand-medium-blue hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Cancelled
               {activeTab === 'cancelled' && (
@@ -461,7 +461,7 @@ const MySessions = () => {
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-medium-blue"></div>
             <span className="ml-3 text-gray-600">Loading sessions...</span>
           </div>
         )}
@@ -493,7 +493,7 @@ const MySessions = () => {
             <p className="text-gray-500 mb-4">You don't have any {activeTab} sessions at the moment.</p>
             <button
               onClick={() => navigate('/find-tutors')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+              className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white px-6 py-2 rounded-lg transition-colors shadow-lg"
             >
               Find a Tutor
             </button>
@@ -556,7 +556,7 @@ const MySessions = () => {
                           href={session.zoomJoinLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                          className="inline-flex items-center bg-brand-medium-blue hover:bg-brand-dark-blue text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg hover:shadow-xl"
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />

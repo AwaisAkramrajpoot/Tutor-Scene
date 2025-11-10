@@ -111,7 +111,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white border-b-2 border-blue-200">
+    <nav className="bg-white border-b-2 border-brand-light-blue shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -131,14 +131,14 @@ const Navbar = () => {
                 />
                 {/* Fallback Graduation Cap Icon */}
                 <div className="hidden items-center">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mr-2">
+                  <div className="w-8 h-8 bg-brand-dark-blue rounded-full flex items-center justify-center mr-2 border-2 border-brand-gold">
                     <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
                     </svg>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-blue-600 leading-none">TUTOR</span>
-                    <span className="text-xl font-bold text-blue-600 leading-none">SCENE</span>
+                    <span className="text-xl font-bold text-brand-dark-blue leading-none">TUTOR</span>
+                    <span className="text-xl font-bold text-brand-medium-blue leading-none">SCENE</span>
                   </div>
                 </div>
               </div>
@@ -157,14 +157,14 @@ const Navbar = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Want to learn?"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-l-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-l-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand-medium-blue focus:border-brand-medium-blue sm:text-sm"
                 />
               </div>
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setIsExploreOpen(!isExploreOpen)}
-                  className="inline-flex items-center px-4 py-2 border border-l-0 border-gray-300 rounded-r-md bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="inline-flex items-center px-4 py-2 border border-l-0 border-gray-300 rounded-r-md bg-brand-light-blue text-brand-dark-blue text-sm font-medium hover:bg-brand-medium-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-brand-medium-blue focus:border-brand-medium-blue transition-colors"
                 >
                   Explore
                   <ChevronDownIcon className="ml-1" />
@@ -188,12 +188,12 @@ const Navbar = () => {
 
           {/* Navigation Links */}
           <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-8">
+            <div className="ml-10 flex items-center gap-2">
               {/* Show Home only when user is not authenticated */}
               {!user && (
                 <Link
                   to="/"
-                  className="text-blue-600 hover:text-blue-800 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-brand-medium-blue hover:text-brand-dark-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
                 >
                   Home
                 </Link>
@@ -208,12 +208,12 @@ const Navbar = () => {
                       ? '/tutor-dashboard' 
                       : '/admin-dashboard'
                   }
-                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
                     (location.pathname === '/dashboard' && user.role === 'student') ||
                     (location.pathname === '/tutor-dashboard' && user.role === 'tutor') ||
                     (location.pathname === '/admin-dashboard' && user.role === 'admin')
-                      ? 'text-blue-600 hover:text-blue-800'
-                      : 'text-gray-700 hover:text-gray-900'
+                      ? 'text-brand-medium-blue hover:text-brand-dark-blue font-semibold'
+                      : 'text-gray-700 hover:text-brand-medium-blue'
                   }`}
                 >
                   Dashboard
@@ -223,7 +223,7 @@ const Navbar = () => {
               {user && user.role === 'student' && (
                 <Link
                   to="/find-tutors"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
                 >
                   Find Tutors
                 </Link>
@@ -232,7 +232,7 @@ const Navbar = () => {
               {user && user.role === 'tutor' && user.prospectStatus === 'active' && (
                 <Link
                   to="/tutor/availability"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
                 >
                   Availability
                 </Link>
@@ -241,10 +241,10 @@ const Navbar = () => {
               {user && (user.role === 'tutor' || user.role === 'admin') && (
                 <Link
                   to="/interviews"
-                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
                     location.pathname === '/interviews'
-                      ? 'text-blue-600 hover:text-blue-800'
-                      : 'text-gray-700 hover:text-gray-900'
+                      ? 'text-brand-medium-blue hover:text-brand-dark-blue font-semibold'
+                      : 'text-gray-700 hover:text-brand-medium-blue'
                   }`}
                 >
                   Interviews
@@ -254,10 +254,10 @@ const Navbar = () => {
               {user && (user.role === 'student' || user.role === 'admin' || (user.role === 'tutor' && user.prospectStatus === 'active')) && (
                 <Link
                   to="/messages"
-                  className={`relative px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`relative px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
                     location.pathname.startsWith('/messages')
-                      ? 'text-blue-600 hover:text-blue-800'
-                      : 'text-gray-700 hover:text-gray-900'
+                      ? 'text-brand-medium-blue hover:text-brand-dark-blue font-semibold'
+                      : 'text-gray-700 hover:text-brand-medium-blue'
                   }`}
                 >
                   Messages
@@ -272,7 +272,7 @@ const Navbar = () => {
               {(!user || user.role !== 'tutor') && (
                 <Link
                   to="/become-tutor"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
                 >
                   Become a Tutor
                 </Link>
@@ -281,7 +281,7 @@ const Navbar = () => {
               {!user && (
                 <Link
                   to="/about"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
                 >
                   About
                 </Link>
@@ -296,7 +296,7 @@ const Navbar = () => {
               <>
                 <button
                   onClick={handleMenuOpen}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                  className="flex items-center space-x-2 text-brand-dark-blue hover:text-brand-medium-blue px-3 py-2 text-sm font-semibold transition-colors"
                 >
                   <span>{`${user.firstName.toUpperCase()} ${user.lastName.toUpperCase()}`}</span>
                   <ChevronDownIcon />
@@ -322,13 +322,13 @@ const Navbar = () => {
               <>
                 <Link
                   to="/signin"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-brand-medium-blue hover:text-brand-dark-blue px-3 py-2 text-sm font-medium transition-colors"
                 >
                   Sign in
                 </Link>
                 <Link
                   to="/signup"
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-lg"
+                  className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-2 rounded-md text-sm font-semibold transition-all shadow-lg hover:shadow-xl border-2 border-transparent hover:border-brand-gold"
                 >
                   Create free account
                 </Link>

@@ -121,7 +121,7 @@ const TutorDetails = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-brand-medium-blue mx-auto"></div>
           <p className="mt-4 text-gray-600 text-lg">Loading tutor details...</p>
         </div>
       </div>
@@ -137,7 +137,7 @@ const TutorDetails = () => {
           <p className="text-gray-600 mb-6">{error || 'Tutor not found'}</p>
           <button
             onClick={() => navigate('/admin-dashboard')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+            className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white px-6 py-2 rounded-lg font-medium shadow-lg"
           >
             Back to Dashboard
           </button>
@@ -149,7 +149,7 @@ const TutorDetails = () => {
   const statusColors = {
     active: 'bg-green-100 text-green-800',
     pending: 'bg-amber-100 text-amber-800',
-    awaiting_interview: 'bg-blue-100 text-blue-800',
+    awaiting_interview: 'bg-brand-light-blue text-brand-dark-blue',
     suspended: 'bg-red-100 text-red-800',
     rejected: 'bg-gray-100 text-gray-800',
     deactivated: 'bg-gray-200 text-gray-600',
@@ -161,7 +161,7 @@ const TutorDetails = () => {
         {/* Back Button */}
         <button
           onClick={() => navigate('/admin-dashboard')}
-          className="flex items-center text-blue-600 hover:text-blue-800 mb-6 font-medium"
+          className="flex items-center text-brand-medium-blue hover:text-brand-dark-blue mb-6 font-medium"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -193,7 +193,7 @@ const TutorDetails = () => {
                 </button>
                 <button
                   onClick={confirmDialog.onConfirm}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                  className="flex-1 bg-brand-medium-blue hover:bg-brand-dark-blue text-white py-2 px-4 rounded-lg font-medium transition-colors shadow-lg"
                 >
                   Confirm
                 </button>
@@ -319,15 +319,15 @@ const TutorDetails = () => {
                 <img
                   src={tutor.profilePic}
                   alt={tutor.fullName}
-                  className="w-32 h-32 rounded-full object-cover border-4 border-blue-100"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-brand-gold"
                   onError={(e) => {
                     e.target.style.display = 'none';
                     e.target.nextSibling.style.display = 'flex';
                   }}
                 />
               ) : null}
-              <div className="w-32 h-32 rounded-full bg-blue-100 flex items-center justify-center" style={{ display: tutor.profilePic ? 'none' : 'flex' }}>
-                <span className="text-5xl text-blue-600 font-bold">
+              <div className="w-32 h-32 rounded-full bg-brand-light-blue flex items-center justify-center border-4 border-brand-gold" style={{ display: tutor.profilePic ? 'none' : 'flex' }}>
+                <span className="text-5xl text-brand-dark-blue font-bold">
                   {tutor.fullName?.charAt(0)?.toUpperCase() || '?'}
                 </span>
               </div>
@@ -369,7 +369,7 @@ const TutorDetails = () => {
                   <label className="block text-sm font-medium text-gray-500 mb-1">Subjects</label>
                   <div className="flex flex-wrap gap-2">
                     {tutor.subjects?.split(',').map((subj, idx) => (
-                      <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                      <span key={idx} className="px-3 py-1 bg-brand-light-blue text-brand-dark-blue rounded-full text-sm font-medium border border-brand-gold">
                         {subj.trim()}
                       </span>
                     ))}
@@ -404,7 +404,7 @@ const TutorDetails = () => {
             {tutor.introVideo && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 mr-2 text-brand-medium-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                   Introduction Video
@@ -426,7 +426,7 @@ const TutorDetails = () => {
             {/* Documents */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 mr-2 text-brand-medium-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Documents

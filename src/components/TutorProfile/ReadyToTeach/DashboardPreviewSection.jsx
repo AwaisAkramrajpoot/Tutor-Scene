@@ -39,8 +39,8 @@ export const DashboardPreviewSection = () => {
           {/* Availability card */}
           <article className="bg-white rounded-2xl border border-black/10 p-6 md:p-8">
             <header className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
-                <span className="text-[#2a66b8] text-xl">📅</span>
+              <div className="w-12 h-12 rounded-full bg-brand-light-blue flex items-center justify-center border-2 border-brand-gold">
+                <span className="text-brand-dark-blue text-xl">📅</span>
               </div>
               <h3 className="text-[28px] text-[#101727]">Set Your Availability</h3>
             </header>
@@ -105,9 +105,9 @@ export const DashboardPreviewSection = () => {
 
             <div className="mt-6 grid grid-cols-2 gap-4">
               {dashboardFeaturesData.map((f) => (
-                <div key={f.label} className="bg-blue-50 rounded-xl p-6 text-center">
+                <div key={f.label} className="bg-brand-light-blue rounded-xl p-6 text-center border border-brand-gold">
                   <div className="text-2xl">{f.icon}</div>
-                  <div className="mt-3 text-[#495565]">{f.label}</div>
+                  <div className="mt-3 text-brand-dark-blue font-medium">{f.label}</div>
                 </div>
               ))}
             </div>

@@ -195,13 +195,13 @@ const SignIn = () => {
               }}
             />
             <div className="text-center" style={{ display: 'none' }}>
-              <div className="w-16 h-16 bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-2">
+              <div className="w-16 h-16 bg-brand-dark-blue rounded-full flex items-center justify-center mx-auto mb-2 border-2 border-brand-gold">
                 <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-blue-900">TUTOR</h1>
-              <h2 className="text-2xl font-bold text-blue-900">SCENE</h2>
+              <h1 className="text-2xl font-bold text-brand-dark-blue">TUTOR</h1>
+              <h2 className="text-2xl font-bold text-brand-medium-blue">SCENE</h2>
             </div>
           </div>
 
@@ -303,7 +303,7 @@ const SignIn = () => {
             {/* Sign Up Link - Matched link color */}
             <p className="text-center text-sm text-gray-600">
               Don't have an account yet?{' '}
-              <Link to="/signup" className="text-blue-500 hover:underline font-medium">
+              <Link to="/signup" className="text-brand-medium-blue hover:text-brand-dark-blue hover:underline font-medium">
                 Sign up
               </Link>
             </p>

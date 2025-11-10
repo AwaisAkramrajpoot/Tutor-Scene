@@ -152,7 +152,7 @@ const App = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-medium-blue mx-auto mb-4"></div>
           <p className="text-gray-600">Loading tutor profile...</p>
         </div>
       </div>
@@ -172,7 +172,7 @@ const App = () => {
             <p className="text-gray-600 mb-4">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+              className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white font-medium py-2 px-6 rounded-lg transition-colors shadow-lg"
             >
               Retry
             </button>
@@ -214,13 +214,13 @@ const App = () => {
     <div className="min-h-screen bg-gray-50 font-sans antialiased">
       {/* ------------------ Header Section (Blue Curve & Profile) ------------------ */}
       <header className="relative bg-white">
-        {/* Blue Background Section */}
-        <div className="relative w-full bg-blue-600 text-white" style={{ height: '180px' }}>
+        {/* Brand Background Section */}
+        <div className="relative w-full bg-gradient-to-r from-brand-dark-blue to-brand-medium-blue text-white" style={{ height: '180px' }}>
           {/* Back to Search Link */}
           <div className="absolute top-6 left-1/2 transform -translate-x-1/2 w-full max-w-7xl px-4 sm:px-6 lg:px-8 z-20">
             <div 
               onClick={() => navigate('/find-tutors')}
-              className="flex items-center text-white text-base font-medium cursor-pointer hover:text-blue-100 transition-colors"
+              className="flex items-center text-white text-base font-medium cursor-pointer hover:text-brand-gold transition-colors"
             >
               <ArrowLeftIcon className="mr-2" />
               Back to Search
@@ -318,7 +318,7 @@ const App = () => {
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Student Reviews</h2>
               {loadingReviews ? (
                 <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
                 </div>
               ) : mergedTutorData.reviews.length === 0 ? (
                 <div className="text-center py-8">
@@ -378,7 +378,7 @@ const App = () => {
               <h3 className="text-xl font-bold text-gray-900 mb-4">Subjects</h3>
               <div className="flex flex-wrap gap-2 mb-6">
                 {tutorDetails?.subjects?.split(',').map((subject, idx) => (
-                  <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                  <span key={idx} className="px-3 py-1 bg-brand-light-blue text-brand-dark-blue rounded-full text-sm font-medium border border-brand-gold">
                     {subject.trim()}
                   </span>
                 ))}
@@ -403,7 +403,7 @@ const App = () => {
                 />
                 <button
                   onClick={handleBookSession}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-colors"
+                  className="w-full bg-brand-medium-blue hover:bg-brand-dark-blue text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-all hover:shadow-xl border-2 border-transparent hover:border-brand-gold"
                 >
                   Book Session
                 </button>
