@@ -6,13 +6,13 @@ const Home = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 text-white overflow-hidden">
+      <div className="relative bg-gradient-to-r from-brand-dark-blue via-brand-medium-blue to-brand-dark-blue text-white overflow-hidden">
         {/* Decorative Elements */}
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-10 w-20 h-20 bg-blue-300 rounded-full opacity-20"></div>
-          <div className="absolute top-40 right-20 w-16 h-16 bg-blue-300 rounded-full opacity-30"></div>
-          <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-blue-300 rounded-full opacity-25"></div>
-          <div className="absolute top-60 right-1/3 w-8 h-8 bg-blue-300 rounded-full opacity-40"></div>
+          <div className="absolute top-20 left-10 w-20 h-20 bg-brand-light-blue rounded-full opacity-20"></div>
+          <div className="absolute top-40 right-20 w-16 h-16 bg-brand-gold rounded-full opacity-30"></div>
+          <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-brand-light-blue rounded-full opacity-25"></div>
+          <div className="absolute top-60 right-1/3 w-8 h-8 bg-brand-gold rounded-full opacity-40"></div>
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -24,25 +24,25 @@ const Home = () => {
                 <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
                   <span className="text-white">Empowering</span>
                   <br />
-                  <span className="text-yellow-400">Learning</span>
+                  <span className="text-brand-gold">Learning</span>
                   <br />
                   <span className="text-white">Through Connection.</span>
                 </h1>
               </div>
 
               {/* Sub-text */}
-              <p className="text-xl text-blue-100 max-w-lg">
+              <p className="text-xl text-brand-light-blue max-w-lg">
                 Tutor Scene helps students and tutors connect securely for live, interactive lessons that inspire success.
               </p>
 
               {/* Call-to-Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-8 rounded-lg transition-colors">
+                <button className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white font-semibold py-4 px-8 rounded-lg transition-all shadow-lg hover:shadow-xl border-2 border-transparent hover:border-brand-gold">
                   I'm a Student / Parent
                 </button>
                 <button 
                   onClick={() => navigate('/become-tutor')}
-                  className="bg-white text-blue-600 hover:bg-gray-100 font-semibold py-4 px-8 rounded-lg border-2 border-blue-600 transition-colors"
+                  className="bg-white text-brand-dark-blue hover:bg-brand-gold hover:text-white font-semibold py-4 px-8 rounded-lg border-2 border-brand-gold transition-all shadow-lg"
                 >
                   I'm a Tutor
                 </button>

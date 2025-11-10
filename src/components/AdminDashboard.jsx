@@ -10,8 +10,8 @@ const DotsVerticalIcon = (props) => (
 );
 
 const StatCard = ({ title, value, subtitle, icon }) => (
-  <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
-    <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
+  <div className="flex items-center gap-4 rounded-xl border border-brand-gold bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="rounded-lg bg-brand-light-blue p-3 text-brand-dark-blue">
       {icon}
     </div>
     <div>
@@ -27,8 +27,8 @@ const TabButton = ({ active, onClick, children }) => (
     onClick={onClick}
     className={`px-4 py-2 text-sm font-medium rounded-md border transition-colors whitespace-nowrap ${
       active
-        ? 'bg-blue-600 text-white border-blue-600 shadow'
-        : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50'
+        ? 'bg-brand-medium-blue text-white border-brand-gold shadow-lg'
+        : 'bg-white text-gray-700 border-gray-200 hover:bg-brand-light-blue'
     }`}
   >
     {children}
@@ -46,7 +46,7 @@ const FilterDropdown = ({ value, onChange, options }) => (
   <select
     value={value}
     onChange={(e) => onChange(e.target.value)}
-    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium-blue focus:border-brand-medium-blue"
   >
     {options.map((opt) => (
       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -57,13 +57,13 @@ const FilterDropdown = ({ value, onChange, options }) => (
 const Table = ({ columns, data }) => (
   <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl">
     <table className="min-w-full divide-y divide-gray-200">
-      <thead className="bg-blue-50">
+      <thead className="bg-brand-light-blue">
         <tr>
           {columns.map((col) => (
             <th
               key={col.key}
               scope="col"
-              className="px-4 py-3 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider"
+              className="px-4 py-3 text-left text-xs font-semibold text-brand-dark-blue uppercase tracking-wider"
             >
               {col.header}
             </th>
@@ -72,7 +72,7 @@ const Table = ({ columns, data }) => (
       </thead>
       <tbody className="bg-white divide-y divide-gray-100">
         {data.map((row, idx) => (
-          <tr key={row.id ?? idx} className="hover:bg-blue-50/40">
+          <tr key={row.id ?? idx} className="hover:bg-brand-light-blue/40">
             {columns.map((col) => (
               <td key={col.key} className="px-4 py-3 text-sm text-gray-700">
                 {col.render ? col.render(row, idx) : row[col.key]}
@@ -610,7 +610,7 @@ export default function AdminDashboard() {
           />
           {loadingStudents ? (
             <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
             </div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 text-gray-500">No students found for this status.</div>
@@ -673,7 +673,7 @@ export default function AdminDashboard() {
           />
           {loadingTutors ? (
             <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
             </div>
           ) : tutors.length === 0 ? (
             <div className="text-center py-8 text-gray-500">No tutors found for this status.</div>
@@ -687,7 +687,7 @@ export default function AdminDashboard() {
                   const statusColors = {
                     active: 'bg-green-50 text-green-700',
                     pending: 'bg-amber-50 text-amber-700',
-                    awaiting_interview: 'bg-blue-50 text-blue-700',
+                    awaiting_interview: 'bg-brand-light-blue text-brand-dark-blue',
                     suspended: 'bg-red-50 text-red-700',
                     rejected: 'bg-gray-50 text-gray-700',
                     deactivated: 'bg-gray-100 text-gray-600',
@@ -722,7 +722,7 @@ export default function AdminDashboard() {
             right={
               <button
                 onClick={handleOpenSubjectModal}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-md font-medium transition-colors"
+                className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white text-sm px-4 py-2 rounded-md font-medium transition-colors shadow-lg"
               >
                 Add Subject
               </button>
@@ -730,7 +730,7 @@ export default function AdminDashboard() {
           />
           {loadingSubjects ? (
             <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
             </div>
           ) : subjects.length === 0 ? (
             <div className="text-center py-8 text-gray-500">No subjects found.</div>
@@ -767,7 +767,7 @@ export default function AdminDashboard() {
             right={
               <button
                 onClick={() => handleOpenGradeLevelModal()}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-md font-medium transition-colors"
+                className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white text-sm px-4 py-2 rounded-md font-medium transition-colors shadow-lg"
               >
                 Add Grade Level
               </button>
@@ -775,7 +775,7 @@ export default function AdminDashboard() {
           />
           {loadingGradeLevels ? (
             <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
             </div>
           ) : gradeLevels.length === 0 ? (
             <div className="text-center py-8 text-gray-500">No grade levels found.</div>
@@ -788,7 +788,7 @@ export default function AdminDashboard() {
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => handleOpenGradeLevelModal(row)}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="text-brand-medium-blue hover:text-brand-dark-blue text-sm font-medium"
                     >
                       Edit
                     </button>
@@ -822,7 +822,7 @@ export default function AdminDashboard() {
           />
           {loadingPromoCodes ? (
             <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
             </div>
           ) : promoCodes.length === 0 ? (
             <div className="text-center py-8 text-gray-500">No promo codes found.</div>
@@ -876,7 +876,7 @@ export default function AdminDashboard() {
           <SectionHeader title="Pending Reviews" right={<div className="text-sm text-gray-500">Pending: {reviews.length}</div>} />
           {loadingReviews ? (
             <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
             </div>
           ) : reviews.length === 0 ? (
             <div className="text-center py-8 text-gray-500">No pending reviews to moderate.</div>
@@ -1090,7 +1090,7 @@ export default function AdminDashboard() {
                 id="isActive"
                 checked={promoCodeForm.isActive}
                 onChange={(e) => handlePromoCodeFormChange('isActive', e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-brand-medium-blue rounded focus:ring-brand-medium-blue"
               />
               <label htmlFor="isActive" className="text-sm text-gray-700">
                 Active (code can be used immediately)
