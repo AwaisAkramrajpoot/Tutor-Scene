@@ -350,8 +350,8 @@ const SignUp = () => {
                   name="agreeTerms"
                   checked={formData.agreeTerms}
                   onChange={handleChange}
-                  // Match checkbox size and color (using blue-600 from Tailwind is close enough for the checkbox itself)
-                  className="mt-0.5 h-4 w-4 text-blue-600 border-gray-400 rounded focus:ring-blue-500"
+                  // Match checkbox size and color with brand colors
+                  className="mt-0.5 h-4 w-4 text-brand-medium-blue border-gray-400 rounded focus:ring-brand-medium-blue"
                 />
                 <span className="ml-2 text-sm text-gray-700">
                   I agree to all the{' '}
@@ -381,7 +381,7 @@ const SignUp = () => {
             {/* Sign In Link - Matched link color */}
             <p className="text-center text-sm text-gray-600">
               Already have an account?{' '}
-              <Link to="/signin" className="text-blue-500 hover:underline font-medium">
+              <Link to="/signin" className="text-brand-medium-blue hover:text-brand-dark-blue hover:underline font-medium">
                 Sign in
               </Link>
             </p>
