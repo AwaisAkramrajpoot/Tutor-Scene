@@ -18,6 +18,7 @@ import { SupportTicket } from '../database/entities/support-ticket.entity';
 import { Interview } from '../database/entities/interview.entity';
 import { MessageRequest } from '../database/entities/message-request.entity';
 import { Conversation } from '../database/entities/conversation.entity';
+import { GradeLevel } from '../database/entities/grade-level.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -77,6 +78,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         Interview,
         MessageRequest,
         Conversation,
+        GradeLevel,
       ],
       synchronize: true, // Auto-create tables from entities
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),
