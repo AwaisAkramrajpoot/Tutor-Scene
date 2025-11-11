@@ -106,6 +106,7 @@ export class AuthController {
       role: user.role,
       status: user.status,
       profilePhotoUrl: user.profilePhotoUrl,
+      gender: user.gender,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

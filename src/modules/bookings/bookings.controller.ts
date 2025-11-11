@@ -146,4 +146,14 @@ export class BookingsController {
       query.limit,
     );
   }
+
+  @Get('tutor/:tutorId/statistics')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get tutor statistics including current week bookings and active students count' })
+  @ApiResponse({ status: 200, description: 'Tutor statistics' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing authentication token' })
+  async getTutorStatistics(@Param('tutorId', ParseIntPipe) tutorId: number) {
+    return this.bookingsService.getTutorStatistics(tutorId);
+  }
 }

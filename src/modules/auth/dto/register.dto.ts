@@ -34,4 +34,9 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   role?: string;
+
+  @ApiProperty({ example: 'male,non-binary', description: 'Comma-separated gender values', required: false })
+  @IsString()
+  @IsOptional()
+  gender?: string;
 }

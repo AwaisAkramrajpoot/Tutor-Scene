@@ -133,11 +133,6 @@ export class ConversationsController {
     // Mark messages as read when retrieved
     await this.messagesService.markAsRead(id, user.id);
 
-    // Mark related notifications as read when user views conversation
-    // Requirements: 13.4
-    const actionUrl = `/conversations/${id}`;
-    await this.notificationsService.markAsReadByActionUrl(user.id, actionUrl);
-
     return result;
   }
 

@@ -63,7 +63,12 @@ export class UsersController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all students (Admin only)' })
-  @ApiQuery({ name: 'status', required: false, enum: ['active', 'inactive', 'suspended', 'pending'], description: 'Filter by user status' })
+  @ApiQuery({ 
+    name: 'status', 
+    required: false, 
+    enum: ['active', 'inactive', 'suspended', 'pending', 'all'], 
+    description: 'Filter by user status (use "all" to get all records regardless of status)' 
+  })
   @ApiResponse({ status: 200, description: 'List of students' })
   findAllStudents(@Query('status') status?: string) {
     return this.usersService.findAllStudents(status);

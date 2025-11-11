@@ -9,8 +9,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Interview } from '@/database/entities/interview.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
+import { User } from '@/database/entities/user.entity';
 import { ProspectStatus, InterviewStatus } from '@/database/entities/enums';
 import { ZoomService } from './services/zoom.service';
+import { MailService } from '../auth/services/mail.service';
 import { InterviewResponseDto } from './dto/interview-response.dto';
 
 @Injectable()
@@ -22,7 +24,10 @@ export class InterviewsService {
     private readonly interviewRepository: Repository<Interview>,
     @InjectRepository(Prospect)
     private readonly prospectRepository: Repository<Prospect>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly zoomService: ZoomService,
+    private readonly mailService: MailService,
   ) { }
 
   async scheduleInterview(
@@ -58,6 +63,25 @@ export class InterviewsService {
       // Update prospect status to awaiting_interview
       prospect.status = ProspectStatus.AWAITING_INTERVIEW;
       await this.prospectRepository.save(prospect);
+
+      // Send email notification to tutor
+      try {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (user && user.email) {
+          await this.mailService.sendInterviewScheduledEmail(
+            user.email,
+            prospect.fullName,
+            startTime,
+            zoomMeeting.join_url,
+          );
+        }
+      } catch (emailError) {
+        // Log error but don't fail the interview scheduling
+        this.logger.error('Failed to send interview scheduled email', {
+          error: emailError.message,
+          userId,
+        });
+      }
 
       return this.mapToResponseDto(savedInterview);
     } catch (error) {

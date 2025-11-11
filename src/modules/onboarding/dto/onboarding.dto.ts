@@ -1,4 +1,4 @@
-import { IsString, IsInt, IsOptional, IsDate, Min } from 'class-validator';
+import { IsString, IsInt, IsOptional, IsDate, Min, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -102,4 +102,16 @@ export class OnboardingDto {
   @IsOptional()
   @IsString()
   profilePic?: string;
+
+  @ApiProperty({
+    description: 'Hourly fee charged by the tutor',
+    example: 50.00,
+    minimum: 0,
+    required: false
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  fee?: number;
 }

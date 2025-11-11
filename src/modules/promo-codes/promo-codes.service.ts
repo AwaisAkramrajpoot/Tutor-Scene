@@ -30,8 +30,8 @@ export class PromoCodesService {
 
     const promoCode = this.promoCodeRepository.create({
       ...createDto,
-      validFrom: new Date(createDto.validFrom),
-      validUntil: new Date(createDto.validUntil),
+      validFrom: createDto.validFrom ? new Date(createDto.validFrom) : null,
+      validUntil: createDto.validUntil ? new Date(createDto.validUntil) : null,
       stripeCouponId: stripeCoupon.id,
     });
     return this.promoCodeRepository.save(promoCode);
@@ -65,11 +65,12 @@ export class PromoCodesService {
       throw new BadRequestException('Promo code is inactive');
     }
 
-    if (now < promoCode.validFrom || now > promoCode.validUntil) {
-     console.log(promoCode.validFrom, "Valid from")
-     console.log(promoCode.validUntil, "Valid until")
+    if (promoCode.validFrom && now < promoCode.validFrom) {
+      throw new BadRequestException('Promo code is not yet valid');
+    }
 
-      throw new BadRequestException('Promo code is expired or not yet valid');
+    if (promoCode.validUntil && now > promoCode.validUntil) {
+      throw new BadRequestException('Promo code has expired');
     }
 
     if (promoCode.usageLimit && promoCode.usageCount >= promoCode.usageLimit) {

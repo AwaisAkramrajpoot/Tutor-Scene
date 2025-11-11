@@ -21,7 +21,7 @@ export class MailService {
   }
 
   async sendResetPasswordEmail(to: string, resetToken: string): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://tutor-scence-frontend.s3-website-us-east-1.amazonaws.com');
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
     const mailOptions = {
@@ -68,7 +68,7 @@ export class MailService {
     classStartTime: Date,
     paymentIntentId: string,
   ): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://tutor-scence-frontend.s3-website-us-east-1.amazonaws.com');
     const paymentUrl = `${frontendUrl}/payments?bookingId=${bookingId}&paymentIntentId=${paymentIntentId}&amount=${amount}`;
 
     // Format the class start time
@@ -293,6 +293,81 @@ export class MailService {
     } catch (error) {
       console.error('Error sending cancellation email to tutor:', error);
       throw new InternalServerErrorException('Failed to send cancellation email');
+    }
+  }
+
+  async sendInterviewScheduledEmail(
+    to: string,
+    tutorName: string,
+    interviewDateTime: Date,
+    participantJoinUrl: string,
+  ): Promise<void> {
+    const formattedDate = interviewDateTime.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const formattedTime = interviewDateTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    });
+
+    const mailOptions = {
+      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      to,
+      subject: 'Your Interview Has Been Scheduled - Tutor Scene',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #333; margin: 0;">Tutor Scene</h1>
+          </div>
+          
+          <h2 style="color: #333;">Hi ${tutorName},</h2>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            Great news! Your interview with Tutor Scene has been scheduled.
+          </p>
+          
+          <div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 20px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #155724;">Interview Details</h3>
+            <p style="margin: 10px 0;"><strong>Date:</strong> ${formattedDate}</p>
+            <p style="margin: 10px 0;"><strong>Time:</strong> ${formattedTime}</p>
+            <p style="margin: 10px 0;"><strong>Duration:</strong> 60 minutes</p>
+            <p style="margin: 10px 0;"><strong>Platform:</strong> Zoom Video Conference</p>
+          </div>
+          
+          <div style="background-color: #d1ecf1; border-left: 4px solid #17a2b8; padding: 20px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #0c5460;">What to Expect</h3>
+            <ul style="color: #0c5460; line-height: 1.8;">
+              <li>The interview will be conducted via Zoom video call</li>
+              <li>Please ensure you have a stable internet connection</li>
+              <li>Have your teaching materials or portfolio ready to share</li>
+              <li>Be prepared to discuss your teaching experience and methodology</li>
+            </ul>
+          </div>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            We look forward to meeting you! If you need to reschedule or have any questions, 
+            please contact us as soon as possible.
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+          
+          <p style="font-size: 12px; color: #999; text-align: center;">
+            This is an automated message from Tutor Scene. Please do not reply to this email.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Interview scheduled email sent to: ${to}`);
+    } catch (error) {
+      console.error('Error sending interview scheduled email:', error);
+      throw new InternalServerErrorException('Failed to send interview scheduled email');
     }
   }
 

@@ -9,6 +9,7 @@ import { StripeService } from './services/stripe.service';
 import { InterviewsModule } from '../interviews/interviews.module';
 import { AuthModule } from '../auth/auth.module';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PromoCodesModule } from '../promo-codes/promo-codes.module';
     forwardRef(() => InterviewsModule),
     AuthModule,
     PromoCodesModule,
+    NotificationsModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService, StripeService],

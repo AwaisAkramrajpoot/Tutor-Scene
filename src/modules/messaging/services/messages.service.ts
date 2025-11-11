@@ -11,7 +11,6 @@ import { User } from '@/database/entities/user.entity';
 import { CreateMessageDto } from '../dto/create-message.dto';
 import { MessageQueryDto } from '../dto/message-query.dto';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
-import { NotificationType } from '@/database/entities/enums';
 
 @Injectable()
 export class MessagesService {
@@ -98,11 +97,7 @@ export class MessagesService {
 
       await this.notificationsService.create({
         userId: receiverId,
-        type: NotificationType.MESSAGE_RECEIVED,
-        title: `New message from ${sender.firstName} ${sender.lastName}`,
-        message: messagePreview,
-        channel: 'IN_APP',
-        actionUrl: `/conversations/${conversationId}`,
+        notification: `New message from ${sender.firstName} ${sender.lastName}: ${messagePreview}`,
       });
     }
 
