@@ -1,8 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
-import * as sgMail from '@sendgrid/mail';
 import { Notification } from '@/database/entities/notification.entity';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 
@@ -11,39 +9,11 @@ export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
-    private readonly configService: ConfigService,
-  ) {
-    sgMail.setApiKey(this.configService.get<string>('SENDGRID_API_KEY'));
-  }
+  ) {}
 
   async create(createDto: CreateNotificationDto): Promise<Notification> {
     const notification = this.notificationRepository.create(createDto);
-    const saved = await this.notificationRepository.save(notification);
-
-    // Send notification via email if channel is EMAIL
-    if (createDto.channel === 'EMAIL') {
-      await this.sendEmail(saved);
-    }
-
-    return saved;
-  }
-
-  private async sendEmail(notification: Notification) {
-    // Implementation would fetch user email and send
-    const msg = {
-      to: 'user@example.com', // Replace with actual user email lookup
-      from: this.configService.get<string>('SENDGRID_FROM_EMAIL'),
-      subject: notification.title,
-      text: notification.message,
-    };
-
-    try {
-      await sgMail.send(msg);
-      notification.isSent = true;
-      await this.notificationRepository.save(notification);
-    } catch (error) {
-      console.error('Failed to send email:', error);
-    }
+    return await this.notificationRepository.save(notification);
   }
 
   async findByUser(userId: number): Promise<Notification[]> {
@@ -53,37 +23,72 @@ export class NotificationsService {
     });
   }
 
-  async markAsRead(id: number): Promise<Notification> {
-    const notification = await this.notificationRepository.findOne({ where: { id } });
+  async findByUserWithRelativeTime(
+    userId: number,
+  ): Promise<Array<Notification & { relativeTime: string }>> {
+    const notifications = await this.notificationRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    return notifications.map((notification) => ({
+      ...notification,
+      relativeTime: this.getRelativeTime(notification.createdAt),
+    }));
+  }
+
+  private getRelativeTime(date: Date): string {
+    const now = new Date();
+    const diffInSeconds = Math.floor(
+      (now.getTime() - new Date(date).getTime()) / 1000,
+    );
+
+    if (diffInSeconds < 60) {
+      return 'Just now';
+    }
+
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
+    }
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) {
+      return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+    }
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) {
+      return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+    }
+
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks < 4) {
+      return `${diffInWeeks} ${diffInWeeks === 1 ? 'week' : 'weeks'} ago`;
+    }
+
+    const diffInMonths = Math.floor(diffInDays / 30);
+    return `${diffInMonths} ${diffInMonths === 1 ? 'month' : 'months'} ago`;
+  }
+
+  async delete(id: number, userId: number): Promise<void> {
+    const notification = await this.notificationRepository.findOne({
+      where: { id, userId },
+    });
+
     if (!notification) {
       throw new NotFoundException(`Notification with ID ${id} not found`);
     }
-    notification.isRead = true;
-    notification.readAt = new Date();
-    return this.notificationRepository.save(notification);
+
+    await this.notificationRepository.remove(notification);
   }
 
-  async getUnreadCount(userId: number): Promise<number> {
-    return this.notificationRepository.count({ where: { userId, isRead: false } });
-  }
-
-  /**
-   * Mark all unread notifications as read for a user by action URL
-   * Used when user views a conversation to mark related notifications as read
-   */
-  async markAsReadByActionUrl(userId: number, actionUrl: string): Promise<number> {
-    const result = await this.notificationRepository.update(
-      {
-        userId,
-        actionUrl,
-        isRead: false,
-      },
-      {
-        isRead: true,
-        readAt: new Date(),
-      },
-    );
-
+  async deleteAll(userId: number): Promise<number> {
+    const result = await this.notificationRepository.delete({ userId });
     return result.affected || 0;
+  }
+
+  async getCount(userId: number): Promise<number> {
+    return this.notificationRepository.count({ where: { userId } });
   }
 }

@@ -10,6 +10,7 @@ import { StripeService } from './services/stripe.service';
 import { ZoomService } from '../interviews/services/zoom.service';
 import { MailService } from '../auth/services/mail.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BookingsService {
@@ -26,6 +27,7 @@ export class BookingsService {
     private readonly zoomService: ZoomService,
     private readonly mailService: MailService,
     private readonly promoCodesService: PromoCodesService,
+    private readonly notificationsService: NotificationsService,
   ) { }
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
@@ -43,6 +45,24 @@ export class BookingsService {
       throw new BadRequestException('Total price must be a positive number');
     }
 
+    // Get student details for notification
+    const student = await this.userRepository.findOne({
+      where: { id: createBookingDto.studentProfileId },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    // Get tutor prospect to find the user ID
+    const tutorProspect = await this.prospectRepository.findOne({
+      where: { id: createBookingDto.tutorProfileId },
+    });
+
+    if (!tutorProspect || !tutorProspect.userId) {
+      throw new NotFoundException('Tutor not found');
+    }
+
     // Store discount code if provided (will be validated when tutor accepts)
     const booking = this.bookingRepository.create({
       studentProfileId: createBookingDto.studentProfileId,
@@ -54,7 +74,16 @@ export class BookingsService {
       totalPrice: createBookingDto.totalPrice,
       discountCode: createBookingDto.discountCode || null,
     });
-    return this.bookingRepository.save(booking);
+    
+    const savedBooking = await this.bookingRepository.save(booking);
+
+    // Create notification for tutor
+    await this.notificationsService.create({
+      userId: tutorProspect.userId,
+      notification: `${student.firstName} ${student.lastName} has sent you a booking request`,
+    });
+
+    return savedBooking;
   }
 
   async findAll(userId?: number): Promise<Booking[]> {
@@ -194,6 +223,19 @@ export class BookingsService {
       booking.startTime,
       paymentIntent.id,
     );
+
+    // Get tutor details for notification
+    const tutorProspect = await this.prospectRepository.findOne({
+      where: { id: prospectId },
+    });
+
+    if (tutorProspect) {
+      // Create notification for student
+      await this.notificationsService.create({
+        userId: booking.studentProfileId,
+        notification: `Your booking request has been accepted by ${tutorProspect.fullName}`,
+      });
+    }
 
     return booking;
   }

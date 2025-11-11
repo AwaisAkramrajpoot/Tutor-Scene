@@ -13,6 +13,7 @@ import { User } from '@/database/entities/user.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
 import { MessageRequestStatus, UserRole } from '@/database/entities/enums';
 import { CreateMessageRequestDto } from '../dto/create-message-request.dto';
+import { NotificationsService } from '@/modules/notifications/notifications.service';
 
 @Injectable()
 export class MessageRequestsService {
@@ -26,6 +27,7 @@ export class MessageRequestsService {
     @InjectRepository(Prospect)
     private readonly prospectRepository: Repository<Prospect>,
     private readonly dataSource: DataSource,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -80,6 +82,15 @@ export class MessageRequestsService {
       );
     }
 
+    // Get student details for notification
+    const student = await this.userRepository.findOne({
+      where: { id: studentId },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
     // Create the message request with the tutor's user ID
     const messageRequest = this.messageRequestRepository.create({
       studentId,
@@ -88,7 +99,15 @@ export class MessageRequestsService {
       status: MessageRequestStatus.PENDING,
     });
 
-    return this.messageRequestRepository.save(messageRequest);
+    const savedRequest = await this.messageRequestRepository.save(messageRequest);
+
+    // Create notification for tutor
+    await this.notificationsService.create({
+      userId: tutor.id,
+      notification: `${student.firstName} ${student.lastName} has sent you a message request`,
+    });
+
+    return savedRequest;
   }
 
   /**
@@ -194,6 +213,15 @@ export class MessageRequestsService {
       const savedConversation = await queryRunner.manager.save(conversation);
 
       await queryRunner.commitTransaction();
+
+      // Create notification for student (outside transaction)
+      const tutor = messageRequest.tutor;
+      if (tutor) {
+        await this.notificationsService.create({
+          userId: messageRequest.studentId,
+          notification: `Your message request has been accepted by ${tutor.firstName} ${tutor.lastName}`,
+        });
+      }
 
       return {
         request: updatedRequest,
