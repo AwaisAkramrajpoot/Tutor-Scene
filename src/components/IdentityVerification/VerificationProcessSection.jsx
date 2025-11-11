@@ -79,7 +79,7 @@ export const VerificationProcessSection = () => {
         {/* Upload Section */}
         <div className="mb-8">
           <h3 className="text-xl font-normal text-[#101727] mb-6">
-            Upload Government-Issued ID
+            Upload Government-Issued ID <span className="text-red-500">*</span>
           </h3>
 
           <div className="relative w-full h-72 rounded-xl border-2 border-dashed border-[#d0d5db] bg-white hover:border-[#4A8FCC] transition-colors">
@@ -109,6 +109,7 @@ export const VerificationProcessSection = () => {
               accept="image/png,image/jpeg,application/pdf"
               onChange={handleFileUpload}
               aria-label="Upload government ID"
+              required
             />
           </div>
 
@@ -211,6 +212,7 @@ export const VerificationProcessSection = () => {
                 gradeLevels: ob.gradeLevels,
                 yearsOfExperience: ob.yearsOfExperience,
                 teachingPhilosophy: ob.teachingPhilosophy,
+                fee: ob.fee,
                 cv: ob.cv,
                 introVideo: ob.introVideo,
                 interviewTime: ob.interviewTime ? new Date(ob.interviewTime).toISOString() : undefined,
@@ -219,6 +221,11 @@ export const VerificationProcessSection = () => {
               };
               await submitTutorOnboarding(payload);
               clearTutorOnboarding();
+              
+              // Update user object in localStorage with prospectStatus
+              const updatedUser = { ...user, prospectStatus: 'pending' };
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+              
               navigate('/profile-under-review');
             } catch (err) {
               console.error(err);
@@ -227,8 +234,8 @@ export const VerificationProcessSection = () => {
               setSubmitting(false);
             }
           }}
-          className="w-full h-14 rounded-xl bg-gradient-to-b from-[#2A66B8] to-[#0F3E78] text-white text-base font-normal hover:opacity-90 transition-opacity shadow-sm disabled:opacity-60"
-          disabled={uploading || submitting}
+          className="w-full h-14 rounded-xl bg-gradient-to-b from-[#2A66B8] to-[#0F3E78] text-white text-base font-normal hover:opacity-90 transition-opacity shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={uploading || submitting || !govIdUrl}
         >
           {submitting ? 'Submitting...' : 'Submit Verification'}
         </button>

@@ -88,8 +88,8 @@ const Table = ({ columns, data }) => (
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('students');
-  const [statusFilter, setStatusFilter] = useState('active');
-  const [tutorStatusFilter, setTutorStatusFilter] = useState('active');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [tutorStatusFilter, setTutorStatusFilter] = useState('all');
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuRow, setMenuRow] = useState(null);
   const [tutors, setTutors] = useState([]);
@@ -128,6 +128,12 @@ export default function AdminDashboard() {
   const [gradeLevelForm, setGradeLevelForm] = useState({ name: '' });
   const [submittingGradeLevel, setSubmittingGradeLevel] = useState(false);
   const [editingGradeLevel, setEditingGradeLevel] = useState(null);
+
+  // Suspend tutor state
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [suspensionReason, setSuspensionReason] = useState('');
+  const [suspendingTutor, setSuspendingTutor] = useState(false);
+  const [tutorToSuspend, setTutorToSuspend] = useState(null);
 
   // Fetch tutors when tab is active or filter changes
   useEffect(() => {
@@ -308,6 +314,60 @@ export default function AdminDashboard() {
       navigate(`/admin/tutor/${menuRow.id}`);
     }
     closeMenu();
+  };
+
+  const handleOpenSuspendModal = () => {
+    setTutorToSuspend(menuRow);
+    setSuspensionReason('');
+    setShowSuspendModal(true);
+    closeMenu();
+  };
+
+  const handleCloseSuspendModal = () => {
+    setShowSuspendModal(false);
+    setSuspensionReason('');
+    setTutorToSuspend(null);
+  };
+
+  const handleSuspendTutor = async () => {
+    if (!tutorToSuspend?.userId) {
+      alert('Invalid tutor data');
+      return;
+    }
+
+    setSuspendingTutor(true);
+    try {
+      await apiRequest(`/api/v1/users/${tutorToSuspend.userId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: 'suspended',
+          suspensionReason: suspensionReason
+        }),
+      });
+      
+      handleCloseSuspendModal();
+      
+      // Refresh tutors list
+      const data = await apiRequest(`/api/v1/onboarding/tutors/list?status=${tutorStatusFilter}`);
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (Array.isArray(data.prospects)) {
+        list = data.prospects;
+      } else if (Array.isArray(data.tutors)) {
+        list = data.tutors;
+      } else if (Array.isArray(data.data)) {
+        list = data.data;
+      }
+      setTutors(list);
+      
+      alert('Tutor suspended successfully');
+    } catch (err) {
+      console.error('Failed to suspend tutor:', err);
+      alert(err.message || 'Failed to suspend tutor');
+    } finally {
+      setSuspendingTutor(false);
+    }
   };
 
   const handleOpenSubjectModal = () => {
@@ -575,8 +635,8 @@ export default function AdminDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard title="Active Students" value={statusFilter === 'active' && !loadingStudents ? students.length : '—'} subtitle="Current active learners" icon={statIcon} />
-        <StatCard title="Active Tutors" value={activeTab === 'tutors' && !loadingTutors ? tutors.length : '—'} subtitle="Available tutors" icon={statIcon} />
+        <StatCard title="Students" value={activeTab === 'students' && !loadingStudents ? students.length : '—'} subtitle={statusFilter === 'all' ? 'All students' : `${statusFilter} students`} icon={statIcon} />
+        <StatCard title="Tutors" value={activeTab === 'tutors' && !loadingTutors ? tutors.length : '—'} subtitle={tutorStatusFilter === 'all' ? 'All tutors' : `${tutorStatusFilter} tutors`} icon={statIcon} />
         <StatCard title="Active Promo Codes" value={activeTab === 'discounts' && !loadingPromoCodes ? promoCodes.filter(p=>p.isActive).length : '—'} subtitle="Active promotions" icon={statIcon} />
       </div>
 
@@ -600,6 +660,7 @@ export default function AdminDashboard() {
                 value={statusFilter}
                 onChange={setStatusFilter}
                 options={[
+                  { value: 'all', label: 'All' },
                   { value: 'active', label: 'Active' },
                   { value: 'inactive', label: 'Inactive' },
                   { value: 'suspended', label: 'Suspended' },
@@ -661,6 +722,7 @@ export default function AdminDashboard() {
                 value={tutorStatusFilter}
                 onChange={setTutorStatusFilter}
                 options={[
+                  { value: 'all', label: 'All' },
                   { value: 'active', label: 'Active' },
                   { value: 'pending', label: 'Pending' },
                   { value: 'awaiting_interview', label: 'Awaiting Interview' },
@@ -1017,6 +1079,44 @@ export default function AdminDashboard() {
         </DialogActions>
       </Dialog>
 
+      {/* Suspend Tutor Modal */}
+      <Dialog open={showSuspendModal} onClose={handleCloseSuspendModal} maxWidth="sm" fullWidth>
+        <DialogTitle>Suspend Tutor</DialogTitle>
+        <DialogContent>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-gray-600 mb-4">
+              You are about to suspend <strong>{tutorToSuspend?.fullName}</strong>. 
+              Please provide a reason for this suspension.
+            </p>
+            <TextField
+              label="Suspension Reason"
+              required
+              fullWidth
+              multiline
+              rows={4}
+              value={suspensionReason}
+              onChange={(e) => setSuspensionReason(e.target.value)}
+              variant="outlined"
+              placeholder="e.g., Violated terms of service"
+              helperText="This reason will be recorded and may be shared with the tutor"
+            />
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseSuspendModal} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSuspendTutor}
+            variant="contained"
+            color="error"
+            disabled={suspendingTutor || !suspensionReason.trim()}
+          >
+            {suspendingTutor ? 'Suspending...' : 'Suspend Tutor'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Add Promo Code Modal */}
       <Dialog open={showPromoCodeModal} onClose={handleClosePromoCodeModal} maxWidth="sm" fullWidth>
         <DialogTitle>Create Promo Code</DialogTitle>
@@ -1084,18 +1184,6 @@ export default function AdminDashboard() {
               placeholder="Leave empty for unlimited"
               helperText="Maximum number of times this code can be used"
             />
-            <div className="flex items-center gap-2 pt-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={promoCodeForm.isActive}
-                onChange={(e) => handlePromoCodeFormChange('isActive', e.target.checked)}
-                className="w-4 h-4 text-brand-medium-blue rounded focus:ring-brand-medium-blue"
-              />
-              <label htmlFor="isActive" className="text-sm text-gray-700">
-                Active (code can be used immediately)
-              </label>
-            </div>
           </div>
         </DialogContent>
         <DialogActions>

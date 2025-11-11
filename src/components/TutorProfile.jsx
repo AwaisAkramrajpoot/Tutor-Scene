@@ -423,10 +423,6 @@ const App = () => {
                   <span className="font-semibold text-gray-900">{mergedTutorData.sessions}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Rating</span>
-                  <span className="font-semibold text-gray-900">{mergedTutorData.rating} ⭐</span>
-                </div>
-                <div className="flex justify-between items-center">
                   <span className="text-gray-600">Hourly Rate</span>
                   <span className="font-semibold text-gray-900">${mergedTutorData.rate}</span>
                 </div>

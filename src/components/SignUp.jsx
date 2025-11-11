@@ -40,6 +40,8 @@ const SignUp = () => {
     confirmPassword: '',
     agreeTerms: false
   });
+  const [selectedGenders, setSelectedGenders] = useState([]);
+  const [customGender, setCustomGender] = useState('');
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState({
     open: false,
@@ -54,6 +56,16 @@ const SignUp = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handleGenderToggle = (gender) => {
+    setSelectedGenders(prev => {
+      if (prev.includes(gender)) {
+        return prev.filter(g => g !== gender);
+      } else {
+        return [...prev, gender];
+      }
+    });
   };
 
   const handleCloseAlert = () => {
@@ -108,6 +120,17 @@ const SignUp = () => {
         role: activeTab
       };
 
+      // Add gender for tutors
+      if (activeTab === 'tutor' && selectedGenders.length > 0) {
+        const genderValues = selectedGenders.map(g => {
+          if (g === 'Another gender identity' && customGender.trim()) {
+            return customGender.trim();
+          }
+          return g;
+        });
+        payload.gender = genderValues.join(', ');
+      }
+
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
       const response = await fetch(`${apiUrl}/api/v1/auth/register`, {
         method: 'POST',
@@ -148,7 +171,7 @@ const SignUp = () => {
   };
 
   // --- Design Colors/Constants from Image ---
-  const COLOR_STUDENT_TAB_ACTIVE = '#b18e47'; // Closest to the gold/brown in the image
+  const COLOR_STUDENT_TAB_ACTIVE = '#C89E45'; // Brand gold color - consistent with brand identity
   const COLOR_BUTTON_BLUE_GRADIENT = {
     start: '#4898e3',
     end: '#19619b',
@@ -181,12 +204,12 @@ const SignUp = () => {
           </div>
 
           {/* Toggle Tabs - Styled to match the screenshot exactly */}
-          <div className="flex rounded-md overflow-hidden mb-7 border border-[#b18e47]">
+          <div className="flex rounded-md overflow-hidden mb-7 border border-brand-gold">
             <button
               onClick={() => setActiveTab('student')}
               // Use specific color for active tab and border
               style={{ backgroundColor: activeTab === 'student' ? COLOR_STUDENT_TAB_ACTIVE : 'white' }}
-              className={`flex-1 py-2.5 px-4 text-sm font-medium transition-colors border-r border-[#b18e47] 
+              className={`flex-1 py-2.5 px-4 text-sm font-medium transition-colors border-r border-brand-gold 
                 ${activeTab === 'student'
                   ? 'text-white'
                   : 'text-gray-700 bg-white hover:bg-gray-50'
@@ -281,6 +304,43 @@ const SignUp = () => {
                 />
               </div>
             </div>
+
+            {/* Gender Identity - Only for Tutors */}
+            {activeTab === 'tutor' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  What is your gender identity?
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  (Select one or more options that best describe you.)
+                </p>
+                <div className="space-y-2">
+                  {['Woman', 'Man', 'Nonbinary', 'Another gender identity', 'Prefer not to say'].map((gender) => (
+                    <label key={gender} className="flex items-start cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedGenders.includes(gender)}
+                        onChange={() => handleGenderToggle(gender)}
+                        className="mt-0.5 h-4 w-4 text-brand-medium-blue border-gray-400 rounded focus:ring-brand-medium-blue"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        {gender}
+                        {gender === 'Another gender identity' && ' (please specify):'}
+                      </span>
+                    </label>
+                  ))}
+                  {selectedGenders.includes('Another gender identity') && (
+                    <input
+                      type="text"
+                      value={customGender}
+                      onChange={(e) => setCustomGender(e.target.value)}
+                      placeholder="Please specify"
+                      className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none text-sm text-gray-600 ml-6 mt-1"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Password Field */}
             <div className="mb-4">
