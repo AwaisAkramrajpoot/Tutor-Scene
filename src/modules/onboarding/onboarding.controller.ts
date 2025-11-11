@@ -15,7 +15,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { OnboardingService } from './services/onboarding.service';
 import { OnboardingDto } from './dto/onboarding.dto';
 import { OnboardingResponseDto } from './dto/onboarding-response.dto';
@@ -162,6 +162,12 @@ export class OnboardingController {
 
   @Get('tutors/list')
   @ApiOperation({ summary: 'Get list of tutors/prospects with optional status filter' })
+  @ApiQuery({ 
+    name: 'status', 
+    required: false, 
+    enum: ['pending', 'active', 'suspended', 'all'], 
+    description: 'Filter by status (use "all" to get all records regardless of status)' 
+  })
   @ApiResponse({ 
     status: 200, 
     description: 'Tutors list retrieved successfully',
@@ -362,6 +368,34 @@ export class OnboardingController {
         throw error;
       }
       throw new InternalServerErrorException('Failed to retrieve tutor');
+    }
+  }
+
+  @Get('tutor/:tutorId/payment-status')
+  @ApiOperation({ summary: 'Get payment onboarding status by tutor ID (prospect user_id)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Payment onboarding status retrieved',
+    schema: {
+      type: 'object',
+      properties: {
+        paymentOnBoarded: { type: 'boolean', example: true }
+      }
+    }
+  })
+  @ApiResponse({ status: 404, description: 'Prospect not found for tutor' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async getPaymentStatusByTutorId(
+    @Param('tutorId', ParseIntPipe) tutorId: number,
+  ): Promise<{ paymentOnBoarded: boolean }> {
+    try {
+      return await this.onboardingService.getPaymentOnboardingStatus(tutorId);
+    } catch (error) {
+      this.logger.error(`Failed to get payment status for tutor ${tutorId}`, error.stack);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to retrieve payment onboarding status');
     }
   }
 }

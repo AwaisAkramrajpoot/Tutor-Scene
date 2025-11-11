@@ -457,4 +457,40 @@ export class BookingsService {
     await this.bookingRepository.save(booking);
     this.logger.log(`Booking ${booking.id} marked as refunded`);
   }
+
+  async getTutorStatistics(tutorId: number): Promise<{
+    currentWeekBookingsCount: number;
+    activeStudentsCount: number;
+  }> {
+    // Get start and end of current week (Sunday to Saturday)
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - dayOfWeek);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    // Count bookings for current week (past or future)
+    const currentWeekBookingsCount = await this.bookingRepository
+      .createQueryBuilder('booking')
+      .where('booking.tutorProfileId = :tutorId', { tutorId })
+      .andWhere('booking.startTime >= :startOfWeek', { startOfWeek })
+      .andWhere('booking.startTime <= :endOfWeek', { endOfWeek })
+      .getCount();
+
+    // Count active students
+    const activeStudentsCount = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.role = :role', { role: 'student' })
+      .andWhere('user.status = :status', { status: 'active' })
+      .getCount();
+
+    return {
+      currentWeekBookingsCount,
+      activeStudentsCount,
+    };
+  }
 }

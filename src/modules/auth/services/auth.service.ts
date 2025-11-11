@@ -59,6 +59,7 @@ export class AuthService {
       phoneNumber: registerDto.phone,
       status: UserStatus.ACTIVE,
       role: registerDto.role as any || 'student',
+      gender: registerDto.gender,
     });
 
     await this.userRepository.save(user);
@@ -263,6 +264,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        status: user.status,
         ...(paymentOnBoarded !== undefined && { paymentOnBoarded }),
         ...(prospectId !== undefined && { prospectId }),
         ...(prospectStatus !== undefined && { prospectStatus }),

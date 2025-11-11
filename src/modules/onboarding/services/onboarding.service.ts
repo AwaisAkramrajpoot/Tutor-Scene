@@ -307,17 +307,24 @@ export class OnboardingService {
 
   /**
    * Get list of tutors/prospects with optional status filter
-   * @param status - Optional status filter (defaults to 'active' if not provided)
+   * @param status - Optional status filter (defaults to 'active' if not provided, use 'all' to get all records)
    * @returns List of prospects
    */
   async getTutorsList(status?: string): Promise<Prospect[]> {
     try {
+      // If status is 'all', return all prospects regardless of status
+      if (status?.toLowerCase() === 'all') {
+        return await this.prospectRepository.find({
+          order: { createdAt: 'DESC' },
+        });
+      }
+
       // Default to 'active' if no status is provided
       const filterStatus = status || ProspectStatus.ACTIVE;
 
       // Validate status if provided
       if (status && !Object.values(ProspectStatus).includes(status as ProspectStatus)) {
-        throw new BadRequestException(`Invalid status: ${status}. Valid values are: ${Object.values(ProspectStatus).join(', ')}`);
+        throw new BadRequestException(`Invalid status: ${status}. Valid values are: ${Object.values(ProspectStatus).join(', ')}, all`);
       }
 
       const prospects = await this.prospectRepository.find({

@@ -13,7 +13,8 @@ export class AuthResponseDto {
       email: 'john.doe@example.com', 
       firstName: 'John', 
       lastName: 'Doe', 
-      role: 'tutor', 
+      role: 'tutor',
+      status: 'active',
       paymentOnBoarded: true, 
       prospectId: 5,
       prospectStatus: 'awaiting_interview'
@@ -25,6 +26,7 @@ export class AuthResponseDto {
     firstName: string;
     lastName: string;
     role: string;
+    status: string;
     paymentOnBoarded?: boolean;
     prospectId?: number;
     prospectStatus?: string;

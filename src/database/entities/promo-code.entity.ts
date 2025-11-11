@@ -13,10 +13,10 @@ export class PromoCode extends BaseEntity {
   @Column({ type: 'decimal', precision: 10, scale: 2, name: 'discount_value' })
   discountValue: number;
 
-  @Column({ type: 'timestamp', name: 'valid_from' })
+  @Column({ type: 'timestamp', name: 'valid_from', nullable: true })
   validFrom: Date;
 
-  @Column({ type: 'timestamp', name: 'valid_until' })
+  @Column({ type: 'timestamp', name: 'valid_until', nullable: true })
   validUntil: Date;
 
   @Column({ type: 'int', nullable: true, name: 'usage_limit' })

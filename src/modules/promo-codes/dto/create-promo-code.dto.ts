@@ -15,13 +15,15 @@ export class CreatePromoCodeDto {
   @IsNumber()
   discountValue: number;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z' })
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', required: false })
   @IsDateString()
-  validFrom: string;
+  @IsOptional()
+  validFrom?: string;
 
-  @ApiProperty({ example: '2024-12-31T23:59:59Z' })
+  @ApiProperty({ example: '2024-12-31T23:59:59Z', required: false })
   @IsDateString()
-  validUntil: string;
+  @IsOptional()
+  validUntil?: string;
 
   @ApiProperty({ example: 100, required: false })
   @IsNumber()

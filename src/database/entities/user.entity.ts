@@ -34,6 +34,9 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'profile_photo_url' })
   profilePhotoUrl: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  gender: string;
+
   @Column({ type: 'boolean', default: false, name: 'two_factor_enabled' })
   twoFactorEnabled: boolean;
 

@@ -2,9 +2,10 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../database/entities/user.entity';
+import { Prospect } from '../../database/entities/prospect.entity';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
-import { UserRole, UserStatus } from '@/database/entities/enums';
+import { UserRole, UserStatus, ProspectStatus } from '@/database/entities/enums';
 import { MailService } from '../auth/services/mail.service';
 
 @Injectable()
@@ -12,6 +13,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Prospect)
+    private readonly prospectRepository: Repository<Prospect>,
     private readonly mailService: MailService,
   ) {}
 
@@ -41,7 +44,8 @@ export class UsersService {
   async findAllStudents(status?: string): Promise<User[]> {
     const whereCondition: any = { role: UserRole.STUDENT };
     
-    if (status) {
+    // If status is 'all', don't filter by status
+    if (status && status.toLowerCase() !== 'all') {
       whereCondition.status = status as UserStatus;
     }
 
@@ -71,6 +75,30 @@ export class UsersService {
     }
 
     const updatedUser = await this.userRepository.save(user);
+
+    // If user is being suspended, also suspend their prospect record if it exists
+    if (updateUserStatusDto.status === UserStatus.SUSPENDED) {
+      const prospect = await this.prospectRepository.findOne({
+        where: { userId: user.id },
+      });
+
+      if (prospect) {
+        prospect.status = ProspectStatus.SUSPENDED;
+        await this.prospectRepository.save(prospect);
+      }
+    }
+
+    // If user is being reactivated, also reactivate their prospect record if it exists
+    if (updateUserStatusDto.status === UserStatus.ACTIVE && oldStatus === UserStatus.SUSPENDED) {
+      const prospect = await this.prospectRepository.findOne({
+        where: { userId: user.id },
+      });
+
+      if (prospect && prospect.status === ProspectStatus.SUSPENDED) {
+        prospect.status = ProspectStatus.ACTIVE;
+        await this.prospectRepository.save(prospect);
+      }
+    }
 
     // Send email notification about status change
     await this.mailService.sendUserStatusChangeEmail(
