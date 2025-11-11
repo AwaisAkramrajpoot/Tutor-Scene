@@ -122,6 +122,14 @@ const SignIn = () => {
 
             if (statusResponse.ok) {
               const status = statusData.status || statusData.data?.status;
+              
+              // Update localStorage with the latest prospectStatus
+              const updatedUser = {
+                ...data.user,
+                prospectStatus: status
+              };
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+              
               // Get paymentOnBoarded from login response user object
               const paymentOnBoarded = data.user.paymentOnBoarded;
               

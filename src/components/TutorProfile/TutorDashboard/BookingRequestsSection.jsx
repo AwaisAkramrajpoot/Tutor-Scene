@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiRequest } from "../../../utils/api";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import NotificationsPanel from "../../Notifications/NotificationsPanel";
 
 export const BookingRequestsSection = () => {
   const navigate = useNavigate();
@@ -194,23 +195,7 @@ export const BookingRequestsSection = () => {
     },
   ];
 
-  const notifications = [
-    {
-      id: 1,
-      message: "New booking request from Alex Johnson",
-      time: "30 minutes ago",
-    },
-    {
-      id: 2,
-      message: "Session with Kevin Brown starts in 2 hours",
-      time: "1 hour ago",
-    },
-    {
-      id: 3,
-      message: "You received a 5-star review from Maria Garcia",
-      time: "3 hours ago",
-    },
-  ];
+
 
   const performanceMetrics = [
     {
@@ -469,20 +454,7 @@ export const BookingRequestsSection = () => {
         {/* Right column - 1/3 width */}
         <aside className="space-y-6">
           {/* Notifications */}
-          <article className="bg-white rounded-2xl border border-black/10 p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <span className="text-xl">🔔</span>
-              <h2 className="text-2xl text-[#101727]">Notifications</h2>
-            </div>
-            <ul className="space-y-4">
-              {notifications.map((notification, index) => (
-                <li key={notification.id} className={`pb-4 ${index < notifications.length - 1 ? "border-b border-black/10" : ""}`}>
-                  <p className="text-[#101727]">{notification.message}</p>
-                  <time className="text-[#697282] text-sm mt-1 block">{notification.time}</time>
-                </li>
-              ))}
-            </ul>
-          </article>
+          <NotificationsPanel />
 
           {/* Quick Actions */}
           <article className="bg-white rounded-2xl border border-black/10 p-6">
