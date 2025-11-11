@@ -154,6 +154,27 @@ export const MessagingProvider = ({ children }) => {
       // Add message to messages state
       setMessages((prev) => {
         const conversationMessages = prev[message.conversationId] || [];
+        
+        // Check if message already exists (by ID or by matching optimistic message)
+        const existingIndex = conversationMessages.findIndex(
+          (msg) => msg.id === message.id || 
+          (String(msg.id).startsWith('temp-') && 
+           msg.content === message.content && 
+           msg.senderId === message.senderId &&
+           Math.abs(new Date(msg.createdAt) - new Date(message.createdAt)) < 5000) // Within 5 seconds
+        );
+        
+        if (existingIndex !== -1) {
+          // Replace optimistic/existing message with the real one
+          const updatedMessages = [...conversationMessages];
+          updatedMessages[existingIndex] = { ...message, status: 'delivered' };
+          return {
+            ...prev,
+            [message.conversationId]: updatedMessages,
+          };
+        }
+        
+        // Add new message if it doesn't exist
         return {
           ...prev,
           [message.conversationId]: [...conversationMessages, message],
@@ -165,11 +186,13 @@ export const MessagingProvider = ({ children }) => {
         prev.map((conv) => {
           if (conv.id === message.conversationId) {
             const isActive = activeConversationRef.current?.id === message.conversationId;
+            const isSentByCurrentUser = message.senderId === currentUserId;
             return {
               ...conv,
               lastMessage: message,
               lastMessageAt: message.createdAt,
-              unreadCount: isActive ? conv.unreadCount : (conv.unreadCount || 0) + 1,
+              // Only increment unread if not active and not sent by current user
+              unreadCount: (isActive || isSentByCurrentUser) ? conv.unreadCount : (conv.unreadCount || 0) + 1,
             };
           }
           return conv;

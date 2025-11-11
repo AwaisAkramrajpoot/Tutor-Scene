@@ -28,16 +28,24 @@ const OnboardingStatusGuard = ({ children }) => {
         return;
       }
 
-      // Allow access to profile-under-review, payment setup pages, and signin/signup
-      const allowedPaths = [
-        '/profile-under-review', 
-        '/signin', 
-        '/signup',
-        '/tutor/payment-setup',
-        '/tutor/onboarding/refresh',
-        '/tutor/onboarding/complete'
-      ];
-      if (allowedPaths.includes(location.pathname)) {
+      // Check if tutor doesn't have prospectStatus - restrict to onboarding routes only
+      if (!user.prospectStatus) {
+        const allowedOnboardingPaths = ['/create-profile', '/verify-identity'];
+        if (!allowedOnboardingPaths.includes(location.pathname)) {
+          navigate('/create-profile', { replace: true });
+          setIsAllowed(false);
+          setIsChecking(false);
+          return;
+        } else {
+          setIsAllowed(true);
+          setIsChecking(false);
+          return;
+        }
+      }
+
+      // Allow access to signin/signup always
+      const publicPaths = ['/signin', '/signup'];
+      if (publicPaths.includes(location.pathname)) {
         setIsAllowed(true);
         setIsChecking(false);
         return;
@@ -65,39 +73,110 @@ const OnboardingStatusGuard = ({ children }) => {
           const onboardingRoutes = ['/create-profile', '/verify-identity', '/become-tutor', '/ready-to-teach'];
           const isOnboardingRoute = onboardingRoutes.includes(location.pathname);
           
-          // If status is pending, redirect to review page
+          // If status is pending, LOCK to profile-under-review page
           if (data.status === 'pending') {
-            if (isOnboardingRoute) {
-              // Block access to onboarding routes for pending tutors
+            if (location.pathname !== '/profile-under-review') {
               navigate('/profile-under-review', { replace: true });
               setIsAllowed(false);
             } else {
-              navigate('/profile-under-review', { replace: true });
-              setIsAllowed(false);
+              setIsAllowed(true);
             }
-          } else if (data.status === 'active') {
-            // Check if payment onboarding is complete
-            if (paymentOnBoarded === false) {
-              // Redirect to payment setup if not completed
-              if (location.pathname !== '/tutor/payment-setup' && 
-                  location.pathname !== '/tutor/onboarding/refresh' && 
-                  location.pathname !== '/tutor/onboarding/complete') {
-                navigate('/tutor/payment-setup', { replace: true });
-                setIsAllowed(false);
-              } else {
-                setIsAllowed(true);
-              }
+          } 
+          // If status is awaiting_interview, allow interviews and messages, but redirect from other pages
+          else if (data.status === 'awaiting_interview') {
+            const allowedPaths = ['/interviews', '/messages'];
+            const isAllowedPath = allowedPaths.some(path => location.pathname.startsWith(path));
+            
+            if (!isAllowedPath) {
+              navigate('/interviews', { replace: true });
+              setIsAllowed(false);
             } else {
-              // Payment onboarding complete - block access to onboarding routes
-              if (isOnboardingRoute) {
-                navigate('/tutor-dashboard', { replace: true });
-                setIsAllowed(false);
+              setIsAllowed(true);
+            }
+          } 
+          else if (data.status === 'active') {
+            // Check payment onboarding status from API
+            try {
+              const paymentResponse = await fetch(
+                `${apiUrl}/api/v1/onboarding/payment-onboarded/${user.id}`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  }
+                }
+              );
+
+              if (paymentResponse.ok) {
+                const paymentData = await paymentResponse.json();
+                const isPaymentOnboarded = paymentData.paymentOnboarded;
+
+                // Update localStorage with latest payment status
+                const updatedUser = { ...user, paymentOnBoarded: isPaymentOnboarded };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+
+                if (isPaymentOnboarded === false) {
+                  // Redirect to payment setup if not completed
+                  if (location.pathname !== '/tutor/payment-setup' && 
+                      location.pathname !== '/tutor/onboarding/refresh' && 
+                      location.pathname !== '/tutor/onboarding/complete') {
+                    navigate('/tutor/payment-setup', { replace: true });
+                    setIsAllowed(false);
+                  } else {
+                    setIsAllowed(true);
+                  }
+                } else {
+                  // Payment onboarding complete - block access to onboarding routes
+                  if (isOnboardingRoute) {
+                    navigate('/tutor-dashboard', { replace: true });
+                    setIsAllowed(false);
+                  } else {
+                    setIsAllowed(true);
+                  }
+                }
               } else {
-                setIsAllowed(true);
+                // If payment API fails, fall back to localStorage value
+                if (paymentOnBoarded === false) {
+                  if (location.pathname !== '/tutor/payment-setup' && 
+                      location.pathname !== '/tutor/onboarding/refresh' && 
+                      location.pathname !== '/tutor/onboarding/complete') {
+                    navigate('/tutor/payment-setup', { replace: true });
+                    setIsAllowed(false);
+                  } else {
+                    setIsAllowed(true);
+                  }
+                } else {
+                  if (isOnboardingRoute) {
+                    navigate('/tutor-dashboard', { replace: true });
+                    setIsAllowed(false);
+                  } else {
+                    setIsAllowed(true);
+                  }
+                }
+              }
+            } catch (paymentError) {
+              console.error('Error checking payment status:', paymentError);
+              // Fall back to localStorage value on error
+              if (paymentOnBoarded === false) {
+                if (location.pathname !== '/tutor/payment-setup' && 
+                    location.pathname !== '/tutor/onboarding/refresh' && 
+                    location.pathname !== '/tutor/onboarding/complete') {
+                  navigate('/tutor/payment-setup', { replace: true });
+                  setIsAllowed(false);
+                } else {
+                  setIsAllowed(true);
+                }
+              } else {
+                if (isOnboardingRoute) {
+                  navigate('/tutor-dashboard', { replace: true });
+                  setIsAllowed(false);
+                } else {
+                  setIsAllowed(true);
+                }
               }
             }
           } else {
-            // Status is not active or pending - allow navigation
+            // Status is not active, pending, or awaiting_interview - allow navigation
             setIsAllowed(true);
           }
         } else {

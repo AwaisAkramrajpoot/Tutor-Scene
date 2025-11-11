@@ -98,10 +98,10 @@ const FindTutorsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20 md:py-24 lg:py-32 overflow-hidden">
+      <div className="relative bg-gradient-to-r from-brand-dark-blue via-brand-medium-blue to-brand-dark-blue text-white py-20 md:py-24 lg:py-32 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">Find Your Perfect Tutor</h1>
-          <p className="text-lg md:text-xl lg:text-2xl text-blue-100">
+          <p className="text-lg md:text-xl lg:text-2xl text-brand-light-blue">
             Search by subject, price, and availability to discover qualified tutors
           </p>
         </div>

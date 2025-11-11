@@ -22,7 +22,7 @@ export const ProfileTipsSection = () => {
   const [fullName, setFullName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [interviewTime, setInterviewTime] = useState("");
-  const [hourlyRate, setHourlyRate] = useState("50");
+  const [hourlyRate, setHourlyRate] = useState("");
   const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
   const [isDraggingVideo, setIsDraggingVideo] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
@@ -80,6 +80,7 @@ export const ProfileTipsSection = () => {
     if (saved.fullName) setFullName(saved.fullName);
     if (saved.dateOfBirth) setDateOfBirth(saved.dateOfBirth);
     if (saved.interviewTime) setInterviewTime(saved.interviewTime);
+    if (saved.hourlyRate) setHourlyRate(String(saved.hourlyRate));
     if (saved.profilePic) { setUploadedUrls((u)=>({ ...u, profilePic: saved.profilePic })); setPhotoPreview(saved.profilePic); }
     if (saved.cv) setUploadedUrls((u)=>({ ...u, cv: saved.cv }));
     if (saved.introVideo) setUploadedUrls((u)=>({ ...u, introVideo: saved.introVideo }));
@@ -379,13 +380,14 @@ const handleCVFile = async (file) => {
         {/* Date of Birth */}
         <div className="mb-6">
           <label htmlFor="dob" className="block text-base text-[#101727] mb-3 font-normal">
-            Date of Birth
+            Date of Birth <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
             id="dob"
             value={dateOfBirth}
             onChange={(e) => setDateOfBirth(e.target.value)}
+            required
             className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
           />
         </div>
@@ -624,7 +626,7 @@ const handleCVFile = async (file) => {
         {/* Hourly Rate */}
         <div className="mb-6">
           <label htmlFor="hourly-rate" className="block text-base text-[#101727] mb-3 font-normal">
-            Hourly Rate (USD)
+            Hourly Rate (USD) <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-base font-medium pointer-events-none">
@@ -635,9 +637,11 @@ const handleCVFile = async (file) => {
               id="hourly-rate"
               value={hourlyRate}
               onChange={(e) => setHourlyRate(e.target.value)}
+              placeholder="Enter your hourly rate"
               className="w-full h-12 pl-10 pr-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
-              min="0"
+              min="1"
               step="1"
+              required
               aria-describedby="rate-help"
             />
           </div>
@@ -788,14 +792,15 @@ const handleCVFile = async (file) => {
               yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
               teachingPhilosophy: aboutMe,
               interviewTime,
+              fee: hourlyRate ? Number(hourlyRate) : undefined,
               profilePic: uploadedUrls.profilePic || undefined,
               cv: uploadedUrls.cv || undefined,
               introVideo: uploadedUrls.introVideo || undefined,
             });
             navigate('/verify-identity');
           }}
-          className="w-full h-14 rounded-xl bg-gradient-to-r from-[#5BA3D8] to-[#1B5A94] text-white text-base font-medium hover:opacity-90 transition-opacity shadow-sm"
-          disabled={uploading.photo || uploading.video || uploading.cv}
+          className="w-full h-14 rounded-xl bg-gradient-to-r from-[#5BA3D8] to-[#1B5A94] text-white text-base font-medium hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={uploading.photo || uploading.video || uploading.cv || !hourlyRate || Number(hourlyRate) < 1 || !dateOfBirth}
         >
           Save and Continue
         </button>

@@ -254,12 +254,12 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
 
             {/* Title */}
             <h2 className="text-2xl font-bold text-brand-medium-blue text-center mb-3">
-              Booking confirmed!
+              Booking Request Sent!
             </h2>
 
             {/* Subtitle */}
             <p className="text-gray-600 text-center text-base">
-              You will receive a confirmation email shortly.
+              Once the tutor accepts your booking request, you will receive an email to proceed with payment.
             </p>
           </div>
         </div>
@@ -331,14 +331,14 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                   <p className="text-sm text-gray-500 mb-4">Click on a green time slot to select it for booking</p>
                   <FullCalendar
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView="timeGridWeek"
+                    initialView="dayGridMonth"
                     headerToolbar={{
                       left: 'prev,next today',
                       center: 'title',
                       right: 'dayGridMonth,timeGridWeek,timeGridDay'
                     }}
-                    slotMinTime="06:00:00"
-                    slotMaxTime="22:00:00"
+                    slotMinTime="00:00:00"
+                    slotMaxTime="24:00:00"
                     slotDuration="00:30:00"
                     selectable={false}
                     selectMirror={false}

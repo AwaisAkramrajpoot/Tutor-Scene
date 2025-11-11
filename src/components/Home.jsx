@@ -457,11 +457,11 @@ const Home = () => {
       </div>
 
       {/* Ready to Get Started Section */}
-      <div className="bg-blue-600 py-20">
+      <div className="bg-gradient-to-r from-brand-dark-blue via-brand-medium-blue to-brand-dark-blue py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Get Started?</h2>
-          <p className="text-xl text-blue-100 mb-8">Join Tutor Scene today and discover the perfect learning experience.</p>
-          <button  onClick={() => navigate('/signin')} className="bg-white text-blue-600 hover:bg-gray-100 font-semibold py-4 px-8 rounded-lg transition-colors flex items-center mx-auto">
+          <p className="text-xl text-brand-light-blue mb-8">Join Tutor Scene today and discover the perfect learning experience.</p>
+          <button  onClick={() => navigate('/signin')} className="bg-white text-brand-dark-blue hover:bg-brand-gold hover:text-white font-semibold py-4 px-8 rounded-lg border-2 border-brand-gold transition-all shadow-lg flex items-center mx-auto">
             Find a Tutor Now
             <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

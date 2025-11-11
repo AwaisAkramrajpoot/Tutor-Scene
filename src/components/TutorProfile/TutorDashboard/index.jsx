@@ -1,33 +1,61 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { BookingRequestsSection } from "./BookingRequestsSection";
 import { DashboardStatsSection } from "./DashboardStatsSection";
+import { apiRequest, getCurrentUser } from "../../../utils/api";
 
 export const TutorDashboard = () => {
+  const [statistics, setStatistics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStatistics = async () => {
+      try {
+        setLoading(true);
+        const user = getCurrentUser();
+        const tutorId = user?.id || user?.userId;
+        
+        if (!tutorId) {
+          console.error('No tutor ID found');
+          return;
+        }
+
+        const data = await apiRequest(`/api/v1/bookings/tutor/${tutorId}/statistics`);
+        setStatistics(data);
+      } catch (error) {
+        console.error('Failed to fetch tutor statistics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatistics();
+  }, []);
+
   const statCards = [
     {
       title: "Total Earnings",
-      value: "$3,240",
+      value: loading ? "..." : statistics?.totalEarnings ? `$${statistics.totalEarnings.toFixed(2)}` : "$0.00",
       subtitle: "+12% this month",
       gradient: "from-[#5A8DEE] to-[#5E60CE]",
       icon: "💵",
     },
     {
       title: "Sessions This Week",
-      value: "18",
-      subtitle: "6 pending requests",
+      value: loading ? "..." : statistics?.currentWeekBookingsCount?.toString() || "0",
+      subtitle: statistics?.pendingRequests ? `${statistics.pendingRequests} pending requests` : "No pending requests",
       gradient: "from-[#FF5EA2] to-[#F06BC6]",
       icon: "📅",
     },
     {
       title: "Total Students",
-      value: "127",
+      value: loading ? "..." : statistics?.activeStudentsCount?.toString() || "0",
       subtitle: "Active students",
       gradient: "from-[#FFB000] to-[#FF8A00]",
       icon: "👥",
     },
     {
       title: "Hours Taught",
-      value: "324",
+      value: loading ? "..." : statistics?.hoursTaught?.toString() || "0",
       subtitle: "Total hours",
       gradient: "from-[#7A3CF8] to-[#C33BF9]",
       icon: "⏱️",

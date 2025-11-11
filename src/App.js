@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './components/Home';
 import SignIn from './components/SignIn';
@@ -27,11 +28,73 @@ import PaymentPage from './components/Payment/PaymentPage';
 import PaymentSuccess from './components/Payment/PaymentSuccess';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
+import OnboardingStatusGuard from './components/OnboardingStatusGuard';
+import { apiRequest } from './utils/api';
+
+// Component to handle tutor status check and redirect
+function TutorStatusChecker() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const checkTutorStatus = async () => {
+      try {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) return;
+
+        const user = JSON.parse(userStr);
+        
+        // Only check status for tutors
+        if (user.role !== 'tutor') return;
+
+        // Fetch current onboarding status - use userId and ensure it's a string
+        const userId = String(user.userId || user.id || '');
+        if (!userId) return;
+        
+        const response = await apiRequest(`/api/v1/onboarding/status/${userId}`, {
+          method: 'GET'
+        });
+
+        // Update user object with new prospectStatus
+        if (response && response.status) {
+          const updatedUser = {
+            ...user,
+            prospectStatus: response.status
+          };
+          
+          // Save updated user back to localStorage
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          
+          console.log('Tutor status updated:', response.status);
+
+          // Redirect tutors based on their status
+          // Only redirect from home page
+          if (location.pathname === '/') {
+            if (response.status === 'active') {
+              navigate('/tutor-dashboard');
+            } else if (response.status === 'awaiting_interview') {
+              navigate('/interviews');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking tutor onboarding status:', error);
+        // Don't throw error - just log it and continue
+      }
+    };
+
+    checkTutorStatus();
+  }, [navigate, location.pathname]); // Run on mount and when location changes
+
+  return null; // This component doesn't render anything
+}
 
 function App() {
   return (
     <Router>
-      <Routes>
+      <TutorStatusChecker />
+      <OnboardingStatusGuard>
+        <Routes>
         {/* Public Routes - No authentication required */}
         <Route path="/" element={<Layout><Home /></Layout>} />
         <Route path="/signin" element={<SignIn />} />
@@ -214,7 +277,8 @@ function App() {
             </ProtectedRoute>
           } 
         />
-      </Routes>
+        </Routes>
+      </OnboardingStatusGuard>
     </Router>
   );
 }
