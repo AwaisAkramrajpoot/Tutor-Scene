@@ -183,11 +183,11 @@ const SignUp = () => {
   const COLOR_LINK_RED = '#f0646c';
 
   return (
-    <div className="h-screen flex antialiased">
+    <div className="min-h-screen flex antialiased">
       {/* Left Side - Form */}
       <div className="w-full md:w-1/2 bg-white flex items-center justify-center px-8 overflow-y-auto">
         {/* Adjusted padding to center the content more vertically, and py for mobile space */}
-        <div className="w-full max-w-md my-8 md:my-0">
+        <div className="w-full max-w-md my-8">
 
           {/* Back to login - Match font and alignment */}
           <Link to="/signin" className="flex items-center text-gray-700 hover:text-gray-900 mb-8 text-sm font-medium">
