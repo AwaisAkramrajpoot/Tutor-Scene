@@ -461,7 +461,7 @@ const TutorDetails = () => {
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[tutor.status] || 'bg-gray-100 text-gray-600'}`}>
                   {tutor.status?.replace('_', ' ').toUpperCase()}
                 </span>
-                <span className="text-gray-500 text-sm">ID: {tutor.id}</span>
+                <span className="text-gray-500 text-sm">ID: {tutor.prospectId}</span>
               </div>
               <div className="text-sm text-gray-600 space-y-1">
                 <p><strong>Joined:</strong> {new Date(tutor.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>

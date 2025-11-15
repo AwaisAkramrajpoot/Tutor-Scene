@@ -91,8 +91,8 @@ const PaymentSuccess = () => {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h2>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Booking ID</span>
-                    <span className="text-gray-900 font-medium">#{booking.id}</span>
+                    <span className="text-gray-600">Booking Reference</span>
+                    <span className="text-gray-900 font-medium">#{booking.referenceNumber || booking.id}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Date</span>
