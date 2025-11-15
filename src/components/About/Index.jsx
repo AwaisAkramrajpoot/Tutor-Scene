@@ -3,7 +3,6 @@ import { ContactSection } from "./ContactSection";
 import { HeroSection } from "./HeroSection";
 import { MissionSection } from "./MissionSection";
 import { StatsSection } from "./StatsSection";
-import { TeamSection } from "./TeamSection";
 import { ValuesSection } from "./ValuesSection";
 
 export const AboutPage = () => {
@@ -11,7 +10,6 @@ export const AboutPage = () => {
     <div className="w-full bg-white">
       <HeroSection />
       <MissionSection />
-      <TeamSection />
       <StatsSection />
       <ContactSection />
       <ValuesSection />

@@ -177,8 +177,8 @@ const PaymentPage = () => {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h2>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-600">Booking ID</span>
-                <span className="text-gray-900 font-medium">#{bookingId}</span>
+                <span className="text-gray-600">Booking Reference</span>
+                <span className="text-gray-900 font-medium">#{bookingDetails?.referenceNumber || bookingId}</span>
               </div>
               {bookingDetails && (
                 <>

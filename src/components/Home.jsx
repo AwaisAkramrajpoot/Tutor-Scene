@@ -1,7 +1,52 @@
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { apiRequest } from '../utils/api';
 
 const Home = () => {
   const navigate = useNavigate();
+  const [testimonials, setTestimonials] = useState([]);
+  const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
+  const [loadingTestimonials, setLoadingTestimonials] = useState(true);
+
+  // Fetch testimonials on component mount
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      try {
+        setLoadingTestimonials(true);
+        const data = await apiRequest('/api/v1/testimonials', 'GET');
+        const testimonialsList = Array.isArray(data) ? data : data.testimonials || data.data || [];
+        setTestimonials(testimonialsList);
+      } catch (error) {
+        console.error('Failed to fetch testimonials:', error);
+        // Keep empty array if fetch fails
+        setTestimonials([]);
+      } finally {
+        setLoadingTestimonials(false);
+      }
+    };
+
+    fetchTestimonials();
+  }, []);
+
+  // Navigate to next testimonial
+  const handleNextTestimonial = () => {
+    if (testimonials.length > 0) {
+      setCurrentTestimonialIndex((prevIndex) => 
+        prevIndex === testimonials.length - 1 ? 0 : prevIndex + 1
+      );
+    }
+  };
+
+  // Navigate to previous testimonial
+  const handlePrevTestimonial = () => {
+    if (testimonials.length > 0) {
+      setCurrentTestimonialIndex((prevIndex) => 
+        prevIndex === 0 ? testimonials.length - 1 : prevIndex - 1
+      );
+    }
+  };
+
+  const currentTestimonial = testimonials[currentTestimonialIndex];
 
   return (
     <div className="min-h-screen">
@@ -413,44 +458,90 @@ const Home = () => {
 
             {/* Right Side - Testimonial Card and Image */}
             <div className="relative max-w-lg mx-auto lg:mx-0">
-              {/* Student Image with rounded corners */}
-              <div className="relative">
-                <img 
-                  src="/images/testimonials.jpg" 
-                  alt="Happy student with books" 
-                  className="w-full h-auto rounded-3xl shadow-xl object-cover"
-                />
-                
-                {/* Navigation Arrow */}
-                <button className="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Testimonial Card - Overlapping bottom */}
-              <div className="relative -mt-32 mx-4 bg-white rounded-2xl shadow-2xl p-8 border-l-4 border-red-500">
-                <blockquote className="text-gray-600 mb-6 text-base leading-relaxed">
-                  "Tutor Scene made finding the right tutor so easy! My lessons are interactive, flexible, and actually fun. I've improved more in a few weeks than I expected."
-                </blockquote>
-                
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="font-bold text-gray-900 text-lg">Gloria Rose</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex text-yellow-400 mb-1 justify-end">
-                      {[...Array(5)].map((_, i) => (
-                        <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500">Rated 5 Stars by Students</p>
-                  </div>
+              {loadingTestimonials ? (
+                <div className="flex items-center justify-center h-96">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                 </div>
-              </div>
+              ) : testimonials.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No testimonials available at the moment.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Student Image with rounded corners */}
+                  <div className="relative">
+                    <img 
+                      src="/images/testimonials.jpg" 
+                      alt="Happy student with books" 
+                      className="w-full h-auto rounded-3xl shadow-xl object-cover"
+                    />
+                    
+                    {/* Navigation Arrows */}
+                    <button 
+                      onClick={handlePrevTestimonial}
+                      className="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
+                      aria-label="Previous testimonial"
+                    >
+                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    
+                    <button 
+                      onClick={handleNextTestimonial}
+                      className="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
+                      aria-label="Next testimonial"
+                    >
+                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Testimonial Card - Overlapping bottom */}
+                  <div className="relative -mt-32 mx-4 bg-white rounded-2xl shadow-2xl p-8 border-l-4 border-red-500">
+                    <blockquote className="text-gray-600 mb-6 text-base leading-relaxed">
+                      <i>"{currentTestimonial?.testimonial || 'No testimonial text available.'}"</i>
+                    </blockquote>
+                    
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="font-bold text-gray-900 text-sm ">
+                          <i>{currentTestimonial?.testimonialBy || 'Anonymous'}</i>
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex text-yellow-400 mb-1 justify-end">
+                          {[...Array(5)].map((_, i) => (
+                            <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-500">Rated 5 Stars by Students</p>
+                      </div>
+                    </div>
+                    
+                    {/* Testimonial Indicator Dots */}
+                    {testimonials.length > 1 && (
+                      <div className="flex justify-center mt-4 space-x-2">
+                        {testimonials.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentTestimonialIndex(index)}
+                            className={`w-2 h-2 rounded-full transition-all ${
+                              index === currentTestimonialIndex 
+                                ? 'bg-blue-600 w-6' 
+                                : 'bg-gray-300 hover:bg-gray-400'
+                            }`}
+                            aria-label={`Go to testimonial ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

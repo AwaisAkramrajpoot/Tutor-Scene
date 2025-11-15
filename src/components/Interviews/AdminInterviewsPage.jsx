@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import { apiRequest } from '../../utils/api';
 
 const AdminInterviewsPage = () => {
@@ -7,6 +8,11 @@ const AdminInterviewsPage = () => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
+  
+  // Confirmation dialog state
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [selectedInterview, setSelectedInterview] = useState(null);
 
   useEffect(() => {
     fetchAllInterviews();
@@ -24,6 +30,18 @@ const AdminInterviewsPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openConfirmDialog = (action, interview) => {
+    setConfirmAction(action);
+    setSelectedInterview(interview);
+    setConfirmDialogOpen(true);
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialogOpen(false);
+    setConfirmAction(null);
+    setSelectedInterview(null);
   };
 
   const handleStartMeeting = async (interviewId) => {
@@ -65,6 +83,18 @@ const AdminInterviewsPage = () => {
       setError(err.message || 'Failed to update interview status');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleConfirmAction = async () => {
+    if (!selectedInterview || !confirmAction) return;
+
+    closeConfirmDialog();
+
+    if (confirmAction === 'complete') {
+      await handleUpdateStatus(selectedInterview.id, 'completed');
+    } else if (confirmAction === 'cancel') {
+      await handleUpdateStatus(selectedInterview.id, 'cancelled');
     }
   };
 
@@ -200,7 +230,7 @@ const AdminInterviewsPage = () => {
                         </button>
                         
                         <button
-                          onClick={() => handleUpdateStatus(interview.id, 'completed')}
+                          onClick={() => openConfirmDialog('complete', interview)}
                           disabled={actionLoading === interview.id}
                           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -208,7 +238,7 @@ const AdminInterviewsPage = () => {
                         </button>
                         
                         <button
-                          onClick={() => handleUpdateStatus(interview.id, 'cancelled')}
+                          onClick={() => openConfirmDialog('cancel', interview)}
                           disabled={actionLoading === interview.id}
                           className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -222,6 +252,81 @@ const AdminInterviewsPage = () => {
             ))}
           </div>
         )}
+
+        {/* Confirmation Dialog */}
+        <Dialog
+          open={confirmDialogOpen}
+          onClose={closeConfirmDialog}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>
+            <div className="flex items-center justify-between">
+              <span className="text-xl font-bold text-gray-900">
+                {confirmAction === 'complete' ? 'Mark Interview Complete' : 'Cancel Interview'}
+              </span>
+              <button
+                onClick={closeConfirmDialog}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={actionLoading === selectedInterview?.id}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </DialogTitle>
+          <DialogContent>
+            <div className="py-4">
+              <div className="flex items-center justify-center mb-4">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                  confirmAction === 'complete' ? 'bg-green-100' : 'bg-red-100'
+                }`}>
+                  {confirmAction === 'complete' ? (
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                Are you sure you want to proceed with this action?
+              </h3>
+              <p className="text-gray-600 text-center text-sm">
+                {confirmAction === 'complete' 
+                  ? `This will mark the interview with ${selectedInterview?.prospectName || 'this prospect'} as completed.`
+                  : `This will cancel the interview with ${selectedInterview?.prospectName || 'this prospect'}. This action cannot be undone.`
+                }
+              </p>
+            </div>
+          </DialogContent>
+          <DialogActions className="px-6 pb-4">
+            <Button
+              onClick={closeConfirmDialog}
+              color="inherit"
+              disabled={actionLoading === selectedInterview?.id}
+            >
+              {confirmAction === 'complete' ? 'No, Go Back' : 'No, Keep Interview'}
+            </Button>
+            <Button
+              onClick={handleConfirmAction}
+              variant="contained"
+              color={confirmAction === 'complete' ? 'success' : 'error'}
+              disabled={actionLoading === selectedInterview?.id}
+            >
+              {actionLoading === selectedInterview?.id 
+                ? 'Processing...' 
+                : confirmAction === 'complete' 
+                  ? 'Yes, Mark Complete' 
+                  : 'Yes, Cancel Interview'
+              }
+            </Button>
+          </DialogActions>
+        </Dialog>
       </div>
     </div>
   );

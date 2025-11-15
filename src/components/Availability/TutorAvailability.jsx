@@ -682,6 +682,14 @@ const TutorAvailability = () => {
               allDaySlot={false}
               height="auto"
               displayEventTime={false}
+              eventTextColor="#ffffff"
+              eventContent={(eventInfo) => {
+                return (
+                  <div style={{ color: '#ffffff', fontWeight: '500' }}>
+                    {eventInfo.event.title}
+                  </div>
+                );
+              }}
               events={calendarEvents}
               dateClick={handleDateClick}
               eventClick={handleEventClick}

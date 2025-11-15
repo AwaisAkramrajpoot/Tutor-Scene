@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from '@mui/material';
+import { Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Snackbar, Alert } from '@mui/material';
 import { apiRequest } from '../utils/api';
 
 const DotsVerticalIcon = (props) => (
@@ -98,6 +98,16 @@ export default function AdminDashboard() {
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [subjectForm, setSubjectForm] = useState({ name: '', description: '', category: '' });
+  const [testimonials, setTestimonials] = useState([]);
+  const [loadingTestimonials, setLoadingTestimonials] = useState(false);
+  const [showTestimonialModal, setShowTestimonialModal] = useState(false);
+  const [testimonialForm, setTestimonialForm] = useState({ testimonial: '', testimonialBy: '' });
+  const [editingTestimonial, setEditingTestimonial] = useState(null);
+  const [showDeleteTestimonialDialog, setShowDeleteTestimonialDialog] = useState(false);
+  const [testimonialToDelete, setTestimonialToDelete] = useState(null);
+  const [deletingTestimonial, setDeletingTestimonial] = useState(false);
+  const [submittingTestimonial, setSubmittingTestimonial] = useState(false);
+  const [alert, setAlert] = useState({ open: false, message: '', severity: 'success' });
   const [submittingSubject, setSubmittingSubject] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -299,6 +309,147 @@ export default function AdminDashboard() {
       fetchGradeLevels();
     }
   }, [activeTab]);
+
+  // Fetch testimonials when tab is active
+  useEffect(() => {
+    if (activeTab === 'testimonials') {
+      const fetchTestimonials = async () => {
+        setLoadingTestimonials(true);
+        try {
+          const data = await apiRequest('/api/v1/testimonials');
+          setTestimonials(Array.isArray(data) ? data : data.data || []);
+        } catch (err) {
+          console.error('Failed to fetch testimonials:', err);
+          setTestimonials([]);
+        } finally {
+          setLoadingTestimonials(false);
+        }
+      };
+      fetchTestimonials();
+    }
+  }, [activeTab]);
+
+  const handleOpenTestimonialModal = (testimonial = null) => {
+    if (testimonial) {
+      setEditingTestimonial(testimonial);
+      setTestimonialForm({ 
+        testimonial: testimonial.testimonial, 
+        testimonialBy: testimonial.testimonialBy 
+      });
+    } else {
+      setEditingTestimonial(null);
+      setTestimonialForm({ testimonial: '', testimonialBy: '' });
+    }
+    setShowTestimonialModal(true);
+  };
+
+  const handleCloseTestimonialModal = () => {
+    setShowTestimonialModal(false);
+    setTestimonialForm({ testimonial: '', testimonialBy: '' });
+    setEditingTestimonial(null);
+  };
+
+  const handleTestimonialFormChange = (field, value) => {
+    setTestimonialForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCloseAlert = () => {
+    setAlert({ ...alert, open: false });
+  };
+
+  const handleSaveTestimonial = async () => {
+    if (!testimonialForm.testimonial || !testimonialForm.testimonialBy) {
+      setAlert({
+        open: true,
+        message: 'All fields are required',
+        severity: 'error'
+      });
+      return;
+    }
+
+    setSubmittingTestimonial(true);
+    try {
+      if (editingTestimonial) {
+        // Update existing testimonial
+        await apiRequest(`/api/v1/testimonials/${editingTestimonial.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(testimonialForm),
+        });
+        setAlert({
+          open: true,
+          message: 'Testimonial updated successfully',
+          severity: 'success'
+        });
+      } else {
+        // Create new testimonial
+        await apiRequest('/api/v1/testimonials', {
+          method: 'POST',
+          body: JSON.stringify(testimonialForm),
+        });
+        setAlert({
+          open: true,
+          message: 'Testimonial created successfully',
+          severity: 'success'
+        });
+      }
+
+      handleCloseTestimonialModal();
+      
+      // Refresh testimonials list
+      const data = await apiRequest('/api/v1/testimonials');
+      setTestimonials(Array.isArray(data) ? data : data.data || []);
+    } catch (err) {
+      console.error('Failed to save testimonial:', err);
+      setAlert({
+        open: true,
+        message: err.message || 'Failed to save testimonial',
+        severity: 'error'
+      });
+    } finally {
+      setSubmittingTestimonial(false);
+    }
+  };
+
+  const handleOpenDeleteTestimonialDialog = (testimonial) => {
+    setTestimonialToDelete(testimonial);
+    setShowDeleteTestimonialDialog(true);
+  };
+
+  const handleCloseDeleteTestimonialDialog = () => {
+    setShowDeleteTestimonialDialog(false);
+    setTestimonialToDelete(null);
+  };
+
+  const handleConfirmDeleteTestimonial = async () => {
+    if (!testimonialToDelete) return;
+
+    setDeletingTestimonial(true);
+    try {
+      await apiRequest(`/api/v1/testimonials/${testimonialToDelete.id}`, {
+        method: 'DELETE',
+      });
+      setAlert({
+        open: true,
+        message: 'Testimonial deleted successfully',
+        severity: 'success'
+      });
+      
+      handleCloseDeleteTestimonialDialog();
+      
+      // Refresh testimonials list
+      const data = await apiRequest('/api/v1/testimonials');
+      setTestimonials(Array.isArray(data) ? data : data.data || []);
+    } catch (err) {
+      console.error('Failed to delete testimonial:', err);
+      setAlert({
+        open: true,
+        message: err.message || 'Failed to delete testimonial',
+        severity: 'error'
+      });
+    } finally {
+      setDeletingTestimonial(false);
+    }
+  };
 
   const openMenu = (event, row) => {
     setMenuAnchor(event.currentTarget);
@@ -648,6 +799,7 @@ export default function AdminDashboard() {
         <TabButton active={activeTab==='gradeLevels'} onClick={()=>setActiveTab('gradeLevels')}>Grade Levels</TabButton>
         <TabButton active={activeTab==='discounts'} onClick={()=>setActiveTab('discounts')}>Discounts</TabButton>
         <TabButton active={activeTab==='reviews'} onClick={()=>setActiveTab('reviews')}>Reviews</TabButton>
+        <TabButton active={activeTab==='testimonials'} onClick={()=>setActiveTab('testimonials')}>Testimonials</TabButton>
       </div>
 
       {/* Content */}
@@ -1117,6 +1269,109 @@ export default function AdminDashboard() {
         </DialogActions>
       </Dialog>
 
+      {activeTab === 'testimonials' && (
+        <section className="space-y-4">
+          <SectionHeader
+            title="Testimonials"
+            right={
+              <button
+                onClick={() => handleOpenTestimonialModal()}
+                className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white text-sm px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                Add Testimonial
+              </button>
+            }
+          />
+          {loadingTestimonials ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
+            </div>
+          ) : testimonials.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No testimonials found.</div>
+          ) : (
+            <Table
+              columns={[
+                { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
+                { key: 'testimonial', header: 'Testimonial', render: (row) => (
+                  <div className="max-w-md truncate">{row.testimonial}</div>
+                ) },
+                { key: 'testimonialBy', header: 'By' },
+                { key: 'actions', header: '', render: (row) => (
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => handleOpenTestimonialModal(row)}
+                      className="text-brand-medium-blue hover:text-brand-dark-blue text-sm font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleOpenDeleteTestimonialDialog(row)}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) },
+              ]}
+              data={testimonials}
+            />
+          )}
+        </section>
+      )}
+
+      {/* Testimonial Modal */}
+      <Dialog open={showTestimonialModal} onClose={handleCloseTestimonialModal} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingTestimonial ? 'Edit Testimonial' : 'Add Testimonial'}</DialogTitle>
+        <DialogContent>
+          <div className="space-y-4 pt-2">
+            <TextField
+              label="Testimonial"
+              required
+              fullWidth
+              multiline
+              rows={4}
+              value={testimonialForm.testimonial}
+              onChange={(e) => handleTestimonialFormChange('testimonial', e.target.value)}
+              variant="outlined"
+              placeholder="Enter the testimonial text..."
+              disabled={submittingTestimonial}
+            />
+            <TextField
+              label="Testimonial By"
+              required
+              fullWidth
+              value={testimonialForm.testimonialBy}
+              onChange={(e) => handleTestimonialFormChange('testimonialBy', e.target.value)}
+              variant="outlined"
+              placeholder="e.g., John Doe"
+              disabled={submittingTestimonial}
+            />
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTestimonialModal} color="inherit" disabled={submittingTestimonial}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveTestimonial}
+            variant="contained"
+            color="primary"
+            disabled={submittingTestimonial || !testimonialForm.testimonial || !testimonialForm.testimonialBy}
+            startIcon={submittingTestimonial && (
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            )}
+          >
+            {submittingTestimonial 
+              ? (editingTestimonial ? 'Updating...' : 'Creating...') 
+              : (editingTestimonial ? 'Update' : 'Create')
+            }
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Add Promo Code Modal */}
       <Dialog open={showPromoCodeModal} onClose={handleClosePromoCodeModal} maxWidth="sm" fullWidth>
         <DialogTitle>Create Promo Code</DialogTitle>
@@ -1200,6 +1455,58 @@ export default function AdminDashboard() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Testimonial Confirmation Dialog */}
+      <Dialog
+        open={showDeleteTestimonialDialog}
+        onClose={handleCloseDeleteTestimonialDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Delete Testimonial</DialogTitle>
+        <DialogContent>
+          <p className="text-gray-700">
+            Are you sure you want to delete this testimonial? This action cannot be undone.
+          </p>
+          {testimonialToDelete && (
+            <div className="mt-4 p-3 bg-gray-50 rounded-md">
+              <p className="text-sm text-gray-600 italic">"{testimonialToDelete.testimonial}"</p>
+              <p className="text-sm text-gray-500 mt-2">- {testimonialToDelete.testimonialBy}</p>
+            </div>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteTestimonialDialog} color="inherit" disabled={deletingTestimonial}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDeleteTestimonial}
+            variant="contained"
+            color="error"
+            disabled={deletingTestimonial}
+            startIcon={deletingTestimonial && (
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            )}
+          >
+            {deletingTestimonial ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Alert Snackbar */}
+      <Snackbar
+        open={alert.open}
+        autoHideDuration={6000}
+        onClose={handleCloseAlert}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseAlert} severity={alert.severity} sx={{ width: '100%' }}>
+          {alert.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }

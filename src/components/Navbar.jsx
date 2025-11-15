@@ -116,7 +116,14 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link to="/" className="flex items-center">
+            <Link 
+              to={user ? (
+                user.role === 'student' ? '/dashboard' :
+                user.role === 'tutor' ? '/tutor-dashboard' :
+                user.role === 'admin' ? '/admin-dashboard' : '/'
+              ) : '/'}
+              className="flex items-center cursor-pointer"
+            >
               <div className="flex items-center">
                 {/* Logo Image */}
                 <img 

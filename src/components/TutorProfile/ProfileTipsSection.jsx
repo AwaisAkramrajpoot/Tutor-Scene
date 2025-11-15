@@ -626,7 +626,7 @@ const handleCVFile = async (file) => {
         {/* Hourly Rate */}
         <div className="mb-6">
           <label htmlFor="hourly-rate" className="block text-base text-[#101727] mb-3 font-normal">
-            Hourly Rate (USD) <span className="text-red-500">*</span>
+            Desired Hourly Rate (USD) <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-base font-medium pointer-events-none">

@@ -295,21 +295,22 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                 <div className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
                     <img
-                      src="https://placehold.co/64x64/E0E0E0/333333?text=SM"
-                      alt="Sarah Mitchell"
+                      src={tutorData.profilePhotoUrl || "https://placehold.co/64x64/E0E0E0/333333?text=T"}
+                      alt={tutorData.name}
                       className="object-cover w-full h-full"
                     />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">{tutorData.name}</h3>
-                    <div className="flex space-x-2 mt-2">
-                      <span className="bg-brand-light-blue text-brand-dark-blue px-3 py-1 rounded-full text-sm font-medium border border-brand-gold">
-                        Mathematics
-                      </span>
-                      <span className="bg-brand-light-blue text-brand-dark-blue px-3 py-1 rounded-full text-sm font-medium border border-brand-gold">
-                        Physics
-                      </span>
-                    </div>
+                    {subjects.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {subjects.map((subject, index) => (
+                          <span key={index} className="bg-brand-light-blue text-brand-dark-blue px-3 py-1 rounded-full text-sm font-medium border border-brand-gold">
+                            {subject}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -347,6 +348,14 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                     allDaySlot={false}
                     height="auto"
                     displayEventTime={false}
+                    eventTextColor="#ffffff"
+                    eventContent={(eventInfo) => {
+                      return (
+                        <div style={{ color: '#ffffff', fontWeight: '500' }}>
+                          {eventInfo.event.title}
+                        </div>
+                      );
+                    }}
                     events={calendarEvents}
                     eventClick={handleEventClick}
                     eventClassNames="cursor-pointer"

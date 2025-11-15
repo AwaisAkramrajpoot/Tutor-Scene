@@ -132,7 +132,6 @@ export const ValuesSection = () => {
                 type="submit"
                 className="w-full h-12 rounded-lg bg-gradient-to-r from-[#47A6E2] to-[#004D94] text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
               >
-                <span>✉️</span>
                 <span>Send Message</span>
               </button>
             </form>
