@@ -275,7 +275,11 @@ export class OnboardingService {
    */
   async processTutorOnboarding(onboardingDto: OnboardingDto): Promise<Prospect> {
     try {
+      // Generate 5-digit numeric prospect ID
+      const prospectId = await this.generateProspectId();
+
       const prospect = this.prospectRepository.create({
+        prospectId: prospectId,
         ...onboardingDto,
         status: ProspectStatus.PENDING, // Set status as pending automatically
       });
@@ -285,6 +289,28 @@ export class OnboardingService {
         'Failed to save prospect information',
       );
     }
+  }
+
+  private async generateProspectId(): Promise<string> {
+    // Get the latest prospect to determine the next number
+    const latestProspect = await this.prospectRepository
+      .createQueryBuilder('prospect')
+      .orderBy('prospect.createdAt', 'DESC')
+      .limit(1)
+      .getOne();
+
+    let nextNumber = 1;
+    
+    if (latestProspect && latestProspect.prospectId) {
+      // Parse the numeric ID
+      const currentNumber = parseInt(latestProspect.prospectId, 10);
+      if (!isNaN(currentNumber)) {
+        nextNumber = currentNumber + 1;
+      }
+    }
+
+    // Format as 00001, 00002, etc. (5 digits)
+    return nextNumber.toString().padStart(5, '0');
   }
 
   /**
@@ -580,5 +606,22 @@ export class OnboardingService {
     }
 
     return { paymentOnBoarded: prospect.paymentOnBoarded };
+  }
+
+  /**
+   * Get all prospects with their IDs for debugging
+   */
+  async getAllProspectsWithIds(): Promise<Array<{ id: number; prospectId: string; fullName: string; status: string }>> {
+    const prospects = await this.prospectRepository.find({
+      select: ['id', 'prospectId', 'fullName', 'status'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return prospects.map(p => ({
+      id: p.id,
+      prospectId: p.prospectId || 'Not generated yet',
+      fullName: p.fullName,
+      status: p.status,
+    }));
   }
 }

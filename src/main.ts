@@ -13,7 +13,8 @@ async function bootstrap() {
   app.use(
     express.json({
       verify: (req: any, res, buf) => {
-        if (req.originalUrl === '/api/v1/webhooks/stripe') {
+        // Store raw body for Stripe webhook signature verification
+        if (req.originalUrl && req.originalUrl.includes('/webhooks/stripe')) {
           req.rawBody = buf;
         }
       },

@@ -29,6 +29,9 @@ export class WebhooksService {
   async handleStripeWebhook(rawBody: Buffer, signature: string): Promise<void> {
     let event: Stripe.Event;
 
+    this.logger.log(`Webhook secret configured: ${this.webhookSecret ? 'Yes' : 'No'}`);
+    this.logger.log(`Webhook secret starts with: ${this.webhookSecret?.substring(0, 10)}...`);
+
     try {
       // Verify webhook signature
       event = this.stripe.webhooks.constructEvent(
@@ -36,8 +39,10 @@ export class WebhooksService {
         signature,
         this.webhookSecret,
       );
+      this.logger.log('Webhook signature verified successfully');
     } catch (error) {
       this.logger.error(`Webhook signature verification failed: ${error.message}`);
+      this.logger.error(`Expected secret starts with: ${this.webhookSecret?.substring(0, 10)}...`);
       throw error;
     }
 
@@ -131,7 +136,7 @@ export class WebhooksService {
       if (!booking) {
         this.logger.warn(`No booking found for payment intent: ${paymentIntent.id}`);
         return;
-      }
+    }
 
       // Confirm the booking
       await this.bookingsService.confirmBookingPayment(booking.id);

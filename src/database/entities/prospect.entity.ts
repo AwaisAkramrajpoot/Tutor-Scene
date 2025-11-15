@@ -15,6 +15,9 @@ export class Prospect {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ type: 'varchar', length: 5, unique: true, nullable: true, name: 'prospect_id' })
+  prospectId: string;
+
   @Column({ nullable: true, name: 'user_id' })
   userId: number;
 
