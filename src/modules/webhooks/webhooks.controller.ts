@@ -33,8 +33,13 @@ export class WebhooksController {
       throw new BadRequestException('Missing stripe-signature header');
     }
 
-    const rawBody = request.rawBody;
-    if (!rawBody) {
+    // Get raw body - it might be in request.body (from express.raw) or request.rawBody
+    let rawBody: Buffer;
+    if (Buffer.isBuffer(request.body)) {
+      rawBody = request.body;
+    } else if (request.rawBody) {
+      rawBody = request.rawBody;
+    } else {
       this.logger.error('Missing request body');
       throw new BadRequestException('Missing request body');
     }
