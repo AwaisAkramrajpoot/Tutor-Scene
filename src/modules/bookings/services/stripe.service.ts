@@ -18,24 +18,87 @@ export class StripeService {
     amount: number,
     currency: string = 'usd',
     metadata: Record<string, string> = {},
+    connectedAccountId?: string,
+    applicationFeeAmount?: number,
   ): Promise<Stripe.PaymentIntent> {
     try {
       // Convert amount to cents (Stripe expects amount in smallest currency unit)
       const amountInCents = Math.round(amount * 100);
+      const feeInCents = applicationFeeAmount ? Math.round(applicationFeeAmount * 100) : undefined;
 
-      const paymentIntent = await this.stripe.paymentIntents.create({
+      const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
         amount: amountInCents,
         currency,
         metadata,
         automatic_payment_methods: {
           enabled: true,
         },
-      });
+      };
 
-      this.logger.log(`Payment intent created: ${paymentIntent.id}`);
+      // If connected account is provided, use destination charges for Stripe Connect
+      if (connectedAccountId) {
+        paymentIntentParams.transfer_data = {
+          destination: connectedAccountId,
+        };
+        
+        // Set application fee if provided
+        if (feeInCents) {
+          paymentIntentParams.application_fee_amount = feeInCents;
+        }
+      }
+
+      const paymentIntent = await this.stripe.paymentIntents.create(paymentIntentParams);
+
+      this.logger.log(`Payment intent created: ${paymentIntent.id}${connectedAccountId ? ` for connected account: ${connectedAccountId}` : ''}`);
       return paymentIntent;
     } catch (error) {
       this.logger.error(`Failed to create payment intent: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async createDirectCharge(
+    amount: number,
+    currency: string = 'usd',
+    metadata: Record<string, string> = {},
+    connectedAccountId?: string,
+    applicationFeeAmount?: number,
+  ): Promise<Stripe.PaymentIntent> {
+    try {
+      if (!connectedAccountId) {
+        throw new Error('Connected account ID is required for direct charges');
+      }
+
+      // Convert amount to cents
+      const amountInCents = Math.round(amount * 100);
+      const feeInCents = applicationFeeAmount ? Math.round(applicationFeeAmount * 100) : undefined;
+
+      const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
+        amount: amountInCents,
+        currency,
+        metadata,
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      };
+
+      // Set application fee if provided
+      if (feeInCents) {
+        paymentIntentParams.application_fee_amount = feeInCents;
+      }
+
+      // Create payment intent on connected account (direct charge)
+      const paymentIntent = await this.stripe.paymentIntents.create(
+        paymentIntentParams,
+        {
+          stripeAccount: connectedAccountId, // Create on tutor's account
+        }
+      );
+
+      this.logger.log(`Direct charge payment intent created: ${paymentIntent.id} on account: ${connectedAccountId}`);
+      return paymentIntent;
+    } catch (error) {
+      this.logger.error(`Failed to create direct charge: ${error.message}`);
       throw error;
     }
   }

@@ -19,6 +19,7 @@ import { Interview } from '../database/entities/interview.entity';
 import { MessageRequest } from '../database/entities/message-request.entity';
 import { Conversation } from '../database/entities/conversation.entity';
 import { GradeLevel } from '../database/entities/grade-level.entity';
+import { Testimonial } from '../database/entities/testimonial.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -79,8 +80,9 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         MessageRequest,
         Conversation,
         GradeLevel,
+        Testimonial,
       ],
-      synchronize: true, // Auto-create tables from entities
+      synchronize: true, // Disabled to prevent schema corruption
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),
       // Additional PostgreSQL-specific options
       extra: {

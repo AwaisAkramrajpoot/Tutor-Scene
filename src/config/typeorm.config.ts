@@ -18,6 +18,7 @@ import { Interview } from '../database/entities/interview.entity';
 import { MessageRequest } from '../database/entities/message-request.entity';
 import { Conversation } from '../database/entities/conversation.entity';
 import { GradeLevel } from '../database/entities/grade-level.entity';
+import { Testimonial } from '../database/entities/testimonial.entity';
 
 config();
 
@@ -47,6 +48,7 @@ export default new DataSource({
     MessageRequest,
     Conversation,
     GradeLevel,
+    Testimonial,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: true,
