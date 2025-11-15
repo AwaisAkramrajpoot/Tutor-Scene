@@ -80,7 +80,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         Conversation,
         GradeLevel,
       ],
-      synchronize: true, // Auto-create tables from entities
+      synchronize: false, // Auto-create tables from entities
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),
       // Additional PostgreSQL-specific options
       extra: {
