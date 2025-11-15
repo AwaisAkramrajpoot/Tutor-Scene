@@ -398,4 +398,20 @@ export class OnboardingController {
       throw new InternalServerErrorException('Failed to retrieve payment onboarding status');
     }
   }
+
+  @Get('prospects/ids')
+  @ApiOperation({ summary: 'Get all prospects with their IDs (for debugging)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'List of prospects with both id and prospectId',
+  })
+  async getProspectIds() {
+    try {
+      const prospects = await this.onboardingService.getAllProspectsWithIds();
+      return prospects;
+    } catch (error) {
+      this.logger.error('Failed to get prospect IDs', error.stack);
+      throw new InternalServerErrorException('Failed to retrieve prospect IDs');
+    }
+  }
 }

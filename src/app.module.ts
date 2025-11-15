@@ -27,6 +27,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { InterviewsModule } from './modules/interviews/interviews.module';
 import { GradeLevelsModule } from './modules/grade-levels/grade-levels.module';
 import { HealthModule } from './modules/health/health.module';
+import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { HealthModule } from './modules/health/health.module';
     InterviewsModule,
     GradeLevelsModule,
     HealthModule,
+    TestimonialsModule,
   ],
   controllers: [],
   providers: [

@@ -26,21 +26,28 @@ export class WebhooksController {
     @Headers('stripe-signature') signature: string,
     @Req() request: RawBodyRequest<Request>,
   ): Promise<{ received: boolean }> {
+    this.logger.log('Received webhook request');
+    
     if (!signature) {
+      this.logger.error('Missing stripe-signature header');
       throw new BadRequestException('Missing stripe-signature header');
     }
 
     const rawBody = request.rawBody;
     if (!rawBody) {
+      this.logger.error('Missing request body');
       throw new BadRequestException('Missing request body');
     }
 
+    this.logger.log(`Webhook signature present, body length: ${rawBody.length}`);
+
     try {
       await this.webhooksService.handleStripeWebhook(rawBody, signature);
+      this.logger.log('Webhook processed successfully');
       return { received: true };
     } catch (error) {
-      this.logger.error('Webhook processing failed', error.stack);
-      throw new BadRequestException('Webhook processing failed');
+      this.logger.error(`Webhook processing failed: ${error.message}`, error.stack);
+      throw new BadRequestException(`Webhook processing failed: ${error.message}`);
     }
   }
 }

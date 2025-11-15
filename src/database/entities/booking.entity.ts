@@ -6,6 +6,9 @@ import { Prospect } from './prospect.entity';
 
 @Entity('booking')
 export class Booking extends BaseEntity {
+  @Column({ type: 'varchar', length: 20, unique: true, nullable: true, name: 'reference_number' })
+  referenceNumber: string;
+
   @Column({ name: 'student_profile_id' })
   studentProfileId: number;
 

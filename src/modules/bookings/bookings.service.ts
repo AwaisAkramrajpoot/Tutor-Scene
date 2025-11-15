@@ -54,17 +54,35 @@ export class BookingsService {
       throw new NotFoundException('Student not found');
     }
 
+    // Log the tutorProfileId being used
+    this.logger.log(`Creating booking with tutorProfileId: ${createBookingDto.tutorProfileId}`);
+
     // Get tutor prospect to find the user ID
     const tutorProspect = await this.prospectRepository.findOne({
       where: { id: createBookingDto.tutorProfileId },
     });
 
-    if (!tutorProspect || !tutorProspect.userId) {
-      throw new NotFoundException('Tutor not found');
+    if (!tutorProspect) {
+      // Log all available prospects for debugging
+      const allProspects = await this.prospectRepository.find({ select: ['id', 'fullName'] });
+      this.logger.error(`Tutor prospect with ID ${createBookingDto.tutorProfileId} not found`);
+      this.logger.error(`Available prospect IDs: ${allProspects.map(p => p.id).join(', ')}`);
+      throw new NotFoundException(
+        `Tutor prospect with ID ${createBookingDto.tutorProfileId} not found. ` +
+        `Available IDs: ${allProspects.map(p => p.id).join(', ')}`
+      );
     }
+
+    if (!tutorProspect.userId) {
+      throw new BadRequestException('Tutor prospect does not have an associated user account');
+    }
+
+    // Generate reference number (TUT001, TUT002, etc.)
+    const referenceNumber = await this.generateReferenceNumber();
 
     // Store discount code if provided (will be validated when tutor accepts)
     const booking = this.bookingRepository.create({
+      referenceNumber: referenceNumber,
       studentProfileId: createBookingDto.studentProfileId,
       tutorProfileId: createBookingDto.tutorProfileId,
       subjectId: createBookingDto.subjectId,
@@ -167,6 +185,12 @@ export class BookingsService {
       }
     }
 
+    // Get tutor's connected account ID for Stripe Connect
+    const tutorProspectForPayment = await this.prospectRepository.findOne({
+      where: { id: prospectId },
+      select: ['paymentAccountId'],
+    });
+
     // Create Stripe payment intent with discount
     const paymentIntentParams: any = {
       bookingId: booking.id.toString(),
@@ -178,10 +202,17 @@ export class BookingsService {
       paymentIntentParams.discountCode = booking.discountCode;
     }
 
+    // Calculate platform fee (e.g., 15% of final price)
+    const platformFeePercentage = 0.15; // 15%
+    const platformFee = finalPrice * platformFeePercentage;
+
+    // Create payment intent with destination charge (platform account)
     const paymentIntent = await this.stripeService.createPaymentIntent(
       finalPrice,
       'usd',
       paymentIntentParams,
+      tutorProspectForPayment?.paymentAccountId, // Connected account ID
+      platformFee, // Application fee
     );
 
     // Apply Stripe coupon if available
@@ -287,10 +318,15 @@ export class BookingsService {
       throw new BadRequestException('You can only reject your own bookings');
     }
 
+    // Get the prospect to find the user ID for cancelledBy
+    const prospect = await this.prospectRepository.findOne({
+      where: { id: prospectId },
+    });
+
     booking.status = BookingStatus.CANCELLED;
     booking.cancellationReason = reason;
     booking.cancelledAt = new Date();
-    booking.cancelledBy = prospectId;
+    booking.cancelledBy = prospect?.userId;
     return this.bookingRepository.save(booking);
   }
 
@@ -500,6 +536,28 @@ export class BookingsService {
     this.logger.log(`Booking ${booking.id} marked as refunded`);
   }
 
+  // private async generateBookingId(): Promise<string> {
+  //   // Get the latest booking to determine the next number
+  //   const latestBooking = await this.bookingRepository
+  //     .createQueryBuilder('booking')
+  //     .orderBy('booking.createdAt', 'DESC')
+  //     .limit(1)
+  //     .getOne();
+
+  //   let nextNumber = 1;
+    
+  //   if (latestBooking && latestBooking.bookingId) {
+  //     // Extract number from ID like "tut001" -> 1
+  //     const match = latestBooking.bookingId.match(/\d+$/);
+  //     if (match) {
+  //       nextNumber = parseInt(match[0], 10) + 1;
+  //     }
+  //   }
+
+  //   // Format as tut001, tut002, etc.
+  //   return `tut${nextNumber.toString().padStart(3, '0')}`;
+  // }
+
   async getTutorStatistics(tutorId: number): Promise<{
     currentWeekBookingsCount: number;
     activeStudentsCount: number;
@@ -534,5 +592,27 @@ export class BookingsService {
       currentWeekBookingsCount,
       activeStudentsCount,
     };
+  }
+
+  private async generateReferenceNumber(): Promise<string> {
+    // Get the latest booking to determine the next number
+    const latestBooking = await this.bookingRepository
+      .createQueryBuilder('booking')
+      .orderBy('booking.createdAt', 'DESC')
+      .limit(1)
+      .getOne();
+
+    let nextNumber = 1;
+    
+    if (latestBooking && latestBooking.referenceNumber) {
+      // Extract number from reference like "TUT001" -> 1
+      const match = latestBooking.referenceNumber.match(/\d+$/);
+      if (match) {
+        nextNumber = parseInt(match[0], 10) + 1;
+      }
+    }
+
+    // Format as TUT001, TUT002, etc. (uppercase)
+    return `TUT${nextNumber.toString().padStart(3, '0')}`;
   }
 }
