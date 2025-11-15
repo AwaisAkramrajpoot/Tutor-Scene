@@ -11,6 +11,7 @@ async function bootstrap() {
 
   // Configure body parser - use raw for webhooks, json for everything else
   app.use('/api/v1/webhooks/stripe', express.raw({ type: 'application/json' }));
+  app.use('/api/v1/webhooks/stripe/connect', express.raw({ type: 'application/json' }));
   app.use(
     express.json({
       verify: (req: any, res, buf) => {

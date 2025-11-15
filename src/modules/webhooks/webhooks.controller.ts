@@ -22,18 +22,18 @@ export class WebhooksController {
   @Post('stripe')
   @Public()
   @ApiExcludeEndpoint()
-  async handleStripeWebhook(
+  async handlePlatformWebhook(
     @Headers('stripe-signature') signature: string,
     @Req() request: RawBodyRequest<Request>,
   ): Promise<{ received: boolean }> {
-    this.logger.log('Received webhook request');
+    this.logger.log('Received PLATFORM webhook request');
     
     if (!signature) {
       this.logger.error('Missing stripe-signature header');
       throw new BadRequestException('Missing stripe-signature header');
     }
 
-    // Get raw body - it might be in request.body (from express.raw) or request.rawBody
+    // Get raw body
     let rawBody: Buffer;
     if (Buffer.isBuffer(request.body)) {
       rawBody = request.body;
@@ -44,14 +44,51 @@ export class WebhooksController {
       throw new BadRequestException('Missing request body');
     }
 
-    this.logger.log(`Webhook signature present, body length: ${rawBody.length}`);
+    this.logger.log(`Platform webhook signature present, body length: ${rawBody.length}`);
 
     try {
-      await this.webhooksService.handleStripeWebhook(rawBody, signature);
-      this.logger.log('Webhook processed successfully');
+      await this.webhooksService.handlePlatformWebhook(rawBody, signature);
+      this.logger.log('Platform webhook processed successfully');
       return { received: true };
     } catch (error) {
-      this.logger.error(`Webhook processing failed: ${error.message}`, error.stack);
+      this.logger.error(`Platform webhook processing failed: ${error.message}`, error.stack);
+      throw new BadRequestException(`Webhook processing failed: ${error.message}`);
+    }
+  }
+
+  @Post('stripe/connect')
+  @Public()
+  @ApiExcludeEndpoint()
+  async handleConnectWebhook(
+    @Headers('stripe-signature') signature: string,
+    @Req() request: RawBodyRequest<Request>,
+  ): Promise<{ received: boolean }> {
+    this.logger.log('Received CONNECT webhook request');
+    
+    if (!signature) {
+      this.logger.error('Missing stripe-signature header');
+      throw new BadRequestException('Missing stripe-signature header');
+    }
+
+    // Get raw body
+    let rawBody: Buffer;
+    if (Buffer.isBuffer(request.body)) {
+      rawBody = request.body;
+    } else if (request.rawBody) {
+      rawBody = request.rawBody;
+    } else {
+      this.logger.error('Missing request body');
+      throw new BadRequestException('Missing request body');
+    }
+
+    this.logger.log(`Connect webhook signature present, body length: ${rawBody.length}`);
+
+    try {
+      await this.webhooksService.handleConnectWebhook(rawBody, signature);
+      this.logger.log('Connect webhook processed successfully');
+      return { received: true };
+    } catch (error) {
+      this.logger.error(`Connect webhook processing failed: ${error.message}`, error.stack);
       throw new BadRequestException(`Webhook processing failed: ${error.message}`);
     }
   }

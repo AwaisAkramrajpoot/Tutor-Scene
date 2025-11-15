@@ -12,6 +12,9 @@ export class WebhooksService {
   private stripe: Stripe;
   private webhookSecret: string;
 
+  private platformWebhookSecret: string;
+  private connectWebhookSecret: string = 'whsec_ISmVXq70Uj44ae1dgABVXj8SNZ6EeJWk';
+
   constructor(
     @InjectRepository(Prospect)
     private prospectRepository: Repository<Prospect>,
@@ -24,36 +27,30 @@ export class WebhooksService {
       apiVersion: '2023-10-16',
     });
     this.webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    this.platformWebhookSecret = this.webhookSecret; // Platform uses env variable
   }
 
-  async handleStripeWebhook(rawBody: Buffer, signature: string): Promise<void> {
+  async handlePlatformWebhook(rawBody: Buffer, signature: string): Promise<void> {
     let event: Stripe.Event;
 
-    this.logger.log(`Webhook secret configured: ${this.webhookSecret ? 'Yes' : 'No'}`);
-    this.logger.log(`Webhook secret starts with: ${this.webhookSecret?.substring(0, 10)}...`);
+    this.logger.log(`Platform webhook secret configured: ${this.platformWebhookSecret ? 'Yes' : 'No'}`);
 
     try {
-      // Verify webhook signature
       event = this.stripe.webhooks.constructEvent(
         rawBody,
         signature,
-        this.webhookSecret,
+        this.platformWebhookSecret,
       );
-      this.logger.log('Webhook signature verified successfully');
+      this.logger.log('Platform webhook signature verified successfully');
     } catch (error) {
-      this.logger.error(`Webhook signature verification failed: ${error.message}`);
-      this.logger.error(`Expected secret starts with: ${this.webhookSecret?.substring(0, 10)}...`);
+      this.logger.error(`Platform webhook signature verification failed: ${error.message}`);
       throw error;
     }
 
-    this.logger.log(`Processing webhook event: ${event.type}`);
+    this.logger.log(`Processing PLATFORM webhook event: ${event.type}`);
 
-    // Handle different event types
+    // Handle platform events (payments)
     switch (event.type) {
-      case 'account.updated':
-        await this.handleAccountUpdated(event.data.object as Stripe.Account);
-        break;
-      
       case 'payment_intent.succeeded':
         await this.handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
         break;
@@ -66,10 +63,45 @@ export class WebhooksService {
         await this.handleChargeRefunded(event.data.object as Stripe.Charge);
         break;
       
-      // Add more event handlers as needed
       default:
-        this.logger.log(`Unhandled event type: ${event.type}`);
+        this.logger.log(`Unhandled platform event type: ${event.type}`);
     }
+  }
+
+  async handleConnectWebhook(rawBody: Buffer, signature: string): Promise<void> {
+    let event: Stripe.Event;
+
+    this.logger.log(`Connect webhook secret configured: ${this.connectWebhookSecret ? 'Yes' : 'No'}`);
+
+    try {
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        this.connectWebhookSecret,
+      );
+      this.logger.log('Connect webhook signature verified successfully');
+    } catch (error) {
+      this.logger.error(`Connect webhook signature verification failed: ${error.message}`);
+      throw error;
+    }
+
+    this.logger.log(`Processing CONNECT webhook event: ${event.type}`);
+
+    // Handle connect events (account updates)
+    switch (event.type) {
+      case 'account.updated':
+        await this.handleAccountUpdated(event.data.object as Stripe.Account);
+        break;
+      
+      default:
+        this.logger.log(`Unhandled connect event type: ${event.type}`);
+    }
+  }
+
+  // Keep old method for backward compatibility
+  async handleStripeWebhook(rawBody: Buffer, signature: string): Promise<void> {
+    // Redirect to platform webhook
+    return this.handlePlatformWebhook(rawBody, signature);
   }
 
   private async handleAccountUpdated(account: Stripe.Account): Promise<void> {
