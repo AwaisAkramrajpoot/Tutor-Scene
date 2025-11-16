@@ -34,6 +34,9 @@ export class WebhooksService {
     let event: Stripe.Event;
 
     this.logger.log(`Platform webhook secret configured: ${this.platformWebhookSecret ? 'Yes' : 'No'}`);
+    this.logger.log(`Raw body type: ${typeof rawBody}, isBuffer: ${Buffer.isBuffer(rawBody)}`);
+    this.logger.log(`Raw body length: ${rawBody?.length || 0}`);
+    this.logger.log(`Signature: ${signature?.substring(0, 20)}...`);
 
     try {
       event = this.stripe.webhooks.constructEvent(
@@ -44,6 +47,7 @@ export class WebhooksService {
       this.logger.log('Platform webhook signature verified successfully');
     } catch (error) {
       this.logger.error(`Platform webhook signature verification failed: ${error.message}`);
+      this.logger.error(`Secret starts with: ${this.platformWebhookSecret?.substring(0, 15)}...`);
       throw error;
     }
 
