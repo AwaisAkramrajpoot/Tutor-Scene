@@ -13,7 +13,7 @@ import {
 
 const MessageRequestsList = () => {
   const navigate = useNavigate();
-  const { setMessageRequests, messageRequests, setConversations, conversations } = useMessaging();
+  const { setMessageRequests, messageRequests, setConversations, conversations, fetchConversations } = useMessaging();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -46,19 +46,19 @@ const MessageRequestsList = () => {
       // Remove request from list
       setMessageRequests((prev) => prev.filter((req) => req.id !== requestId));
       
-      // Add new conversation to conversations list if it exists
+      // Refetch conversations to get complete data with all participant info
+      const updatedConversations = await fetchConversations();
+      
+      // Find the newly created conversation
       if (response.conversation) {
-        setConversations((prev) => {
-          // Check if conversation already exists
-          const exists = prev.some((conv) => conv.id === response.conversation.id);
-          if (exists) {
-            return prev;
-          }
-          return [response.conversation, ...prev];
-        });
+        const newConversation = updatedConversations.find(
+          (conv) => conv.id === response.conversation.id
+        );
         
-        // Navigate to the new conversation
-        navigate(`/messages?conversation=${response.conversation.id}`);
+        if (newConversation) {
+          // Navigate to the new conversation with complete data
+          navigate(`/messages?conversation=${newConversation.id}`);
+        }
       }
     } catch (err) {
       console.error('Error accepting message request:', err);

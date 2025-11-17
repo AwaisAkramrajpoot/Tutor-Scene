@@ -523,7 +523,7 @@ const MySessions = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-lg text-gray-900">{session.tutor?.fullName || 'Unknown Tutor'}</h3>
-                        <p className="text-gray-600">{session.subject?.name || 'Subject'}</p>
+                        <p className="text-gray-600">{session.subject?.name}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-6">

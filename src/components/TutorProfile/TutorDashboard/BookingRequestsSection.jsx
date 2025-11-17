@@ -285,11 +285,11 @@ export const BookingRequestsSection = () => {
                 {bookingRequests.map((request) => (
                   <div key={request.id} className="bg-gray-50 rounded-xl p-5">
                     <h3 className="text-xl text-[#101727]">
-                      {request?.student.firstName + ' ' + request.student.lastName}
+                      {request?.student?.firstName || 'Unknown'} {request?.student?.lastName || 'Student'}
                     </h3>
                     {request.subject && (
                       <div className="mt-2 inline-flex items-center bg-purple-50 text-[#6a3de8] px-3 py-1 rounded-lg text-sm border border-transparent">
-                        {typeof request.subject === 'object' ? request.subject.name : request.subject}
+                        {typeof request.subject === 'object' && request.subject?.name ? request.subject.name : request.subject}
                       </div>
                     )}
                     <div className="mt-4 flex items-center gap-4 text-[#495565]">
@@ -373,7 +373,7 @@ export const BookingRequestsSection = () => {
               <div className="space-y-4">
                 {sessions.map((session) => {
                   // Handle both object and string formats for subject
-                  const subjectName = typeof session.subject === 'object' 
+                  const subjectName = typeof session.subject === 'object' && session.subject
                     ? session.subject.name 
                     : session.subject;
                   
@@ -393,7 +393,7 @@ export const BookingRequestsSection = () => {
                     <div key={session.id} className="bg-gray-50 rounded-xl p-5 flex items-center justify-between flex-wrap gap-4">
                       <div>
                         <h3 className="text-xl text-[#101727]">
-                          {session.student.firstName} {session.student.lastName}
+                          {session?.student?.firstName || 'Unknown'} {session?.student?.lastName || 'Student'}
                         </h3>
                         {subjectName && (
                           <div className="mt-2 inline-flex items-center bg-purple-50 text-[#6a3de8] px-3 py-1 rounded-lg text-sm border border-transparent">

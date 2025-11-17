@@ -25,6 +25,7 @@ export const useMessages = () => {
     setLoading,
     setError,
     setConversations,
+    currentUser,
   } = useMessaging();
 
   /**
@@ -112,7 +113,7 @@ export const useMessages = () => {
         const optimisticMessage = {
           id: `temp-${Date.now()}`,
           conversationId,
-          senderId: activeConversation?.studentId || activeConversation?.tutorId,
+          senderId: currentUser?.id,
           content: content.trim(),
           attachmentUrl,
           isRead: false,
@@ -174,7 +175,7 @@ export const useMessages = () => {
         throw err;
       }
     },
-    [socket, isConnected, activeConversation, setMessages, setError]
+    [socket, isConnected, currentUser, setMessages, setError]
   );
 
   /**

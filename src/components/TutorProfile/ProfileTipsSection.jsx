@@ -289,7 +289,7 @@ const handleCVFile = async (file) => {
             Profile Photo
           </label>
           <div
-            className={`relative w-full h-64 rounded-xl border-2 ${selectedPhoto
+            className={`relative w-64 h-64 mx-auto rounded-xl border-2 ${selectedPhoto
               ? 'border-solid border-green-500 bg-green-50'
               : isDraggingPhoto
                 ? 'border-dashed border-brand-medium-blue bg-brand-light-blue'
