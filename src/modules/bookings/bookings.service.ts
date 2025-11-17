@@ -347,7 +347,15 @@ export class BookingsService {
 
     // Check if user is either the student or tutor
     const isStudent = booking.studentProfileId === userId;
-    const isTutor = booking.tutorProfileId === userId;
+    
+    // Get tutor prospect to check if userId matches
+    const tutorProspect = await this.prospectRepository.findOne({
+      where: { id: booking.tutorProfileId },
+      select: ['userId'],
+    });
+    
+    const isTutor = tutorProspect && tutorProspect.userId === userId;
+    console.log("This is a tutor",isTutor)
 
     if (!isStudent && !isTutor) {
       throw new BadRequestException('You can only cancel your own bookings');
