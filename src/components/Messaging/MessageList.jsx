@@ -20,8 +20,14 @@ const MessageList = ({
   const throttledHandleScroll = useRef(null);
   const messageCache = useRef(new Map());
 
-  // Group messages by date - memoized to prevent recalculation
-  const groupedMessages = useMemo(() => groupMessagesByDate(messages), [messages]);
+  // Remove duplicates and group messages by date - memoized to prevent recalculation
+  const groupedMessages = useMemo(() => {
+    // First, remove any duplicate messages by ID
+    const uniqueMessages = messages.filter(
+      (msg, index, self) => index === self.findIndex((m) => m.id === msg.id)
+    );
+    return groupMessagesByDate(uniqueMessages);
+  }, [messages]);
 
   // Cache rendered message bubbles to improve performance
   const getCachedMessage = useCallback((message, isOwn, showAvatar) => {

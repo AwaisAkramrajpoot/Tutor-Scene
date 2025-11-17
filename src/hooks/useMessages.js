@@ -127,8 +127,8 @@ export const useMessages = () => {
           [conversationId]: [...(prev[conversationId] || []), optimisticMessage],
         }));
 
-        // Store in localStorage for recovery
-        const failedMessagesKey = `failed_messages_${conversationId}`;
+        // Store in localStorage for recovery (user-specific to avoid conflicts between tabs)
+        const failedMessagesKey = `failed_messages_${currentUser?.id}_${conversationId}`;
         const storedFailedMessages = JSON.parse(localStorage.getItem(failedMessagesKey) || '[]');
         storedFailedMessages.push(optimisticMessage);
         localStorage.setItem(failedMessagesKey, JSON.stringify(storedFailedMessages));
@@ -138,6 +138,8 @@ export const useMessages = () => {
           sendMessageViaSocket(socket, conversationId, content.trim(), attachmentUrl);
           
           // Remove from failed messages on successful send
+          const failedMessagesKey = `failed_messages_${currentUser?.id}_${conversationId}`;
+          const storedFailedMessages = JSON.parse(localStorage.getItem(failedMessagesKey) || '[]');
           const updatedFailedMessages = storedFailedMessages.filter(msg => msg.id !== optimisticMessage.id);
           localStorage.setItem(failedMessagesKey, JSON.stringify(updatedFailedMessages));
         } else {
@@ -153,6 +155,8 @@ export const useMessages = () => {
           }));
 
           // Remove from failed messages
+          const failedMessagesKey = `failed_messages_${currentUser?.id}_${conversationId}`;
+          const storedFailedMessages = JSON.parse(localStorage.getItem(failedMessagesKey) || '[]');
           const updatedFailedMessages = storedFailedMessages.filter(msg => msg.id !== optimisticMessage.id);
           localStorage.setItem(failedMessagesKey, JSON.stringify(updatedFailedMessages));
 
@@ -201,7 +205,7 @@ export const useMessages = () => {
           sendMessageViaSocket(socket, conversationId, content, attachmentUrl);
           
           // Remove from localStorage on successful retry
-          const failedMessagesKey = `failed_messages_${conversationId}`;
+          const failedMessagesKey = `failed_messages_${currentUser?.id}_${conversationId}`;
           const storedFailedMessages = JSON.parse(localStorage.getItem(failedMessagesKey) || '[]');
           const updatedFailedMessages = storedFailedMessages.filter(msg => msg.id !== failedMessage.id);
           localStorage.setItem(failedMessagesKey, JSON.stringify(updatedFailedMessages));
@@ -220,7 +224,7 @@ export const useMessages = () => {
           }));
 
           // Remove from localStorage
-          const failedMessagesKey = `failed_messages_${conversationId}`;
+          const failedMessagesKey = `failed_messages_${currentUser?.id}_${conversationId}`;
           const storedFailedMessages = JSON.parse(localStorage.getItem(failedMessagesKey) || '[]');
           const updatedFailedMessages = storedFailedMessages.filter(msg => msg.id !== failedMessage.id);
           localStorage.setItem(failedMessagesKey, JSON.stringify(updatedFailedMessages));
@@ -251,7 +255,7 @@ export const useMessages = () => {
    */
   const loadFailedMessages = useCallback(
     (conversationId) => {
-      const failedMessagesKey = `failed_messages_${conversationId}`;
+      const failedMessagesKey = `failed_messages_${currentUser?.id}_${conversationId}`;
       const storedFailedMessages = JSON.parse(localStorage.getItem(failedMessagesKey) || '[]');
       
       if (storedFailedMessages.length > 0) {
@@ -271,7 +275,7 @@ export const useMessages = () => {
         });
       }
     },
-    [setMessages]
+    [setMessages, currentUser]
   );
 
   /**

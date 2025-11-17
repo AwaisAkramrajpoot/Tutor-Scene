@@ -115,6 +115,7 @@ function App() {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/about" element={<Layout><AboutPage /></Layout>} />
         <Route path="/become-tutor" element={<Layout><BecomeTutorPage /></Layout>} />
+        <Route path="/payments" element={<Layout><PaymentPage /></Layout>} />
 
         {/* Student Routes - Requires Student role */}
         <Route 
@@ -146,14 +147,6 @@ function App() {
           element={
             <RoleProtectedRoute allowedRoles={['student']}>
               <Layout><MySessions /></Layout>
-            </RoleProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/payments" 
-          element={
-            <RoleProtectedRoute allowedRoles={['student']}>
-              <Layout><PaymentPage /></Layout>
             </RoleProtectedRoute>
           } 
         />

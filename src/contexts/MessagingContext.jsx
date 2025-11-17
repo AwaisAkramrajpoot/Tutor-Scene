@@ -155,26 +155,42 @@ export const MessagingProvider = ({ children }) => {
       setMessages((prev) => {
         const conversationMessages = prev[message.conversationId] || [];
         
-        // Check if message already exists (by ID or by matching optimistic message)
-        const existingIndex = conversationMessages.findIndex(
-          (msg) => msg.id === message.id || 
-          (String(msg.id).startsWith('temp-') && 
-           msg.content === message.content && 
-           msg.senderId === message.senderId &&
-           Math.abs(new Date(msg.createdAt) - new Date(message.createdAt)) < 5000) // Within 5 seconds
+        // Check if message already exists by ID (real message ID)
+        const existsByIdIndex = conversationMessages.findIndex((msg) => 
+          msg.id === message.id && !String(msg.id).startsWith('temp-')
         );
-        
-        if (existingIndex !== -1) {
-          // Replace optimistic/existing message with the real one
-          const updatedMessages = [...conversationMessages];
-          updatedMessages[existingIndex] = { ...message, status: 'delivered' };
-          return {
-            ...prev,
-            [message.conversationId]: updatedMessages,
-          };
+        if (existsByIdIndex !== -1) {
+          // Real message already exists, don't add duplicate
+          console.log('Message already exists, skipping:', message.id);
+          return prev;
         }
         
-        // Add new message if it doesn't exist
+        // If this is our own message (sent by current user), look for optimistic message
+        const isSentByMe = message.senderId === currentUserId;
+        
+        if (isSentByMe) {
+          // Look for ANY temp message with matching content from the last 10 seconds
+          const optimisticIndex = conversationMessages.findIndex(
+            (msg) => 
+              String(msg.id).startsWith('temp-') && 
+              msg.content.trim() === message.content.trim() &&
+              Math.abs(new Date(msg.createdAt).getTime() - new Date(message.createdAt).getTime()) < 10000
+          );
+          
+          if (optimisticIndex !== -1) {
+            // Replace optimistic message with the real one
+            console.log('Replacing optimistic message:', conversationMessages[optimisticIndex].id, 'with', message.id);
+            const updatedMessages = [...conversationMessages];
+            updatedMessages[optimisticIndex] = { ...message, status: 'delivered' };
+            return {
+              ...prev,
+              [message.conversationId]: updatedMessages,
+            };
+          }
+        }
+        
+        // Add new message if it doesn't exist and no optimistic match
+        console.log('Adding new message:', message.id);
         return {
           ...prev,
           [message.conversationId]: [...conversationMessages, message],
