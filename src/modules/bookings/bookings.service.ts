@@ -240,6 +240,7 @@ export class BookingsService {
     booking.stripePaymentIntentId = paymentIntent.id;
     booking.zoomMeetingId = zoomMeeting.id;
     booking.zoomJoinLink = zoomMeeting.join_url;
+    booking.hostStartUrl = zoomMeeting.start_url;
     booking.discountAmount = discountAmount;
     booking.finalPrice = finalPrice;
     booking.status = BookingStatus.PENDING; // Awaiting payment

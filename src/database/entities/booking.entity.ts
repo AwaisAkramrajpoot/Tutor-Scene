@@ -54,6 +54,9 @@ export class Booking extends BaseEntity {
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'zoom_join_link' })
   zoomJoinLink: string;
 
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'host_start_url' })
+  hostStartUrl: string;
+
   @Column({ type: 'timestamp', nullable: true, name: 'cancelled_at' })
   cancelledAt: Date;
 
