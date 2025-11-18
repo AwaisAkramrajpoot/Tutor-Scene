@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { User } from './user.entity';
+import { Prospect } from './prospect.entity';
 import { Booking } from './booking.entity';
 import { ReviewStatus } from './enums';
 
@@ -23,9 +24,9 @@ export class Review extends BaseEntity {
   @Column({ name: 'tutor_profile_id' })
   tutorProfileId: number;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Prospect)
   @JoinColumn({ name: 'tutor_profile_id' })
-  tutor: User;
+  tutor: Prospect;
 
   @Column({ type: 'int' })
   rating: number; // 1-5

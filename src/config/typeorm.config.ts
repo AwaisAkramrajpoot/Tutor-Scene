@@ -51,6 +51,6 @@ export default new DataSource({
     Testimonial,
   ],
   migrations: ['src/database/migrations/*.ts'],
-  synchronize: true,
+  synchronize: false,
   logging: false,
 });
