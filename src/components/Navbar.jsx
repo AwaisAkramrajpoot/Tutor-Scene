@@ -155,7 +155,7 @@ const Navbar = () => {
           {/* Search Bar */}
           <div className="flex-1 max-w-lg mx-8">
             <form onSubmit={handleSearchSubmit} className="flex">
-              <div className="relative flex-1">
+              {/* <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <SearchIcon className="text-gray-400" />
                 </div>
@@ -166,8 +166,8 @@ const Navbar = () => {
                   placeholder="Want to learn?"
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-l-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand-medium-blue focus:border-brand-medium-blue sm:text-sm"
                 />
-              </div>
-              <div className="relative">
+              </div> */}
+              {/* <div className="relative">
                 <button
                   type="button"
                   onClick={() => setIsExploreOpen(!isExploreOpen)}
@@ -175,10 +175,10 @@ const Navbar = () => {
                 >
                   Explore
                   <ChevronDownIcon className="ml-1" />
-                </button>
+                </button> */}
                 
                 {/* Dropdown Menu */}
-                {isExploreOpen && (
+                {/* {isExploreOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
                     <div className="py-1">
                       <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mathematics</a>
@@ -188,8 +188,8 @@ const Navbar = () => {
                       <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Music</a>
                     </div>
                   </div>
-                )}
-              </div>
+                )} */}
+              {/* </div> */}
             </form>
           </div>
 

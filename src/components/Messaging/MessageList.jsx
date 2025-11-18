@@ -19,6 +19,8 @@ const MessageList = ({
   const previousScrollHeight = useRef(0);
   const throttledHandleScroll = useRef(null);
   const messageCache = useRef(new Map());
+  const previousMessageCount = useRef(0);
+  const isInitialLoad = useRef(true);
 
   // Remove duplicates and group messages by date - memoized to prevent recalculation
   const groupedMessages = useMemo(() => {
@@ -60,11 +62,29 @@ const MessageList = ({
     }
   }, [messages]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages (only when new messages are added, not on initial load or history load)
   useEffect(() => {
-    if (shouldAutoScroll && messagesEndRef.current) {
+    const currentMessageCount = messages.length;
+    
+    // On initial load, scroll to bottom immediately
+    if (isInitialLoad.current && currentMessageCount > 0) {
+      isInitialLoad.current = false;
+      previousMessageCount.current = currentMessageCount;
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'instant' });
+      }
+      return;
+    }
+
+    // Only auto-scroll if:
+    // 1. User is already near the bottom (shouldAutoScroll is true)
+    // 2. New messages were added (not loading history)
+    // 3. The message count increased (new message, not just an update)
+    if (shouldAutoScroll && currentMessageCount > previousMessageCount.current && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
+
+    previousMessageCount.current = currentMessageCount;
   }, [messages, shouldAutoScroll]);
 
   // Maintain scroll position when loading history
