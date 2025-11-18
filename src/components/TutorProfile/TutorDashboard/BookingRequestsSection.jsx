@@ -22,6 +22,11 @@ export const BookingRequestsSection = () => {
   const [sessionToCancel, setSessionToCancel] = useState(null);
   const [cancellingBooking, setCancellingBooking] = useState(false);
 
+  // Complete booking dialog state
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [sessionToComplete, setSessionToComplete] = useState(null);
+  const [completingBooking, setCompletingBooking] = useState(false);
+
   // Fetch booking requests on component mount
   useEffect(() => {
     const fetchBookingRequests = async () => {
@@ -179,6 +184,43 @@ export const BookingRequestsSection = () => {
       setError(err.message || 'Failed to cancel booking. Please try again.');
     } finally {
       setCancellingBooking(false);
+    }
+  };
+
+  const handleOpenCompleteDialog = (session) => {
+    setSessionToComplete(session);
+    setCompleteDialogOpen(true);
+  };
+
+  const handleCloseCompleteDialog = () => {
+    setCompleteDialogOpen(false);
+    setSessionToComplete(null);
+  };
+
+  const handleCompleteBooking = async () => {
+    if (!sessionToComplete) return;
+
+    setCompletingBooking(true);
+
+    try {
+      await apiRequest(`/api/v1/bookings/${sessionToComplete.id}/complete`, {
+        method: 'PATCH'
+      });
+
+      // Remove completed session from list
+      setSessions(prevSessions =>
+        prevSessions.filter(s => s.id !== sessionToComplete.id)
+      );
+
+      setSuccessMessage('Booking marked as completed successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+
+      handleCloseCompleteDialog();
+    } catch (err) {
+      console.error('Failed to complete booking:', err);
+      setError(err.message || 'Failed to mark booking as completed. Please try again.');
+    } finally {
+      setCompletingBooking(false);
     }
   };
 
@@ -411,9 +453,24 @@ export const BookingRequestsSection = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <button className="bg-[#01519A] text-white px-6 py-3 rounded-lg hover:opacity-90 transition-opacity whitespace-nowrap">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button 
+                          onClick={() => {
+                            if (session.zoomJoinLink) {
+                              window.open(session.hostStartUrl, '_blank', 'noopener,noreferrer');
+                            } else {
+                              alert('Zoom link not available for this session');
+                            }
+                          }}
+                          className="bg-[#01519A] text-white px-6 py-3 rounded-lg hover:opacity-90 transition-opacity whitespace-nowrap"
+                        >
                           Start Session
+                        </button>
+                        <button
+                          onClick={() => handleOpenCompleteDialog(session)}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          Mark as Completed
                         </button>
                         {session.status === 'confirmed' && (
                           <button
@@ -556,6 +613,68 @@ export const BookingRequestsSection = () => {
             disabled={cancellingBooking}
           >
             {cancellingBooking ? 'Cancelling...' : 'Yes, Cancel Booking'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Complete Booking Confirmation Dialog */}
+      <Dialog
+        open={completeDialogOpen}
+        onClose={handleCloseCompleteDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-bold text-gray-900">Mark Booking as Completed</span>
+            <button
+              onClick={handleCloseCompleteDialog}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={completingBooking}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </DialogTitle>
+        <DialogContent>
+          <div className="py-4">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+              Mark this session as completed?
+            </h3>
+            <p className="text-gray-600 text-center text-sm">
+              This will mark your session with {sessionToComplete?.student?.firstName} {sessionToComplete?.student?.lastName} as completed. This action cannot be undone.
+            </p>
+          </div>
+        </DialogContent>
+        <DialogActions className="px-6 pb-4">
+          <Button
+            onClick={handleCloseCompleteDialog}
+            color="inherit"
+            disabled={completingBooking}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCompleteBooking}
+            variant="contained"
+            sx={{ 
+              backgroundColor: '#16a34a',
+              '&:hover': {
+                backgroundColor: '#15803d'
+              }
+            }}
+            disabled={completingBooking}
+          >
+            {completingBooking ? 'Marking as Completed...' : 'Yes, Mark as Completed'}
           </Button>
         </DialogActions>
       </Dialog>
