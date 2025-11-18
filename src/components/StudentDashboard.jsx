@@ -308,7 +308,7 @@ const StudentDashboard = () => {
 
             {/* Recent Tutors Contacted */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Tutors Contacted</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">Recently Contacted Tutors</h2>
               
               {loadingTutors ? (
                 <div className="flex justify-center items-center py-8">
