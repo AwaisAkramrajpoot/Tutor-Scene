@@ -111,49 +111,41 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white border-b-2 border-brand-light-blue shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link 
-              to={user ? (
-                user.role === 'student' ? '/dashboard' :
-                user.role === 'tutor' ? '/tutor-dashboard' :
-                user.role === 'admin' ? '/admin-dashboard' : '/'
-              ) : '/'}
-              className="flex items-center cursor-pointer"
-            >
-              <div className="flex items-center">
-                {/* Logo Image */}
-                <img 
-                  src="/images/logo.png.png" 
-                  alt="Tutor Scene Logo" 
-                  className="h-10 w-auto"
-                  onError={(e) => {
-                    // Fallback to graduation cap icon if logo image doesn't exist
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-                {/* Fallback Graduation Cap Icon */}
-                <div className="hidden items-center">
-                  <div className="w-8 h-8 bg-brand-dark-blue rounded-full flex items-center justify-center mr-2 border-2 border-brand-gold">
-                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
-                    </svg>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xl font-bold text-brand-dark-blue leading-none">TUTOR</span>
-                    <span className="text-xl font-bold text-brand-medium-blue leading-none">SCENE</span>
-                  </div>
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b-2 border-brand-gold shadow-sm">
+      <div className="max-w-7xl mx-auto relative min-h-[4rem] md:min-h-[4.25rem] flex items-center justify-end px-4 sm:px-6 lg:px-8 py-2">
+          <Link 
+            to={user ? (
+              user.role === 'student' ? '/dashboard' :
+              user.role === 'tutor' ? '/tutor-dashboard' :
+              user.role === 'admin' ? '/admin-dashboard' : '/'
+            ) : '/'}
+            className="absolute left-4 sm:left-6 lg:left-8 bottom-0 translate-y-[42%] z-20 flex items-end cursor-pointer"
+          >
+            <div className="flex items-end">
+              <img 
+                src="/images/logo.png.png" 
+                alt="Tutor Scene Logo" 
+                className="h-[3.25rem] sm:h-[4rem] md:h-[7.4rem] w-auto object-contain object-bottom drop-shadow-md"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              <div className="hidden items-center gap-2 pb-0.5">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-dark-blue rounded-full flex items-center justify-center border-2 border-brand-gold flex-shrink-0">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+                  </svg>
+                </div>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-lg md:text-xl font-bold text-brand-dark-blue">TUTOR</span>
+                  <span className="text-lg md:text-xl font-bold text-brand-medium-blue">SCENE</span>
                 </div>
               </div>
-            </Link>
-          </div>
-
-          {/* Search Bar */}
-          <div className="flex-1 max-w-lg mx-8">
+            </div>
+          </Link>
+        <div className="flex flex-1 min-h-[2.75rem] pl-[6.5rem] sm:pl-[8.5rem] md:pl-[10.5rem] lg:pl-[11rem] items-center justify-end gap-2 md:gap-3">
+          <div className="hidden lg:block flex-1 max-w-xl mx-2">
             <form onSubmit={handleSearchSubmit} className="flex">
               {/* <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -193,9 +185,7 @@ const Navbar = () => {
             </form>
           </div>
 
-          {/* Navigation Links */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-1 lg:gap-2 flex-shrink-0">
               {/* Show Home only when user is not authenticated */}
               {!user && (
                 <Link
@@ -293,11 +283,9 @@ const Navbar = () => {
                   About
                 </Link>
               )}
-            </div>
           </div>
 
-          {/* Auth Buttons / User Menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
             {user ? (
               // Show user menu when logged in
               <>
@@ -335,9 +323,9 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/signup"
-                  className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-2 rounded-md text-sm font-semibold transition-all shadow-lg hover:shadow-xl border-2 border-transparent hover:border-brand-gold"
+                  className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-2.5 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold"
                 >
-                  Create free account
+                  Get Started
                 </Link>
               </>
             )}
