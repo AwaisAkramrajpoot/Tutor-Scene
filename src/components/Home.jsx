@@ -1,19 +1,31 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import { apiRequest } from '../utils/api';
+
+const LEARNERS_GUIDE_PDF = '/documents/learners-guide.pdf';
 
 const Home = () => {
   const navigate = useNavigate();
   const [testimonials, setTestimonials] = useState([]);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
   const [loadingTestimonials, setLoadingTestimonials] = useState(true);
+  const [learnersGuideOpen, setLearnersGuideOpen] = useState(false);
 
-  // Fetch testimonials on component mount
+  const goFindTutor = () => {
+    const raw = localStorage.getItem('user');
+    if (!raw) {
+      navigate('/signup');
+      return;
+    }
+    navigate('/find-tutors');
+  };
+
   useEffect(() => {
     const fetchTestimonials = async () => {
       try {
         setLoadingTestimonials(true);
-        const data = await apiRequest('/api/v1/testimonials', 'GET');
+        const data = await apiRequest('/api/v1/testimonials', { method: 'GET' });
         const testimonialsList = Array.isArray(data) ? data : data.testimonials || data.data || [];
         setTestimonials(testimonialsList);
       } catch (error) {
@@ -28,150 +40,104 @@ const Home = () => {
     fetchTestimonials();
   }, []);
 
-  // Navigate to next testimonial
+  const galleryTestimonials = useMemo(() => {
+    const list = Array.isArray(testimonials) ? testimonials : [];
+    return [...list]
+      .sort((a, b) => {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      })
+      .slice(0, 4);
+  }, [testimonials]);
+
+  const galleryIds = useMemo(
+    () => galleryTestimonials.map((t) => t.id).join(','),
+    [galleryTestimonials],
+  );
+
+  useEffect(() => {
+    setCurrentTestimonialIndex(0);
+  }, [galleryIds]);
+
+  useEffect(() => {
+    const len = galleryTestimonials.length;
+    if (len <= 1) return undefined;
+    const id = window.setInterval(() => {
+      setCurrentTestimonialIndex((prev) => (prev + 1) % len);
+    }, 6000);
+    return () => window.clearInterval(id);
+  }, [galleryTestimonials.length, galleryIds]);
+
   const handleNextTestimonial = () => {
-    if (testimonials.length > 0) {
-      setCurrentTestimonialIndex((prevIndex) => 
-        prevIndex === testimonials.length - 1 ? 0 : prevIndex + 1
+    if (galleryTestimonials.length > 0) {
+      setCurrentTestimonialIndex((prevIndex) =>
+        prevIndex === galleryTestimonials.length - 1 ? 0 : prevIndex + 1,
       );
     }
   };
 
-  // Navigate to previous testimonial
   const handlePrevTestimonial = () => {
-    if (testimonials.length > 0) {
-      setCurrentTestimonialIndex((prevIndex) => 
-        prevIndex === 0 ? testimonials.length - 1 : prevIndex - 1
+    if (galleryTestimonials.length > 0) {
+      setCurrentTestimonialIndex((prevIndex) =>
+        prevIndex === 0 ? galleryTestimonials.length - 1 : prevIndex - 1,
       );
     }
   };
 
-  const currentTestimonial = testimonials[currentTestimonialIndex];
+  const currentTestimonial = galleryTestimonials[currentTestimonialIndex];
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-brand-dark-blue via-brand-medium-blue to-brand-dark-blue text-white overflow-hidden">
-        {/* Decorative Elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-20 left-10 w-20 h-20 bg-brand-light-blue rounded-full opacity-20"></div>
-          <div className="absolute top-40 right-20 w-16 h-16 bg-brand-gold rounded-full opacity-30"></div>
-          <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-brand-light-blue rounded-full opacity-25"></div>
-          <div className="absolute top-60 right-1/3 w-8 h-8 bg-brand-gold rounded-full opacity-40"></div>
+      <div className="relative bg-brand-dark-blue text-white overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-24 left-8 w-32 h-32 rounded-full bg-brand-light-blue/15 blur-2xl" />
+          <div className="absolute bottom-16 right-10 w-40 h-40 rounded-full bg-brand-medium-blue/20 blur-3xl" />
+          <div className="absolute top-40 right-1/4 w-24 h-24 rounded-full border border-brand-gold/20" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left Side - Content */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16 md:pt-10 md:pb-24">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div className="space-y-8">
-              {/* Main Headline */}
               <div className="space-y-2">
-                <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
-                  <span className="text-white">Empowering</span>
-                  <br />
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight">
+                  <span className="text-white">Empowering </span>
                   <span className="text-brand-gold">Learning</span>
-                  <br />
-                  <span className="text-white">Through Connection.</span>
+                  <span className="text-white"> Through Connection.</span>
                 </h1>
               </div>
 
-              {/* Sub-text */}
-              <p className="text-xl text-brand-light-blue max-w-lg">
-                Tutor Scene helps students and tutors connect securely for live, interactive lessons that inspire success.
+              <p className="text-lg sm:text-xl text-white/95 max-w-lg font-normal leading-relaxed">
+                Tutor Scene helps learners and tutors connect securely for live, interactive lessons that inspire success.
               </p>
 
-              {/* Call-to-Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white font-semibold py-4 px-8 rounded-lg transition-all shadow-lg hover:shadow-xl border-2 border-transparent hover:border-brand-gold">
-                  I'm a Student / Parent
-                </button>
-                <button 
-                  onClick={() => navigate('/become-tutor')}
-                  className="bg-white text-brand-dark-blue hover:bg-brand-gold hover:text-white font-semibold py-4 px-8 rounded-lg border-2 border-brand-gold transition-all shadow-lg"
+              <div>
+                <button
+                  type="button"
+                  onClick={goFindTutor}
+                  className="inline-flex items-center justify-center min-w-[14rem] sm:min-w-[17rem] bg-white text-brand-gold border-2 border-brand-gold px-10 sm:px-14 py-3.5 rounded-lg text-lg font-normal shadow-md hover:bg-brand-medium-blue hover:text-white transition-colors"
                 >
-                  I'm a Tutor
+                  Find a Tutor
                 </button>
-              </div>
-
-              {/* Feature Icons */}
-              <div className="flex flex-wrap gap-6">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium">Public Speaking</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-amber-600 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7ZM9 3V4H15V3H9ZM7 6V19H17V6H7Z"/>
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium">Career-Oriented</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium">Creative Thinking</span>
-                </div>
               </div>
             </div>
 
-            {/* Right Side - Student Image and Statistics */}
-            <div className="relative">
-              {/* Student Image */}
-              <div className="relative">
-                <img 
-                  src="/images/homebannerheader.png" 
-                  alt="Student learning" 
-                  className="w-full h-auto max-h-[500px] object-contain rounded-lg"
-                />
-              </div>
-
-              {/* Statistics Cards */}
-              {/* Top Left - Subjects Available */}
-              <div className="absolute top-8 -left-4 bg-white rounded-xl shadow-lg p-4 flex items-center gap-3 max-w-xs">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-900">20+</div>
-                  <div className="text-xs text-gray-600">Subjects Available</div>
-                </div>
-              </div>
-
-              {/* Top Right - Successful Lessons */}
-              <div className="absolute top-8 -right-4 bg-white rounded-xl shadow-lg p-4 max-w-xs">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">10K+</div>
-                  <div className="text-xs text-gray-600">Successful Lessons</div>
-                </div>
-              </div>
-
-              {/* Bottom Right - Tutors */}
-              <div className="absolute bottom-8 -right-4 bg-white rounded-xl shadow-lg p-4 flex items-center gap-3 max-w-xs">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Tutors</div>
-                  <div className="text-2xl font-bold text-gray-900">250+</div>
+            <div className="relative flex justify-center lg:justify-end">
+              <div className="relative w-full max-w-md aspect-square flex items-center justify-center">
+                {/* <div
+                  className="absolute inset-[4%] rounded-full bg-brand-gold shadow-lg"
+                  aria-hidden
+                /> */}
+                {/* <div className="relative z-10 w-[78%] h-[78%] rounded-full overflow-hidden ring-4 ring-white/40 shadow-2xl"> */}
+                <div className="">
+                  <img
+                    src="/images/homebannerheader.png"
+                    alt="Student learning with Tutor Scene"
+                    className="w-full h-full object-cover object-center"
+                    width={640}
+                    height={640}
+                    decoding="async"
+                  />
                 </div>
               </div>
             </div>
@@ -179,73 +145,114 @@ const Home = () => {
         </div>
       </div>
 
-      {/* How It Works Section */}
-      <div className="bg-gray-50 py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Section Title */}
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
-            <p className="text-xl text-gray-600">Get started in three simple steps</p>
+      <section className="bg-white py-8 md:py-10 border-b border-brand-light-blue/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl md:text-3xl font-bold text-brand-medium-blue">
+            Trusted Tutors
+          </h2>
+          <p className="mt-2 text-base md:text-lg font-normal text-brand-medium-blue/85">
+            Vetted. Experienced. Learner focused.
+          </p>
+        </div>
+      </section>
+
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden>
+          <img
+            src="/images/How_it_works_bg_image.png"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover opacity-45"
+          />
+          <div className="absolute inset-0 bg-white/55" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-center mb-12 md:mb-14">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-brand-medium-blue px-6 sm:px-10 py-3 sm:py-4 border-2 border-brand-medium-blue inline-block text-center">
+              How It Works
+            </h2>
           </div>
 
-          {/* Three Step Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Card 1 - Search & Browse */}
-            <Link to="/find-tutors" className="block bg-white rounded-lg border border-gray-200 p-8 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white/85 backdrop-blur-sm rounded-xl border border-white/90 p-8 shadow-md">
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">Search & Browse</h3>
-                <p className="text-gray-600 mb-6">
-                  Find tutors by subject, price, and availability. Read reviews and compare profiles.
-                </p>
-                <span className="text-blue-600 hover:text-blue-800 font-medium">
-                  Learn More &gt;
-                </span>
-              </div>
-            </Link>
-
-            {/* Card 2 - Book a Session */}
-            <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm hover:shadow-md transition-shadow">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-brand-medium-blue rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Book a Session</h3>
-                <p className="text-gray-600 mb-6">
-                  Choose a time that works for you and schedule your first lesson instantly.
+                <p className="text-gray-600 text-left md:text-center leading-relaxed">
+                  Let us match you to the perfect tutor or search for the tutor of your choice
                 </p>
-                <a href="#" className="text-blue-600 hover:text-blue-800 font-medium">
-                  Learn More &gt;
-                </a>
               </div>
             </div>
 
-            {/* Card 3 - Start Learning */}
-            <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white/85 backdrop-blur-sm rounded-xl border border-white/90 p-8 shadow-md">
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-brand-medium-blue rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Search &amp; Browse</h3>
+                <p className="text-gray-600 text-left md:text-center leading-relaxed">
+                  Find tutors by subject, price, and availability. Compare tutor profiles for personalized compatibility
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white/85 backdrop-blur-sm rounded-xl border border-white/90 p-8 shadow-md">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-brand-medium-blue rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Start Learning</h3>
-                <p className="text-gray-600 mb-6">
-                  Connect with your tutor online and start your learning journey from anywhere.
+                <p className="text-gray-600 text-left md:text-center leading-relaxed">
+                  Connect with your tutor online and start your learning journey from anywhere
                 </p>
-                <a href="#" className="text-blue-600 hover:text-blue-800 font-medium">
-                  Learn More &gt;
-                </a>
               </div>
             </div>
           </div>
+
+          <div className="flex justify-center mt-12">
+            <button
+              type="button"
+              onClick={() => setLearnersGuideOpen(true)}
+              className="bg-brand-medium-blue text-white font-normal px-8 py-3.5 rounded-lg shadow-lg hover:bg-brand-dark-blue transition-colors text-center max-w-xl w-full sm:w-auto"
+            >
+              Behind the Scenes: A Learners&apos; Guide
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <Dialog
+        open={learnersGuideOpen}
+        onClose={() => setLearnersGuideOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        scroll="paper"
+      >
+        <DialogTitle>Behind the Scenes: A Learners&apos; Guide</DialogTitle>
+        <DialogContent dividers className="p-0 sm:p-2">
+          <iframe
+            title="Learners guide PDF"
+            src={`${LEARNERS_GUIDE_PDF}#toolbar=1`}
+            className="w-full min-h-[70vh] border-0 bg-gray-100 rounded-sm"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button component="a" href={LEARNERS_GUIDE_PDF} download="Tutor-Scene-Learners-Guide.pdf" variant="contained" color="primary">
+            Download PDF
+          </Button>
+          <Button onClick={() => setLearnersGuideOpen(false)} color="inherit">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Our Features Section */}
       <div className="bg-white py-20">
@@ -295,10 +302,10 @@ const Home = () => {
                   
                   {/* Action Buttons */}
                   <div className="flex space-x-3">
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    <button type="button" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-normal">
                       Present
                     </button>
-                    <button className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    <button type="button" className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-normal">
                       Call
                     </button>
                   </div>
@@ -401,7 +408,7 @@ const Home = () => {
                 <div className="bg-gray-100 rounded-lg p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-semibold text-gray-900">Private Session</h4>
-                    <button className="bg-red-500 text-white px-3 py-1 rounded text-sm">
+                    <button type="button" className="bg-red-500 text-white px-3 py-1 rounded text-sm font-normal">
                       End Session
                     </button>
                   </div>
@@ -435,106 +442,85 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Testimonial Section */}
-      <div className="bg-gray-50 py-20">
+      <div className="bg-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            {/* Left Side - Content */}
             <div>
-              <div className="mb-4">
-                <span className="text-sm font-semibold text-blue-600 uppercase tracking-wide">TESTIMONIAL</span>
-              </div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-6">What Our Learners Say</h2>
-              <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-                Tutor Scene has earned the trust of thousands of students and tutors around the world. Our platform has helped learners achieve their goals and tutors grow their teaching careers. Have you joined Tutor Scene yet? We'd love to hear your experience!
+              <h2 className="text-4xl font-bold text-brand-medium-blue mb-6">What Our Learners Say</h2>
+              <p className="text-lg text-gray-700 leading-relaxed">
+                Tutor Scene has earned the trust of learners and tutors worldwide. Learners love our platform because they&apos;re matched with tutors who actually fit how they learn which makes progress feel natural, not forced. Share your experience about The Scene. We would love to hear from you!
               </p>
-              <button className="bg-white text-blue-600 hover:bg-gray-50 font-semibold py-3 px-6 rounded-lg border-2 border-blue-600 transition-colors flex items-center">
-                Write Your Review
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
             </div>
 
-            {/* Right Side - Testimonial Card and Image */}
             <div className="relative max-w-lg mx-auto lg:mx-0">
               {loadingTestimonials ? (
                 <div className="flex items-center justify-center h-96">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-medium-blue" />
                 </div>
-              ) : testimonials.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">No testimonials available at the moment.</p>
+              ) : galleryTestimonials.length === 0 ? (
+                <div className="text-center py-12 rounded-3xl border border-gray-200 bg-gray-50">
+                  <p className="text-gray-600 px-4">
+                    Review gallery will appear here. Your administrator can add up to four featured testimonials in the admin dashboard.
+                  </p>
                 </div>
               ) : (
                 <>
-                  {/* Student Image with rounded corners */}
+                  <p className="text-center text-sm font-medium text-brand-medium-blue mb-3">Review gallery</p>
                   <div className="relative">
-                    <img 
-                      src="/images/testimonials.jpg" 
-                      alt="Happy student with books" 
-                      className="w-full h-auto rounded-3xl shadow-xl object-cover"
+                    <img
+                      src="/images/testimonials.jpg"
+                      alt=""
+                      className="w-full h-auto rounded-3xl shadow-xl object-cover max-h-[420px]"
                     />
-                    
-                    {/* Navigation Arrows */}
-                    <button 
-                      onClick={handlePrevTestimonial}
-                      className="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
-                      aria-label="Previous testimonial"
-                    >
-                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    
-                    <button 
-                      onClick={handleNextTestimonial}
-                      className="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
-                      aria-label="Next testimonial"
-                    >
-                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
+
+                    {galleryTestimonials.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handlePrevTestimonial}
+                          className="absolute top-1/2 -left-4 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
+                          aria-label="Previous review"
+                        >
+                          <svg className="w-6 h-6 text-brand-medium-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleNextTestimonial}
+                          className="absolute top-1/2 -right-4 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
+                          aria-label="Next review"
+                        >
+                          <svg className="w-6 h-6 text-brand-medium-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
                   </div>
 
-                  {/* Testimonial Card - Overlapping bottom */}
-                  <div className="relative -mt-32 mx-4 bg-white rounded-2xl shadow-2xl p-8 border-l-4 border-red-500">
-                    <blockquote className="text-gray-600 mb-6 text-base leading-relaxed">
-                      <i>"{currentTestimonial?.testimonial || 'No testimonial text available.'}"</i>
+                  <div className="relative -mt-28 sm:-mt-32 mx-4 bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-l-4 border-brand-gold">
+                    <blockquote className="text-gray-700 text-base leading-relaxed mb-4">
+                      &ldquo;{currentTestimonial?.testimonial || ''}&rdquo;
                     </blockquote>
-                    
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p className="font-bold text-gray-900 text-sm ">
-                          <i>{currentTestimonial?.testimonialBy || 'Anonymous'}</i>
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex text-yellow-400 mb-1 justify-end">
-                          {[...Array(5)].map((_, i) => (
-                            <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                            </svg>
-                          ))}
-                        </div>
-                        <p className="text-xs text-gray-500">Rated 5 Stars by Students</p>
-                      </div>
-                    </div>
-                    
-                    {/* Testimonial Indicator Dots */}
-                    {testimonials.length > 1 && (
-                      <div className="flex justify-center mt-4 space-x-2">
-                        {testimonials.map((_, index) => (
+                    {currentTestimonial?.testimonialBy && (
+                      <p className="text-sm font-semibold text-gray-900">— {currentTestimonial.testimonialBy}</p>
+                    )}
+
+                    {galleryTestimonials.length > 1 && (
+                      <div className="flex justify-center mt-5 gap-2">
+                        {galleryTestimonials.map((item, index) => (
                           <button
-                            key={index}
+                            key={item.id}
+                            type="button"
                             onClick={() => setCurrentTestimonialIndex(index)}
-                            className={`w-2 h-2 rounded-full transition-all ${
-                              index === currentTestimonialIndex 
-                                ? 'bg-blue-600 w-6' 
-                                : 'bg-gray-300 hover:bg-gray-400'
+                            className={`h-2 rounded-full transition-all ${
+                              index === currentTestimonialIndex
+                                ? 'w-8 bg-brand-medium-blue'
+                                : 'w-2 bg-gray-300 hover:bg-gray-400'
                             }`}
-                            aria-label={`Go to testimonial ${index + 1}`}
+                            aria-label={`Show review ${index + 1}`}
                           />
                         ))}
                       </div>
@@ -552,9 +538,13 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Get Started?</h2>
           <p className="text-xl text-brand-light-blue mb-8">Join Tutor Scene today and discover the perfect learning experience.</p>
-          <button  onClick={() => navigate('/signin')} className="bg-white text-brand-dark-blue hover:bg-brand-gold hover:text-white font-semibold py-4 px-8 rounded-lg border-2 border-brand-gold transition-all shadow-lg flex items-center mx-auto">
-            Find a Tutor Now
-            <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button
+            type="button"
+            onClick={goFindTutor}
+            className="bg-white text-brand-dark-blue border-2 border-brand-gold hover:bg-brand-medium-blue hover:text-white font-normal py-4 px-10 sm:px-14 min-w-[14rem] sm:min-w-[17rem] justify-center rounded-lg transition-all shadow-lg inline-flex items-center mx-auto"
+          >
+            Find a Tutor
+            <svg className="w-5 h-5 ml-2 shrink-0 text-inherit" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
