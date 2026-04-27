@@ -101,7 +101,7 @@ export default function AdminDashboard() {
   const [testimonials, setTestimonials] = useState([]);
   const [loadingTestimonials, setLoadingTestimonials] = useState(false);
   const [showTestimonialModal, setShowTestimonialModal] = useState(false);
-  const [testimonialForm, setTestimonialForm] = useState({ testimonial: '', testimonialBy: '' });
+  const [testimonialForm, setTestimonialForm] = useState({ testimonial: '', testimonialBy: '', rating: '' });
   const [editingTestimonial, setEditingTestimonial] = useState(null);
   const [showDeleteTestimonialDialog, setShowDeleteTestimonialDialog] = useState(false);
   const [testimonialToDelete, setTestimonialToDelete] = useState(null);
@@ -332,20 +332,24 @@ export default function AdminDashboard() {
   const handleOpenTestimonialModal = (testimonial = null) => {
     if (testimonial) {
       setEditingTestimonial(testimonial);
-      setTestimonialForm({ 
-        testimonial: testimonial.testimonial, 
-        testimonialBy: testimonial.testimonialBy 
+      setTestimonialForm({
+        testimonial: testimonial.testimonial,
+        testimonialBy: testimonial.testimonialBy,
+        rating:
+          testimonial.rating != null && testimonial.rating !== ''
+            ? String(testimonial.rating)
+            : '',
       });
     } else {
       setEditingTestimonial(null);
-      setTestimonialForm({ testimonial: '', testimonialBy: '' });
+      setTestimonialForm({ testimonial: '', testimonialBy: '', rating: '' });
     }
     setShowTestimonialModal(true);
   };
 
   const handleCloseTestimonialModal = () => {
     setShowTestimonialModal(false);
-    setTestimonialForm({ testimonial: '', testimonialBy: '' });
+    setTestimonialForm({ testimonial: '', testimonialBy: '', rating: '' });
     setEditingTestimonial(null);
   };
 
@@ -369,11 +373,22 @@ export default function AdminDashboard() {
 
     setSubmittingTestimonial(true);
     try {
+      const payload = {
+        testimonial: testimonialForm.testimonial,
+        testimonialBy: testimonialForm.testimonialBy,
+      };
+      const r = testimonialForm.rating;
+      if (r !== '' && r != null) {
+        const n = Number(r);
+        if (!Number.isNaN(n) && n >= 1 && n <= 5) {
+          payload.rating = n;
+        }
+      }
+
       if (editingTestimonial) {
-        // Update existing testimonial
         await apiRequest(`/api/v1/testimonials/${editingTestimonial.id}`, {
           method: 'PATCH',
-          body: JSON.stringify(testimonialForm),
+          body: JSON.stringify(payload),
         });
         setAlert({
           open: true,
@@ -381,10 +396,9 @@ export default function AdminDashboard() {
           severity: 'success'
         });
       } else {
-        // Create new testimonial
         await apiRequest('/api/v1/testimonials', {
           method: 'POST',
-          body: JSON.stringify(testimonialForm),
+          body: JSON.stringify(payload),
         });
         setAlert({
           open: true,
@@ -1296,6 +1310,11 @@ export default function AdminDashboard() {
                   <div className="max-w-md truncate">{row.testimonial}</div>
                 ) },
                 { key: 'testimonialBy', header: 'By' },
+                {
+                  key: 'rating',
+                  header: 'Rating (internal)',
+                  render: (row) => (row.rating != null ? row.rating : '—'),
+                },
                 { key: 'actions', header: '', render: (row) => (
                   <div className="flex justify-end gap-2">
                     <button
@@ -1345,6 +1364,18 @@ export default function AdminDashboard() {
               variant="outlined"
               placeholder="e.g., John Doe"
               disabled={submittingTestimonial}
+            />
+            <TextField
+              label="Star rating (internal only, 1–5)"
+              fullWidth
+              type="number"
+              value={testimonialForm.rating}
+              onChange={(e) => handleTestimonialFormChange('rating', e.target.value)}
+              variant="outlined"
+              placeholder="Optional"
+              disabled={submittingTestimonial}
+              inputProps={{ min: 1, max: 5 }}
+              helperText="Not shown on the public website; stored for internal reporting."
             />
           </div>
         </DialogContent>
