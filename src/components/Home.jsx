@@ -275,7 +275,7 @@ const Home = () => {
                     <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                     <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   </div>
-                  
+
                   {/* Video Grid */}
                   <div className="grid grid-cols-3 gap-2 mb-6">
                     <div className="bg-blue-200 rounded-lg p-2 text-center">
@@ -299,7 +299,7 @@ const Home = () => {
                       <p className="text-xs text-gray-600">Patricia Mendoza</p>
                     </div>
                   </div>
-                  
+
                   {/* Action Buttons */}
                   <div className="flex space-x-3">
                     <button type="button" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-normal">
@@ -311,7 +311,7 @@ const Home = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Floating Decorative Elements */}
               <div className="absolute -top-4 -right-4 w-8 h-8 bg-green-400 rounded-full opacity-60"></div>
               <div className="absolute top-1/2 -left-4 w-6 h-6 bg-blue-400 rounded-full opacity-40"></div>
@@ -321,13 +321,13 @@ const Home = () => {
             {/* Right Side - User Experience Features */}
             <div className="space-y-8">
               <h3 className="text-3xl font-bold text-blue-900 mb-8">A user experience built for learning</h3>
-              
+
               <div className="space-y-6">
                 {/* Students Feature */}
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                     </svg>
                   </div>
                   <div>
@@ -340,7 +340,7 @@ const Home = () => {
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <svg className="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                     </svg>
                   </div>
                   <div>
@@ -353,7 +353,7 @@ const Home = () => {
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                     </svg>
                   </div>
                   <div>
@@ -381,12 +381,12 @@ const Home = () => {
 
             {/* Right Side - Thoughtful Student Image */}
             <div className="relative">
-              <img 
-                src="/images/studentHome.png" 
-                alt="Thoughtful student learning" 
+              <img
+                src="/images/studentHome.png"
+                alt="Thoughtful student learning"
                 className="w-full h-auto max-h-96 object-contain rounded-lg"
               />
-              
+
               {/* Floating Decorative Elements */}
               <div className="absolute -top-4 -right-4 w-12 h-12 bg-blue-400 rounded-full opacity-60"></div>
               <div className="absolute top-1/2 -left-6 w-8 h-8 bg-yellow-400 rounded-lg opacity-50"></div>
@@ -412,7 +412,7 @@ const Home = () => {
                       End Session
                     </button>
                   </div>
-                  
+
                   {/* Two Video Feeds */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="bg-blue-200 rounded-lg p-4 text-center">
@@ -426,7 +426,7 @@ const Home = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Background Blurred Window */}
               <div className="absolute -z-10 top-4 left-4 w-full h-full bg-gray-300 rounded-2xl opacity-50"></div>
             </div>
@@ -515,11 +515,10 @@ const Home = () => {
                             key={item.id}
                             type="button"
                             onClick={() => setCurrentTestimonialIndex(index)}
-                            className={`h-2 rounded-full transition-all ${
-                              index === currentTestimonialIndex
-                                ? 'w-8 bg-brand-medium-blue'
-                                : 'w-2 bg-gray-300 hover:bg-gray-400'
-                            }`}
+                            className={`h-2 rounded-full transition-all ${index === currentTestimonialIndex
+                              ? 'w-8 bg-brand-medium-blue'
+                              : 'w-2 bg-gray-300 hover:bg-gray-400'
+                              }`}
                             aria-label={`Show review ${index + 1}`}
                           />
                         ))}

@@ -4,12 +4,6 @@ import { Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Butt
 import { getConversations } from '../services/messagingService';
 
 // Icons
-const SearchIcon = (props) => (
-  <svg {...props} className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-
 const ChevronDownIcon = (props) => (
   <svg {...props} className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -26,8 +20,8 @@ const Navbar = () => {
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Check if user is logged in
   useEffect(() => {
-    // Check if user is logged in
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const userData = JSON.parse(userStr);
@@ -39,7 +33,6 @@ const Navbar = () => {
   useEffect(() => {
     const fetchUnreadCount = async () => {
       if (!user) return;
-
       try {
         const conversations = await getConversations();
         const totalUnread = conversations.reduce(
@@ -111,8 +104,8 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b-2 border-brand-gold shadow-sm">
-      <div className="max-w-7xl mx-auto relative min-h-[4rem] md:min-h-[4.25rem] flex items-center justify-end px-4 sm:px-6 lg:px-8 py-2">
+    <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto relative min-h-[4rem] md:min-h-[4.25rem] flex items-center justify-end px-4 sm:px-6 lg:px-8 py-2 w-full">
           <Link 
             to={user ? (
               user.role === 'student' ? '/dashboard' :
@@ -145,54 +138,30 @@ const Navbar = () => {
             </div>
           </Link>
         <div className="flex flex-1 min-h-[2.75rem] pl-[6.5rem] sm:pl-[8.5rem] md:pl-[10.5rem] lg:pl-[11rem] items-center justify-end gap-2 md:gap-3">
-          <div className="hidden lg:block flex-1 max-w-xl mx-2">
-            <form onSubmit={handleSearchSubmit} className="flex">
-              {/* <div className="relative flex-1">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <SearchIcon className="text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Want to learn?"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-l-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand-medium-blue focus:border-brand-medium-blue sm:text-sm"
-                />
-              </div> */}
-              {/* <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsExploreOpen(!isExploreOpen)}
-                  className="inline-flex items-center px-4 py-2 border border-l-0 border-gray-300 rounded-r-md bg-brand-light-blue text-brand-dark-blue text-sm font-medium hover:bg-brand-medium-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-brand-medium-blue focus:border-brand-medium-blue transition-colors"
-                >
-                  Explore
-                  <ChevronDownIcon className="ml-1" />
-                </button> */}
-                
-                {/* Dropdown Menu */}
-                {/* {isExploreOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
-                    <div className="py-1">
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mathematics</a>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Science</a>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Languages</a>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Programming</a>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Music</a>
-                    </div>
-                  </div>
-                )} */}
-              {/* </div> */}
-            </form>
-          </div>
-
-          <div className="hidden md:flex items-center gap-1 lg:gap-2 flex-shrink-0">
               {/* Show Home only when user is not authenticated */}
+          <div className="hidden md:flex items-center gap-1 lg:gap-2 flex-shrink-0">
               {!user && (
                 <Link
                   to="/"
                   className="text-brand-medium-blue hover:text-brand-dark-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
                 >
                   Home
+                </Link>
+              )}
+              {!user && (
+                <Link
+                  to="/about"
+                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                >
+                  About
+                </Link>
+              )}
+              {!user && (
+                <Link
+                  to="/signin"
+                  className="text-brand-medium-blue hover:text-brand-dark-blue px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                >
+                  Sign in
                 </Link>
               )}
               {/* Show Dashboard for authenticated students, tutors (active), and admins */}
@@ -274,20 +243,18 @@ const Navbar = () => {
                   Become a Tutor
                 </Link>
               )}
-              {/* Show About only when user is not authenticated */}
               {!user && (
                 <Link
-                  to="/about"
-                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  to="/signup"
+                  className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-1 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold"
                 >
-                  About
+                  Get Started
                 </Link>
               )}
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
             {user ? (
-              // Show user menu when logged in
               <>
                 <button
                   onClick={handleMenuOpen}
@@ -312,26 +279,12 @@ const Navbar = () => {
                   <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>
                 </Menu>
               </>
-            ) : (
-              // Show auth buttons when not logged in
-              <>
-                <Link
-                  to="/signin"
-                  className="text-brand-medium-blue hover:text-brand-dark-blue px-3 py-2 text-sm font-medium transition-colors"
-                >
-                  Sign in
-                </Link>
-                <Link
-                  to="/signup"
-                  className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-2.5 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold"
-                >
-                  Get Started
-                </Link>
-              </>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
+      <div className="w-full shrink-0 border-b-2 border-brand-gold" />
+      <div className="w-full shrink-0 h-2.5 md:h-2.5 bg-white" />
 
       {/* Logout Confirmation Dialog */}
       <Dialog
