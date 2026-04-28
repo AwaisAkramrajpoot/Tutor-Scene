@@ -4,11 +4,17 @@ export class AddAwaitingInterviewProspectStatus1730900000000
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Add 'awaiting_interview' to the prospect_status enum
     await queryRunner.query(`
-      ALTER TYPE "prospect_status_enum" 
-      ADD VALUE IF NOT EXISTS 'awaiting_interview' 
-      AFTER 'pending';
+      DO $$ BEGIN
+        ALTER TYPE "prospects_status_enum" ADD VALUE IF NOT EXISTS 'awaiting_interview' AFTER 'pending';
+      EXCEPTION
+        WHEN undefined_object THEN
+          BEGIN
+            ALTER TYPE "prospect_status_enum" ADD VALUE IF NOT EXISTS 'awaiting_interview' AFTER 'pending';
+          EXCEPTION
+            WHEN undefined_object THEN NULL;
+          END;
+      END $$;
     `);
   }
 

@@ -60,7 +60,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
       port: this.configService.get<number>('DATABASE_PORT', 5432),
       username: this.configService.get<string>('DATABASE_USERNAME', 'postgres'),
       password: this.configService.get<string>('DATABASE_PASSWORD', 'password'),
-      database: this.configService.get<string>('DATABASE_NAME', 'nest'),
+      database: this.configService.get<string>('DATABASE_NAME', 'tutor_scene_db'),
       entities: [
         User,
         Prospect,
