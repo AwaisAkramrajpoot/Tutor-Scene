@@ -261,7 +261,7 @@ export class InterviewsController {
   })
   async getMyInterview(
     @CurrentUser() user: User,
-  ): Promise<InterviewResponseDto> {
+  ): Promise<InterviewResponseDto | null> {
     return this.interviewsService.getMyInterview(user.id);
   }
 

@@ -24,11 +24,12 @@ export class SubjectsController {
   @Get()
   @ApiOperation({ summary: 'Get all subjects' })
   @ApiResponse({ status: 200, description: 'List of all subjects' })
-  findAll(@Query('category') category?: string) {
-    if (category) {
-      return this.subjectsService.findByCategory(category);
-    }
-    return this.subjectsService.findAll();
+  findAll(
+    @Query('category') category?: string,
+    @Query('keyword') keyword?: string,
+    @Query('gradeLevel') gradeLevel?: string,
+  ) {
+    return this.subjectsService.findAll({ category, keyword, gradeLevel });
   }
 
   @Public()

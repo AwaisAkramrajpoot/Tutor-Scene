@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as express from 'express';
+import * as path from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -29,6 +30,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Serve local onboarding uploads in development fallback mode.
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Global validation pipe
   app.useGlobalPipes(

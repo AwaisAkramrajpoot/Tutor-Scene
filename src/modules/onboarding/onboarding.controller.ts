@@ -138,13 +138,12 @@ export class OnboardingController {
       properties: {
         status: { 
           type: 'string', 
-          enum: ['pending', 'active', 'suspended'],
-          example: 'pending' 
+          enum: ['not_started', 'pending', 'awaiting_interview', 'active', 'suspended'],
+          example: 'not_started' 
         }
       }
     }
   })
-  @ApiResponse({ status: 404, description: 'User not found in prospects' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async getProspectStatus(
     @Param('userId', ParseIntPipe) userId: number,

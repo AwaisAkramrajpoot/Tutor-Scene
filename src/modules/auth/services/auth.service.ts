@@ -60,9 +60,23 @@ export class AuthService {
       status: UserStatus.ACTIVE,
       role: registerDto.role as any || 'student',
       gender: registerDto.gender,
+      emailVerified: false,
+      emailVerifiedAt: null,
     });
 
     await this.userRepository.save(user);
+
+    const verificationToken = this.jwtService.sign(
+      { sub: user.id, email: user.email, type: 'verify' },
+      {
+        expiresIn: '24h',
+        secret: this.configService.get<string>('JWT_SECRET'),
+      },
+    );
+    await this.userRepository.update(user.id, {
+      emailVerificationToken: verificationToken,
+    });
+    await this.mailService.sendEmailVerificationEmail(user.email, verificationToken);
 
     // Generate tokens
     return this.generateAuthResponse(user);
@@ -75,7 +89,7 @@ export class AuthService {
     // Find user by email
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },
-      select: ['id', 'email', 'passwordHash', 'firstName', 'lastName', 'status', 'role'],
+      select: ['id', 'email', 'passwordHash', 'firstName', 'lastName', 'status', 'role', 'emailVerified'],
     });
 
     if (!user) {
@@ -84,6 +98,10 @@ export class AuthService {
 
     if (!user.isActive()) {
       throw new UnauthorizedException('Account is inactive');
+    }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException('Please verify your email before signing in');
     }
 
     // Verify password
@@ -132,6 +150,44 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async verifyEmail(token: string): Promise<AuthResponseDto> {
+    try {
+      const payload = this.jwtService.verify(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      }) as { sub: number; email?: string; type?: string };
+
+      if (payload.type !== 'verify') {
+        throw new BadRequestException('Invalid verification token');
+      }
+
+      const user = await this.userRepository.findOne({
+        where: { id: payload.sub, email: payload.email },
+        select: ['id', 'email', 'passwordHash', 'firstName', 'lastName', 'status', 'role', 'emailVerified'],
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      await this.userRepository.update(user.id, {
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null,
+      });
+
+      user.emailVerified = true;
+      return this.generateAuthResponse(user);
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new BadRequestException('Verification link has expired');
+      }
+      if (error.name === 'JsonWebTokenError') {
+        throw new BadRequestException('Invalid verification token');
+      }
+      throw error;
+    }
   }
 
   // Forgot password implementation

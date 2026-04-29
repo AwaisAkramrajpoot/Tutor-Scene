@@ -60,6 +60,41 @@ export class MailService {
     }
   }
 
+  async sendEmailVerificationEmail(to: string, verificationToken: string): Promise<void> {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
+    const verifyUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
+
+    const mailOptions = {
+      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      to,
+      subject: 'Verify Your Email - Tutor Scene',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Welcome to Tutor Scene!</h2>
+          <p>Thanks for creating your account. Please verify your email address to continue:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verifyUrl}" 
+               style="background-color: #007bff; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 5px; display: inline-block;">
+              Verify Email
+            </a>
+          </div>
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p>${verifyUrl}</p>
+          <p>This link will expire in 24 hours.</p>
+        </div>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Email verification sent to ${to}`);
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+      throw new InternalServerErrorException('Failed to send verification email');
+    }
+  }
+
   async sendBookingPaymentEmail(
     to: string,
     studentName: string,

@@ -127,13 +127,13 @@ export class InterviewsService {
     return this.mapToResponseDto(interview);
   }
 
-  async getMyInterview(userId: number): Promise<InterviewResponseDto> {
+  async getMyInterview(userId: number): Promise<InterviewResponseDto | null> {
     const interview = await this.interviewRepository.findOne({
       where: { userId },
     });
 
     if (!interview) {
-      throw new NotFoundException('Interview not found');
+      return null;
     }
 
     return this.mapToResponseDto(interview);

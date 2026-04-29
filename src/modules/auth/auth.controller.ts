@@ -87,6 +87,14 @@ export class AuthController {
     return this.authService.resetPassword(resetPasswordDto, token);
   }
 
+  @Public()
+  @Get('verify-email')
+  @ApiOperation({ summary: 'Verify email and return auth tokens' })
+  @ApiResponse({ status: 200, description: 'Email verified successfully', type: AuthResponseDto })
+  async verifyEmail(@Query('token') token: string): Promise<AuthResponseDto> {
+    return this.authService.verifyEmail(token);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiBearerAuth()
