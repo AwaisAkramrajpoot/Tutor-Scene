@@ -195,7 +195,9 @@ const Home = () => {
       }, 1200);
     } catch (error) {
       console.error("Failed to submit review:", error);
-      setReviewError(error.message || "Failed to submit review. Please try again.");
+      setReviewError(
+        error.message || "Failed to submit review. Please try again."
+      );
     } finally {
       setReviewSubmitting(false);
     }
@@ -203,17 +205,17 @@ const Home = () => {
 
   return (
     <div className="min-h-screen">
-      <div className="relative bg-brand-dark-blue text-white overflow-hidden">
+      <div className="relative bg-gradient-to-r from-brand-gradient-start via-brand-gradient-mid to-brand-gradient-end text-white overflow-hidden">
+        {" "}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-24 left-8 w-32 h-32 rounded-full bg-brand-light-blue/15 blur-2xl" />
           <div className="absolute bottom-16 right-10 w-40 h-40 rounded-full bg-brand-medium-blue/20 blur-3xl" />
           <div className="absolute top-40 right-1/4 w-24 h-24 rounded-full border border-brand-gold/20" />
         </div>
-
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-4 pt-6 pb-24 md:pt-8 md:pb-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
             {/* LEFT CONTENT */}
-            <div className="space-y-6 text-center lg:text-left mb-10">
+            <div className="space-y-6 text-center lg:text-left mb-10 md:-mt-10">
               <div className="space-y-2">
                 <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight">
                   <span className="text-white">Empowering </span>
@@ -234,7 +236,7 @@ const Home = () => {
                 <button
                   type="button"
                   onClick={goFindTutor}
-                  className="inline-flex items-center justify-center min-w-[12rem] sm:min-w-[14rem] lg:min-w-[12rem] bg-white text-brand-gold border-2 border-brand-gold px-8 sm:px-12 py-1.5 rounded-lg text-base sm:text-lg font-normal shadow-md hover:bg-brand-medium-blue hover:text-white transition-colors"
+                  className="inline-flex items-center justify-center min-w-[12rem] sm:min-w-[14rem] lg:min-w-[12rem] bg-white text-brand-medium-blue  border-2 border-brand-gold px-8 sm:px-12 py-1.5 rounded-lg text-base sm:text-lg font-medium shadow-md hover:bg-brand-medium-blue hover:text-white transition-colors"
                 >
                   Find a Tutor
                 </button>
@@ -258,9 +260,8 @@ const Home = () => {
             </div>
           </div>
         </div>
-
         {/* WHITE SECTION */}
-        <section className="relative lg:absolute left-0 right-0 bottom-0 md:bottom-20 z-0 mb-0 lg:mb-10 bg-gray-300 py-5 md:py-1 border-y border-brand-light-blue/40 shadow-[0_-8px_24px_rgba(20,52,96,0.08)] w-full md:w-[80%] md:mr-auto">
+        <section className="relative lg:absolute left-0 right-0 bottom-0 md:bottom-20 z-0 mb-0 lg:mb-10 bg-gray-200 py-5 md:py-1 border-y border-brand-light-blue/40 shadow-[0_-8px_24px_rgba(20,52,96,0.08)] w-full md:w-[80%] md:mr-auto">
           <div className="px-4 sm:px-6 lg:px-20 max-w-7xl mx-auto text-center md:text-left">
             <h2 className="text-2xl md:text-3xl md:ml-20 font-bold text-brand-medium-blue">
               Trusted Tutors
@@ -739,21 +740,15 @@ const Home = () => {
       </div>
 
       {/* On-Demand Learning Library */}
-      <div className="relative bg-brand-dark-blue py-16 md:py-20 overflow-hidden text-white">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-24 left-8 w-32 h-32 rounded-full bg-brand-light-blue/15 blur-2xl" />
-          <div className="absolute bottom-16 right-10 w-40 h-40 rounded-full bg-brand-medium-blue/20 blur-3xl" />
-          <div className="absolute top-40 right-1/4 w-24 h-24 rounded-full border border-brand-gold/20" />
-        </div>
-
+      <div className="relative bg-gradient-to-r from-brand-gradient-start via-brand-gradient-mid to-brand-gradient-end pt-10 pb-6 overflow-hidden text-white">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-10 max-w-3xl mx-auto mb-10 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-10 max-w-3xl mx-auto mb-6 text-center">
             {countdownParts.map((item) => (
               <div key={item.label}>
                 <p className="text-4xl sm:text-5xl font-semibold leading-none">
                   {item.value}
                 </p>
-                <p className="mt-3 text-base sm:text-3xl tracking-wide text-white/95">
+                <p className="mt-2 text-base sm:text-3xl tracking-wide text-white/95">
                   {item.label}
                 </p>
               </div>
@@ -764,9 +759,17 @@ const Home = () => {
             <h2 className="text-3xl sm:text-5xl font-bold leading-tight">
               On-Demand Learning Library
             </h2>
-            <p className="mt-2 text-4xl sm:text-6xl font-light">Coming Soon!</p>
-          </div>
 
+            <p className="text-4xl sm:text-6xl font-light leading-none -mt-1">
+              Coming Soon!
+            </p>
+
+            <img
+              src="/images/one-demand-laptopimage-preview.png"
+              alt="On-demand learning laptop"
+              className="mx-auto mt-0 mb-0 w-full max-w-md sm:max-w-lg block"
+            />
+          </div>
         </div>
       </div>
 
@@ -779,6 +782,7 @@ const Home = () => {
               <h2 className="text-4xl font-bold text-blue-900 mb-6">
                 Smart Tools for Students & Tutors
               </h2>
+
               <p className="text-lg text-gray-600 leading-relaxed">
                 Tutor Scene offers powerful tools to make online learning simple
                 and effective. Students can book lessons, access materials, and
@@ -854,76 +858,75 @@ const Home = () => {
             </div>
 
             {/* Right Side - Review Gallery */}
+            {/* Right Side - Review Gallery */}
             <div className="relative max-w-lg mx-auto lg:mx-0">
-              {loadingTestimonials ? (
-                <div className="flex items-center justify-center h-96">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-medium-blue" />
-                </div>
-              ) : galleryTestimonials.length === 0 ? (
-                <div className="text-center py-12 rounded-3xl border border-gray-200 bg-gray-50">
-                  <p className="text-gray-600 px-4">
-                    Review gallery will appear here. Your administrator can add
-                    up to four featured testimonials in the admin dashboard.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="relative rounded-3xl overflow-hidden shadow-xl">
-                    <img
-                      src="/images/testimonials.jpg"
-                      alt="Learner testimonial"
-                      className="w-full h-auto object-cover max-h-[420px]"
-                    />
+              {/* Image always visible */}
+              <div className="relative rounded-3xl overflow-hidden shadow-xl">
+                <img
+                  src={`${process.env.PUBLIC_URL}/images/testimonials.jpg`}
+                  alt="Learner testimonial"
+                  className="w-full h-auto object-cover max-h-[420px]"
+                />
 
-                    {/* Prev / Next arrows */}
-                    {galleryTestimonials.length > 1 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handlePrevTestimonial}
-                          className="absolute top-1/2 left-3 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
-                          aria-label="Previous review"
-                        >
-                          <svg
-                            className="w-5 h-5 text-brand-medium-blue"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15 19l-7-7 7-7"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleNextTestimonial}
-                          className="absolute top-1/2 right-3 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
-                          aria-label="Next review"
-                        >
-                          <svg
-                            className="w-5 h-5 text-brand-medium-blue"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                        </button>
-                      </>
-                    )}
+                {/* Prev / Next arrows — only if multiple testimonials */}
+                {!loadingTestimonials && galleryTestimonials.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handlePrevTestimonial}
+                      className="absolute top-1/2 left-3 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
+                      aria-label="Previous review"
+                    >
+                      <svg
+                        className="w-5 h-5 text-brand-medium-blue"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 19l-7-7 7-7"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextTestimonial}
+                      className="absolute top-1/2 right-3 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
+                      aria-label="Next review"
+                    >
+                      <svg
+                        className="w-5 h-5 text-brand-medium-blue"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Review card overlapping the photo */}
+              <div className="relative -mt-28 sm:-mt-32 mx-4 bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-l-4 border-brand-gold">
+                {loadingTestimonials ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue" />
                   </div>
-
-                  {/* Review card overlapping the photo */}
-                  <div className="relative -mt-28 sm:-mt-32 mx-4 bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-l-4 border-brand-gold">
+                ) : galleryTestimonials.length === 0 ? (
+                  <p className="text-gray-500 text-sm italic">
+                    Reviews will appear here once approved by an administrator.
+                  </p>
+                ) : (
+                  <>
                     <blockquote className="text-gray-700 text-base leading-relaxed mb-4 italic">
                       &ldquo;{currentTestimonial?.testimonial || ""}&rdquo;
                     </blockquote>
@@ -932,9 +935,6 @@ const Home = () => {
                         {currentTestimonial.testimonialBy}
                       </p>
                     )}
-                    {/* star rating NOT displayed — stored in DB for admin use only */}
-
-                    {/* Dot indicators */}
                     {galleryTestimonials.length > 1 && (
                       <div className="flex justify-start mt-4 gap-2">
                         {galleryTestimonials.map((item, index) => (
@@ -952,16 +952,16 @@ const Home = () => {
                         ))}
                       </div>
                     )}
-                  </div>
-                </>
-              )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Ready to Get Started Section */}
-      <div className="relative bg-brand-dark-blue py-20 overflow-hidden">
+      <div className="relative bg-gradient-to-r from-brand-gradient-start via-brand-gradient-mid to-brand-gradient-end py-20 overflow-hidden">
         {/* Background decorative elements matching hero section */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-24 left-8 w-32 h-32 rounded-full bg-brand-light-blue/15 blur-2xl" />
@@ -980,14 +980,14 @@ const Home = () => {
             <button
               type="button"
               onClick={goFindTutor}
-              className="bg-white text-brand-dark-blue border-2 border-brand-gold hover:bg-brand-medium-blue hover:text-white font-semibold py-4 px-10 sm:px-14 min-w-[14rem] sm:min-w-[17rem] justify-center rounded-lg transition-all shadow-lg inline-flex items-center"
+              className="bg-white text-brand-medium-blue border-2 border-brand-gold hover:bg-brand-medium-blue hover:text-white font-semibold py-4 px-10 sm:px-14 min-w-[14rem] sm:min-w-[17rem] justify-center rounded-lg transition-all shadow-lg inline-flex items-center"
             >
               Find a Tutor Now
             </button>
             <button
               type="button"
               onClick={() => navigate("/become-tutor")}
-              className="bg-white text-brand-dark-blue border-2 border-brand-gold hover:bg-brand-medium-blue hover:text-white font-semibold py-4 px-10 sm:px-14 min-w-[14rem] sm:min-w-[17rem] justify-center rounded-lg transition-all shadow-lg inline-flex items-center"
+              className="bg-white text-brand-medium-blue border-2 border-brand-gold hover:bg-brand-medium-blue hover:text-white font-semibold py-4 px-10 sm:px-14 min-w-[14rem] sm:min-w-[17rem] justify-center rounded-lg transition-all shadow-lg inline-flex items-center"
             >
               Become a Tutor
             </button>
