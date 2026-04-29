@@ -143,7 +143,11 @@ const Navbar = () => {
               {!user && (
                 <Link
                   to="/"
-                  className="text-brand-medium-blue hover:text-brand-dark-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                    location.pathname === '/'
+                      ? 'text-brand-medium-blue font-semibold'
+                      : 'text-gray-700 hover:text-brand-medium-blue'
+                  }`}
                 >
                   Home
                 </Link>
@@ -151,7 +155,11 @@ const Navbar = () => {
               {!user && (
                 <Link
                   to="/about"
-                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                    location.pathname === '/about'
+                      ? 'text-brand-medium-blue font-semibold'
+                      : 'text-gray-700 hover:text-brand-medium-blue'
+                  }`}
                 >
                   About
                 </Link>
@@ -159,7 +167,11 @@ const Navbar = () => {
               {!user && (
                 <Link
                   to="/signin"
-                  className="text-brand-medium-blue hover:text-brand-dark-blue px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  className={`px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                    location.pathname === '/signin'
+                      ? 'text-brand-medium-blue font-semibold'
+                      : 'text-gray-700 hover:text-brand-medium-blue'
+                  }`}
                 >
                   Sign in
                 </Link>
@@ -283,9 +295,7 @@ const Navbar = () => {
           </div>
         </div>
       </div>
-      <div className="w-full shrink-0 border-b-2 border-brand-gold" />
-      <div className="w-full shrink-0 h-2.5 md:h-2.5 bg-white" />
-
+      <div className="w-full shrink-0 border-b-4 border-brand-gold" />
       {/* Logout Confirmation Dialog */}
       <Dialog
         open={logoutDialogOpen}
