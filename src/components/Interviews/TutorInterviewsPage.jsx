@@ -49,7 +49,7 @@ const TutorInterviewsPage = () => {
       setLoading(true);
       setError(null);
       
-      const data = await apiRequest('/api/v1/interviews/my-interview', 'GET');
+      const data = await apiRequest('/api/v1/interviews/my-interview', { method: 'GET' });
       setInterview(data);
     } catch (err) {
       console.error('Failed to fetch interview:', err);

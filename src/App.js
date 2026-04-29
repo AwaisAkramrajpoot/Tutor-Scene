@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Home from './components/Home';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
+import VerifyEmail from './components/VerifyEmail';
 import FindTutorsPage from './components/FindTutorsPage';
 import TutorProfile from './components/TutorProfile';
 import StudentDashboard from './components/StudentDashboard';
@@ -40,8 +41,13 @@ function TutorStatusChecker() {
     const checkTutorStatus = async () => {
       try {
         const userStr = localStorage.getItem('user');
+        const token = localStorage.getItem('accessToken');
         if (!userStr) {
           console.log('TutorStatusChecker - No user in localStorage');
+          return;
+        }
+        if (!token) {
+          console.log('TutorStatusChecker - No access token, skipping status check');
           return;
         }
 
@@ -113,6 +119,7 @@ function App() {
         <Route path="/" element={<Layout><Home /></Layout>} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/about" element={<Layout><AboutPage /></Layout>} />
         <Route path="/become-tutor" element={<Layout><BecomeTutorPage /></Layout>} />
         <Route path="/payments" element={<Layout><PaymentPage /></Layout>} />
