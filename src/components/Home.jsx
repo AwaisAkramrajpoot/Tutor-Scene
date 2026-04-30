@@ -61,7 +61,7 @@ const Home = () => {
 
     fetchTestimonials();
   }, []);
-
+//
   const galleryTestimonials = useMemo(() => {
     const list = Array.isArray(testimonials) ? testimonials : [];
     return [...list]
