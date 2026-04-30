@@ -389,6 +389,9 @@ export const apiUpload = async (endpoint, file) => {
   if (!response.ok) {
     throw new Error(data.message || 'File upload failed');
   }
+  if (data?.url && typeof data.url === 'string' && data.url.startsWith('/')) {
+    data.url = `${API_URL}${data.url}`;
+  }
   return data;
 };
 

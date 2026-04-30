@@ -19,6 +19,12 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const isTutorOnboardingPage = [
+    '/create-profile',
+    '/verify-identity',
+    '/ready-to-teach',
+  ].includes(location.pathname);
+  const isTutorApproved = user?.role === 'tutor' && user?.prospectStatus === 'active';
 
   // Check if user is logged in
   useEffect(() => {
@@ -140,6 +146,42 @@ const Navbar = () => {
         <div className="flex flex-1 min-h-[2.75rem] pl-[6.5rem] sm:pl-[8.5rem] md:pl-[10.5rem] lg:pl-[11rem] items-center justify-end gap-2 md:gap-3">
               {/* Show Home only when user is not authenticated */}
           <div className="hidden md:flex items-center gap-1 lg:gap-2 flex-shrink-0">
+              {isTutorOnboardingPage && (
+                <>
+                  <Link
+                    to="/"
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname === '/'
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    Home
+                  </Link>
+                  <Link
+                    to="/about"
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname === '/about'
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    About
+                  </Link>
+                  <Link
+                    to="/become-tutor"
+                    className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  >
+                    Become a Tutor
+                  </Link>
+                  <Link
+                    to="/create-profile"
+                    className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-1 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
               {!user && (
                 <Link
                   to="/"
@@ -216,7 +258,7 @@ const Navbar = () => {
                 </Link>
               )}
               {/* Show Interviews link for authenticated tutors and admins */}
-              {user && (user.role === 'tutor' || user.role === 'admin') && (
+              {user && (user.role === 'tutor' || user.role === 'admin') && !isTutorOnboardingPage && (
                 <Link
                   to="/interviews"
                   className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
@@ -268,28 +310,40 @@ const Navbar = () => {
           <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
             {user ? (
               <>
-                <button
-                  onClick={handleMenuOpen}
-                  className="flex items-center space-x-2 text-brand-dark-blue hover:text-brand-medium-blue px-3 py-2 text-sm font-semibold transition-colors"
-                >
-                  <span>{`${user.firstName.toUpperCase()} ${user.lastName.toUpperCase()}`}</span>
-                  <ChevronDownIcon />
-                </button>
-                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl)}
-                  onClose={handleMenuClose}
-                  anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'right',
-                  }}
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                >
-                  <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>
-                </Menu>
+                {user.role === 'tutor' && !isTutorApproved ? (
+                  <button
+                    onClick={handleLogoutClick}
+                    className="px-4 py-1.5 text-sm font-medium text-gray-700 border border-gray-400 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    Log Out
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleMenuOpen}
+                      className="flex items-center space-x-2 text-brand-dark-blue hover:text-brand-medium-blue px-3 py-2 text-sm font-semibold transition-colors"
+                    >
+                      <span>{user.firstName.toUpperCase()}</span>
+                      <ChevronDownIcon />
+                    </button>
+                    <Menu
+                      anchorEl={anchorEl}
+                      open={Boolean(anchorEl)}
+                      onClose={handleMenuClose}
+                      anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'right',
+                      }}
+                      transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                      }}
+                    >
+                      <MenuItem onClick={handleDashboardClick}>Dashboard</MenuItem>
+                      <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>
+                    </Menu>
+                  </>
+                )}
               </>
             ) : null}
           </div>
