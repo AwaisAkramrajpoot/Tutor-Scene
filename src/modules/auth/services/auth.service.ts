@@ -89,7 +89,17 @@ export class AuthService {
     // Find user by email
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },
-      select: ['id', 'email', 'passwordHash', 'firstName', 'lastName', 'status', 'role', 'emailVerified'],
+      select: [
+        'id',
+        'email',
+        'passwordHash',
+        'firstName',
+        'lastName',
+        'status',
+        'role',
+        'emailVerified',
+        'lastLoginAt',
+      ],
     });
 
     if (!user) {
@@ -114,8 +124,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Generate tokens
-    return this.generateAuthResponse(user);
+    const hadPriorLogin = Boolean(user.lastLoginAt);
+    await this.userRepository.update(user.id, { lastLoginAt: new Date() });
+    const auth = await this.generateAuthResponse(user);
+    return { ...auth, additionalLoginNotice: hadPriorLogin };
   }
 
   async refreshToken(refreshToken: string): Promise<AuthResponseDto> {

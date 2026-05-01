@@ -14,17 +14,29 @@ export class SubjectsService {
   ) {}
 
   async create(createSubjectDto: CreateSubjectDto): Promise<Subject> {
-    const subject = this.subjectRepository.create(createSubjectDto);
+    const subject = this.subjectRepository.create({
+      name: createSubjectDto.name,
+      description: createSubjectDto.description ?? null,
+      category: createSubjectDto.category ?? null,
+      gradeLevels:
+        Array.isArray(createSubjectDto.gradeLevels) && createSubjectDto.gradeLevels.length > 0
+          ? createSubjectDto.gradeLevels
+          : [],
+    });
     return this.subjectRepository.save(subject);
+  }
+
+  async findAllFromDatabase(): Promise<Subject[]> {
+    return this.subjectRepository.find({ order: { name: 'ASC' } });
   }
 
   private normalizeSubject(
     subject: Subject | CatalogSubject,
   ): CatalogSubject {
-    const gradeLevels =
-      'gradeLevels' in subject && Array.isArray(subject.gradeLevels)
-        ? subject.gradeLevels
-        : [];
+    let gradeLevels: string[] = [];
+    if ('gradeLevels' in subject && Array.isArray(subject.gradeLevels)) {
+      gradeLevels = subject.gradeLevels;
+    }
 
     return {
       id: subject.id,
@@ -38,18 +50,24 @@ export class SubjectsService {
     category?: string;
     keyword?: string;
     gradeLevel?: string;
+    databaseOnly?: boolean;
   }): Promise<CatalogSubject[]> {
-    const dbSubjects = await this.subjectRepository.find({ order: { name: 'ASC' } });
-    const mergedByName = new Map<string, CatalogSubject>();
-    for (const item of DEFAULT_SUBJECT_CATALOG) {
-      mergedByName.set(item.name.toLowerCase(), item);
+    const dbRows = await this.subjectRepository.find({ order: { name: 'ASC' } });
+    let source: CatalogSubject[];
+    if (filters?.databaseOnly) {
+      source = dbRows.map((s) => this.normalizeSubject(s));
+    } else {
+      const mergedByName = new Map<string, CatalogSubject>();
+      for (const item of DEFAULT_SUBJECT_CATALOG) {
+        mergedByName.set(item.name.toLowerCase(), item);
+      }
+      for (const db of dbRows.map((s) => this.normalizeSubject(s))) {
+        mergedByName.set(db.name.toLowerCase(), db);
+      }
+      source = Array.from(mergedByName.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
     }
-    for (const db of dbSubjects.map((s) => this.normalizeSubject(s))) {
-      mergedByName.set(db.name.toLowerCase(), db);
-    }
-    const source = Array.from(mergedByName.values()).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
 
     const category = (filters?.category || '').trim().toLowerCase();
     const keyword = (filters?.keyword || '').trim().toLowerCase();

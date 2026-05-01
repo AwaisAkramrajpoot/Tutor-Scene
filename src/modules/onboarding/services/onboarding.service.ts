@@ -298,6 +298,17 @@ export class OnboardingService {
    */
   async processTutorOnboarding(onboardingDto: OnboardingDto): Promise<Prospect> {
     try {
+      const existing = await this.prospectRepository.findOne({
+        where: { userId: onboardingDto.userId },
+      });
+
+      if (existing) {
+        Object.assign(existing, onboardingDto, {
+          status: ProspectStatus.PENDING,
+        });
+        return await this.prospectRepository.save(existing);
+      }
+
       // Generate 5-digit numeric prospect ID
       const prospectId = await this.generateProspectId();
 

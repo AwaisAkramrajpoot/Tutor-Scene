@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 
 export class CreateSubjectDto {
   @ApiProperty({ example: 'Mathematics' })
@@ -16,4 +16,10 @@ export class CreateSubjectDto {
   @IsString()
   @IsOptional()
   category?: string;
+
+  @ApiProperty({ example: ['High', 'College'], required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  gradeLevels?: string[];
 }

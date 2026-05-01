@@ -11,4 +11,7 @@ export class Subject extends BaseEntity {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   category: string;
+
+  @Column({ name: 'grade_levels', type: 'jsonb' })
+  gradeLevels: string[];
 }
