@@ -52,7 +52,7 @@ const FindTutorsPage = () => {
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const response = await apiRequest('/api/v1/subjects');
+        const response = await apiRequest('/api/v1/subjects?databaseOnly=true');
         const subjectsList = response.subjects || response.data || response || [];
         setAvailableSubjects(subjectsList);
       } catch (error) {

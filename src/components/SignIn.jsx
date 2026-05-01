@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Alert, Snackbar } from '@mui/material';
 import { startTokenRefreshScheduler } from '../utils/api';
 
-// Utility for Eye/Eye-Slash icons (Tailwind Heroicons v1.0 compatible)
 const EyeIcon = (props) => (
   <svg {...props} className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -17,7 +16,6 @@ const EyeOffIcon = (props) => (
   </svg>
 );
 
-// Utility for Checkmark icon
 const CheckIcon = (props) => (
   <svg {...props} className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -37,15 +35,14 @@ const SignIn = () => {
     severity: 'success'
   });
 
-  // --- Design Colors/Constants from Image ---
-  const COLOR_STUDENT_TAB_ACTIVE = '#b18e47'; // Closest to the gold/brown in the image
+  const COLOR_STUDENT_TAB_ACTIVE = '#b18e47';
   const COLOR_BUTTON_BLUE_GRADIENT = {
     start: '#4898e3',
     end: '#19619b',
   };
   const COLOR_RIGHT_SIDE_GRADIENT = {
-    start: '#366d9c', // Deep blue
-    end: '#47a3e7',   // Lighter blue
+    start: '#366d9c',
+    end: '#47a3e7',
   };
   const COLOR_LINK_BLUE = '#3b82f6';
 
@@ -91,10 +88,14 @@ const SignIn = () => {
         // Start automatic token refresh scheduler
         startTokenRefreshScheduler();
 
+        const extra =
+          data.additionalLoginNotice === true
+            ? ' You already have a previous sign-in; multiple devices are allowed. If this was not you, change your password or contact support.'
+            : '';
         setAlert({
           open: true,
-          message: 'Login successful! Redirecting...',
-          severity: 'success'
+          message: `Login successful! Redirecting...${extra}`,
+          severity: data.additionalLoginNotice === true ? 'info' : 'success',
         });
 
         // Role-based navigation
@@ -140,7 +141,7 @@ const SignIn = () => {
                 // Check if payment onboarding is complete
                 if (paymentOnBoarded === false) {
                   console.log('Redirecting to payment setup');
-                  setTimeout(() => navigate('/tutor/payment-setup'), 1500);
+                  setTimeout(() => navigate('/tutor/wallet'), 1500);
                 } else {
                   console.log('Redirecting to tutor dashboard');
                   setTimeout(() => navigate('/tutor-dashboard'), 1500);
@@ -149,8 +150,8 @@ const SignIn = () => {
                 console.log('Redirecting to interviews page');
                 setTimeout(() => navigate('/interviews'), 1500);
               } else if (status === 'pending') {
-                console.log('Redirecting to create profile');
-                setTimeout(() => navigate('/create-profile'), 1500);
+                console.log('Redirecting to interviews');
+                setTimeout(() => navigate('/interviews'), 1500);
               } else {
                 setTimeout(() => navigate('/create-profile'), 1500);
               }
@@ -186,18 +187,14 @@ const SignIn = () => {
 
   return (
     <div className="h-screen flex antialiased">
-      {/* Left Side - Form */}
       <div className="w-full md:w-1/2 bg-white flex items-center justify-center px-8 overflow-y-auto">
-        {/* Adjusted padding to center the content more vertically, and py for mobile space */}
         <div className="w-full max-w-sm my-8 md:my-0">
-          {/* Logo */}
           <div className="flex justify-center mb-6">
             <img 
               src="/images/logo.png.png" 
               alt="Tutor Scene Logo" 
               className="h-[115px] w-auto"
               onError={(e) => {
-                // Fallback to text if logo image doesn't exist
                 e.target.style.display = 'none';
                 e.target.nextSibling.style.display = 'block';
               }}
@@ -213,17 +210,13 @@ const SignIn = () => {
             </div>
           </div>
 
-          {/* Title */}
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome Back</h1>
-            <p className="text-gray-500 text-sm font-normal">Sign in to continue your learning journey</p>
+            <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
           </div>
 
-          {/* Toggle Tabs - Styled to match the screenshot exactly */}
           <div className="flex rounded-md overflow-hidden mb-6 border border-[#b18e47]">
             <button
               onClick={() => setActiveTab('student')}
-              // Use specific color for active tab and border
               style={{ backgroundColor: activeTab === 'student' ? COLOR_STUDENT_TAB_ACTIVE : 'white' }}
               className={`flex-1 py-2.5 px-4 text-sm font-medium transition-colors border-r border-[#b18e47] 
                 ${activeTab === 'student'
@@ -231,11 +224,11 @@ const SignIn = () => {
                   : 'text-gray-700 bg-white hover:bg-gray-50'
                 }`}
             >
-              Student / Parent
+              <span className="block leading-tight">Learner</span>
+              <span className="block text-[11px] font-normal opacity-95">Guardian</span>
             </button>
             <button
               onClick={() => setActiveTab('tutor')}
-              // Use specific color for active tab and border
               style={{ backgroundColor: activeTab === 'tutor' ? COLOR_STUDENT_TAB_ACTIVE : 'white' }}
               className={`flex-1 py-2.5 px-4 text-sm font-medium transition-colors 
                 ${activeTab === 'tutor'
@@ -247,9 +240,7 @@ const SignIn = () => {
             </button>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit}>
-            {/* Email Field */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email address
@@ -265,7 +256,6 @@ const SignIn = () => {
               </div>
             </div>
 
-            {/* Password Field */}
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Password
@@ -275,28 +265,25 @@ const SignIn = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  // Match border color, padding, and size
                   className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none text-sm pr-10 text-gray-600"
-                  style={{ fontFamily: showPassword ? 'inherit' : 'text-security-disc' }} // Simulating dots for password field
+                  style={{ fontFamily: showPassword ? 'inherit' : 'text-security-disc' }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1" // Adjusted position/size
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1"
                 >
                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
             </div>
 
-            {/* Forgot Password */}
             <div className="text-right mb-5">
               <a href="#forgot" style={{ color: COLOR_LINK_BLUE }} className="text-sm hover:underline font-medium">
                 Forgot password?
               </a>
             </div>
 
-            {/* Sign In Button - Created a custom gradient background to match the image */}
             <button
               type="submit"
               disabled={loading}
@@ -308,7 +295,6 @@ const SignIn = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
 
-            {/* Sign Up Link - Matched link color */}
             <p className="text-center text-sm text-gray-600">
               Don't have an account yet?{' '}
               <Link to="/signup" className="text-brand-medium-blue hover:text-brand-dark-blue hover:underline font-medium">
@@ -316,7 +302,6 @@ const SignIn = () => {
               </Link>
             </p>
 
-            {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -326,7 +311,6 @@ const SignIn = () => {
               </div>
             </div>
 
-            {/* Social Login Buttons */}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -354,60 +338,35 @@ const SignIn = () => {
         </div>
       </div>
 
-      {/* Right Side - Welcome Image/Text */}
       <div
-        className="hidden md:flex md:w-1/2 items-start justify-center relative overflow-hidden p-12" // Increased padding for better content placement
+        className="hidden md:flex md:w-1/2 items-start justify-center relative overflow-hidden p-12"
         style={{
-          // Apply background gradient from the image
           background: `linear-gradient(180deg, ${COLOR_RIGHT_SIDE_GRADIENT.start} 0%, ${COLOR_RIGHT_SIDE_GRADIENT.end} 100%)`,
         }}
       >
-        {/* The image in the screenshot is part of the background/overlay, not just a simple div. 
-            For the best match, we'll embed the image using an `<img>` tag and use an overlay to achieve the color effect. */}
-
-        {/* Background Image - Absolute positioning for the large image */}
         <img
-          src="/images/e961e2fb611e53239ecfde7cb7d50f02cf801a6a.jpg" // Using the existing image path
-          alt="Student with headphones"
-          className="absolute inset-0 w-full h-full object-cover"
+          src="/images/e961e2fb611e53239ecfde7cb7d50f02cf801a6a.jpg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
         />
 
-        {/* Blue Overlay - To give the image the deep blue wash */}
         <div
           className="absolute inset-0"
           style={{
             background: `linear-gradient(180deg, ${COLOR_RIGHT_SIDE_GRADIENT.start}cc 0%, ${COLOR_RIGHT_SIDE_GRADIENT.end}cc 100%)`,
-            // The 'cc' at the end of the hex code is for 80% opacity, which helps the content stand out
           }}
         />
 
-        {/* Content */}
-        {/* Adjusted to move all content to bottom center */}
-        <div className="relative z-10 text-center text-white flex flex-col justify-end h-full pb-8">
-          {/* Spacer to push content to bottom */}
-          <div className="flex-grow"></div>
-          
-          {/* Student Image */}
-          {/* <div className="mb-6">
-            <img 
-              src="/images/e961e2fb611e53239ecfde7cb7d50f02cf801a6a.jpg" 
-              alt="Student with headphones" 
-              className="w-48 h-48 object-cover rounded-full mx-auto shadow-2xl border-4 border-white/30"
-            />
-          </div> */}
-          
-          {/* Welcome Text - Moved to bottom */}
-          <h2 className="text-4xl font-bold mb-1 leading-tight">Welcome Back to</h2>
-          <h3 className="text-4xl font-bold mb-4">Tutor Scene</h3>
+        <div className="relative z-10 flex h-full flex-col justify-end pb-8 text-center text-white">
+          <div className="flex-grow" />
 
-          {/* Description - Moved to bottom */}
-          <p className="text-lg font-normal mb-10 leading-relaxed">
-            Sign in to manage bookings, connect with your
-            <br />
-            tutors, and continue your learning journey.
+          <h2 className="mb-1 text-4xl font-bold leading-tight">Welcome Back to</h2>
+          <h3 className="mb-4 text-4xl font-bold">Tutor Scene</h3>
+
+          <p className="mb-10 max-w-md mx-auto px-2 text-lg font-normal leading-relaxed">
+            Sign in to manage bookings, connect, and continue your journey
           </p>
 
-          {/* Feature Badges - Positioned at the bottom center */}
           <div className="mt-auto">
             <div className="flex justify-center gap-3 text-sm flex-wrap">
               {['Verified Tutors', 'Flexible Schedule', 'Secure Payments'].map((feature) => (
@@ -425,10 +384,9 @@ const SignIn = () => {
         </div>
       </div>
 
-      {/* Alert Snackbar */}
       <Snackbar
         open={alert.open}
-        autoHideDuration={6000}
+        autoHideDuration={alert.severity === 'info' ? 10000 : 6000}
         onClose={handleCloseAlert}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >

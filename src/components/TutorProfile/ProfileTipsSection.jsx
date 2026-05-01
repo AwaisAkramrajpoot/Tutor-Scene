@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadOnboardingFile, apiRequest } from "../../utils/api";
+import { uploadOnboardingFile, apiRequest, getCurrentUser, submitTutorOnboarding } from "../../utils/api";
 import { getTutorOnboarding, setTutorOnboarding } from "../../utils/onboarding";
 
 export const ProfileTipsSection = () => {
@@ -26,7 +26,8 @@ export const ProfileTipsSection = () => {
   const [subjectKeyword, setSubjectKeyword] = useState("");
   const [subjectCategory, setSubjectCategory] = useState("all");
   const [subjectGradeLevel, setSubjectGradeLevel] = useState("all");
-  const [subjectSelectionDraft, setSubjectSelectionDraft] = useState([]);
+  const [modalLeftChecked, setModalLeftChecked] = useState([]);
+  const [modalRightList, setModalRightList] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [yearsOfExperience, setYearsOfExperience] = useState("");
   const [legalFirstName, setLegalFirstName] = useState("");
@@ -42,6 +43,7 @@ export const ProfileTipsSection = () => {
   const [isDraggingCV, setIsDraggingCV] = useState(false);
   const [uploading, setUploading] = useState({ photo: false, cv: false });
   const [uploadedUrls, setUploadedUrls] = useState({ profilePic: "", cv: "" });
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const parseMmDdYyyyToIso = (value) => {
     const v = String(value || "").trim();
@@ -77,7 +79,7 @@ export const ProfileTipsSection = () => {
     const fetchSubjects = async () => {
       try {
         setLoadingSubjects(true);
-        const response = await apiRequest('/api/v1/subjects');
+        const response = await apiRequest('/api/v1/subjects?databaseOnly=true');
         const subjectsList = response.subjects || response.data || response || [];
         setAvailableSubjects(subjectsList);
       } catch (error) {
@@ -141,33 +143,43 @@ export const ProfileTipsSection = () => {
 
   const maxAboutMeLength = 250;
 
-  const toggleSubject = (subjectName) => {
-    setSelectedSubjects(prev => {
-      if (prev.includes(subjectName)) {
-        return prev.filter(s => s !== subjectName);
-      } else {
-        return [...prev, subjectName];
-      }
-    });
-  };
-
   const removeSubject = (subjectName) => {
     setSelectedSubjects(prev => prev.filter(s => s !== subjectName));
   };
 
-  const normalizedSubjects = availableSubjects.map((subject, idx) => {
-    const gradeLevelsFromName = (() => {
-      const n = String(subject?.name || subject || "");
-      const match = n.match(/\(([^)]+)\)/);
-      return match ? match[1].split(",").map((v) => v.trim()) : [];
-    })();
-    return {
-      id: subject?.id || idx + 1,
-      name: subject?.name || String(subject || ""),
-      category: subject?.category || "General",
-      gradeLevels: subject?.gradeLevels || gradeLevelsFromName,
-    };
-  });
+  const normalizedSubjects = useMemo(
+    () =>
+      availableSubjects.map((subject, idx) => {
+        const gradeLevelsFromName = (() => {
+          const n = String(subject?.name || subject || "");
+          const match = n.match(/\(([^)]+)\)/);
+          return match ? match[1].split(",").map((v) => v.trim()) : [];
+        })();
+        const rawGl = subject?.gradeLevels ?? subject?.grade_levels;
+        const gl = Array.isArray(rawGl) ? rawGl.filter(Boolean) : [];
+        return {
+          id: subject?.id || idx + 1,
+          name: subject?.name || String(subject || ""),
+          category: subject?.category || "General",
+          gradeLevels: gl.length > 0 ? gl : gradeLevelsFromName,
+        };
+      }),
+    [availableSubjects],
+  );
+
+  const levelsByName = useMemo(() => {
+    const m = new Map();
+    normalizedSubjects.forEach((s) => {
+      m.set(String(s.name).trim().toLowerCase(), s.gradeLevels || []);
+    });
+    return m;
+  }, [normalizedSubjects]);
+
+  const modalCategoryOptions = useMemo(() => {
+    const fromDb = new Set(normalizedSubjects.map((s) => s.category).filter(Boolean));
+    SUBJECT_CATEGORIES.forEach((c) => fromDb.add(c));
+    return Array.from(fromDb).sort((a, b) => a.localeCompare(b));
+  }, [normalizedSubjects]);
 
   const filteredSubjects = normalizedSubjects.filter((subject) => {
     const keyword = subjectKeyword.trim().toLowerCase();
@@ -184,26 +196,47 @@ export const ProfileTipsSection = () => {
   });
 
   const openSubjectsModal = () => {
-    setSubjectSelectionDraft(selectedSubjects);
+    setModalRightList([...selectedSubjects]);
+    setModalLeftChecked([]);
     setIsSubjectsModalOpen(true);
   };
 
   const closeSubjectsModal = () => {
     setIsSubjectsModalOpen(false);
+    setModalLeftChecked([]);
   };
 
-  const toggleDraftSubject = (subjectName) => {
-    setSubjectSelectionDraft((prev) =>
-      prev.includes(subjectName)
-        ? prev.filter((s) => s !== subjectName)
-        : [...prev, subjectName],
+  const toggleModalLeftCheck = (subjectName) => {
+    setModalLeftChecked((prev) =>
+      prev.includes(subjectName) ? prev.filter((s) => s !== subjectName) : [...prev, subjectName],
     );
   };
 
-  const saveSubjectsFromModal = () => {
-    setSelectedSubjects(subjectSelectionDraft);
-    setIsSubjectsModalOpen(false);
+  const addCheckedSubjectsToRight = () => {
+    setModalRightList((prev) => {
+      const next = new Set(prev);
+      modalLeftChecked.forEach((n) => next.add(n));
+      return Array.from(next);
+    });
+    setModalLeftChecked([]);
   };
+
+  const deselectAllLeft = () => {
+    setModalLeftChecked([]);
+  };
+
+  const removeFromModalRight = (subjectName) => {
+    setModalRightList((prev) => prev.filter((s) => s !== subjectName));
+  };
+
+  const saveSubjectsFromModal = () => {
+    setSelectedSubjects(modalRightList);
+    setIsSubjectsModalOpen(false);
+    setModalLeftChecked([]);
+  };
+
+  const gradeBadgeClass =
+    "inline-flex items-center rounded-full bg-[#E8F0FE] text-[#1a56b5] border border-[#c5daf7] px-2 py-0.5 text-xs font-medium";
 
   const handlePhotoClick = () => {
     document.getElementById('profile-photo').click();
@@ -486,24 +519,32 @@ const handleCVFile = async (file) => {
           <div className="mb-2">
             {selectedSubjects.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
-                {selectedSubjects.map((subject, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-brand-light-blue text-brand-dark-blue rounded-full text-sm font-medium border border-brand-gold"
-                  >
-                    {subject}
-                    <button
-                      type="button"
-                      onClick={() => removeSubject(subject)}
-                      className="ml-1 hover:text-brand-dark-blue focus:outline-none"
-                      aria-label={`Remove ${subject}`}
+                {selectedSubjects.map((subject) => {
+                  const lvls = levelsByName.get(String(subject).trim().toLowerCase()) || [];
+                  return (
+                    <span
+                      key={subject}
+                      className="inline-flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#D6DCE5] text-sm text-[#1F2937]"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
+                      <span className="font-medium">{subject}</span>
+                      {lvls.map((lvl) => (
+                        <span key={`${subject}-${lvl}`} className={gradeBadgeClass}>
+                          {lvl}
+                        </span>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => removeSubject(subject)}
+                        className="ml-1 p-0.5 rounded hover:bg-[#EEF2F7] text-[#64748b] hover:text-[#1e293b] focus:outline-none"
+                        aria-label={`Remove ${subject}`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -606,7 +647,7 @@ const handleCVFile = async (file) => {
         {/* Submit Button */}
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
             if (!dateOfBirthText.trim()) {
               setDateOfBirthError("Date of Birth is required in MM/DD/YYYY format.");
               return;
@@ -618,7 +659,7 @@ const handleCVFile = async (file) => {
             }
             setDateOfBirthError("");
             const combinedFullName = `${String(legalFirstName || "").trim()} ${String(legalLastName || "").trim()}`.trim();
-            setTutorOnboarding({
+            const onboardingPayload = {
               legalFirstName: String(legalFirstName || "").trim(),
               legalLastName: String(legalLastName || "").trim(),
               fullName: combinedFullName,
@@ -630,16 +671,54 @@ const handleCVFile = async (file) => {
               teachingPhilosophy: aboutMe,
               profilePic: uploadedUrls.profilePic || undefined,
               cv: uploadedUrls.cv || undefined,
-            });
+            };
+            setTutorOnboarding(onboardingPayload);
+            try {
+              setSavingProfile(true);
+              const user = getCurrentUser();
+              const userId = user?.id || user?._id || user?.userId;
+              if (!userId) throw new Error("User session missing. Please sign in again.");
+              const submitResponse = await submitTutorOnboarding({
+                userId,
+                fullName: onboardingPayload.fullName,
+                dateOfBirth: onboardingPayload.dateOfBirth,
+                subjects: onboardingPayload.subjects || "",
+                gradeLevels: "",
+                yearsOfExperience: onboardingPayload.yearsOfExperience || 0,
+                teachingPhilosophy: onboardingPayload.teachingPhilosophy || "",
+                profilePic: onboardingPayload.profilePic,
+                cv: onboardingPayload.cv,
+              });
+              const prospect = submitResponse?.prospect;
+              if (prospect?.status != null) {
+                const sessionUser = getCurrentUser();
+                if (sessionUser) {
+                  const next = {
+                    ...sessionUser,
+                    prospectStatus: String(prospect.status),
+                  };
+                  if (prospect.prospectId != null && prospect.prospectId !== "") {
+                    next.prospectId = String(prospect.prospectId);
+                  }
+                  localStorage.setItem("user", JSON.stringify(next));
+                }
+              }
+            } catch (err) {
+              alert(err?.message || "Failed to save profile information.");
+              setSavingProfile(false);
+              return;
+            }
+            setSavingProfile(false);
             navigate('/interviews');
           }}
           className="w-full h-14 rounded-xl bg-gradient-to-r from-[#5BA3D8] to-[#1B5A94] text-white text-base font-medium hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={
             uploading.photo ||
-            uploading.cv
+            uploading.cv ||
+            savingProfile
           }
         >
-          Save and Continue
+          {savingProfile ? "Saving..." : "Save and Continue"}
         </button>
       </div>
 
@@ -682,56 +761,89 @@ const handleCVFile = async (file) => {
             {selectedSubjects.length === 0 ? (
               <p className="text-sm text-[#6B7280] px-1">No subjects selected yet.</p>
             ) : (
-              selectedSubjects.map((subject) => (
-                <div
-                  key={subject}
-                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white border border-[#D6DCE5]"
-                >
-                  <span className="text-sm text-[#1F2937]">{subject}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeSubject(subject)}
-                    className="text-xs px-2 py-1 rounded border border-[#CBD5E1] bg-[#F8FAFC] hover:bg-[#EEF2F7]"
+              selectedSubjects.map((subject) => {
+                const lvls = levelsByName.get(String(subject).trim().toLowerCase()) || [];
+                return (
+                  <div
+                    key={subject}
+                    className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#D6DCE5]"
                   >
-                    Remove
-                  </button>
-                </div>
-              ))
+                    <span className="text-sm font-medium text-[#1F2937] flex-1 min-w-[120px]">{subject}</span>
+                    <div className="flex flex-wrap gap-1">
+                      {lvls.map((lvl) => (
+                        <span key={`${subject}-${lvl}`} className={gradeBadgeClass}>
+                          {lvl}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSubject(subject)}
+                      className="shrink-0 p-1 rounded text-[#64748b] hover:bg-[#F1F5F9] hover:text-[#0f172a]"
+                      aria-label={`Remove ${subject}`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
       </div>
 
       {isSubjectsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl border border-gray-200">
-            <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-3xl font-semibold text-[#2563eb]">Subjects You Tutor</h3>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div
+            className="bg-white w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border border-gray-200 overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="subjects-modal-title"
+          >
+            <div className="relative px-6 pt-8 pb-5 border-b border-gray-200 shrink-0">
               <button
                 type="button"
                 onClick={closeSubjectsModal}
-                className="text-[#6b7280] hover:text-[#111827] text-2xl leading-none"
+                className="absolute right-4 top-4 text-[#6b7280] hover:text-[#111827] text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100"
                 aria-label="Close subjects modal"
               >
                 ×
               </button>
+              <h3
+                id="subjects-modal-title"
+                className="text-center text-2xl sm:text-3xl font-semibold text-[#1e4fa3] tracking-tight pr-8"
+              >
+                Subjects You Tutor
+              </h3>
+              <p className="text-center text-sm text-[#5c6570] mt-3 max-w-2xl mx-auto leading-relaxed px-2">
+                Search by keyword, filter by category or grade level, and select multiple subjects at once.
+              </p>
             </div>
 
-            <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap gap-3 items-center">
-              <input
-                type="text"
-                value={subjectKeyword}
-                onChange={(e) => setSubjectKeyword(e.target.value)}
-                placeholder="Search by keyword, subject, or category"
-                className="flex-1 min-w-[240px] h-10 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
-              />
+            <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap gap-3 items-center shrink-0 bg-[#fafbfc]">
+              <div className="flex-1 min-w-[220px] relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none" aria-hidden>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  value={subjectKeyword}
+                  onChange={(e) => setSubjectKeyword(e.target.value)}
+                  placeholder="Search subjects, topics, or keywords"
+                  className="w-full h-10 pl-9 pr-3 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30 focus:border-[#2563eb]"
+                />
+              </div>
               <select
                 value={subjectCategory}
                 onChange={(e) => setSubjectCategory(e.target.value)}
-                className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white"
+                className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white min-w-[160px]"
               >
                 <option value="all">All Categories</option>
-                {SUBJECT_CATEGORIES.map((category) => (
+                {modalCategoryOptions.map((category) => (
                   <option key={category} value={category}>
                     {category}
                   </option>
@@ -740,7 +852,7 @@ const handleCVFile = async (file) => {
               <select
                 value={subjectGradeLevel}
                 onChange={(e) => setSubjectGradeLevel(e.target.value)}
-                className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white"
+                className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white min-w-[160px]"
               >
                 <option value="all">All Grade Levels</option>
                 {SUBJECT_GRADE_LEVELS.map((grade) => (
@@ -756,86 +868,134 @@ const handleCVFile = async (file) => {
                   setSubjectCategory("all");
                   setSubjectGradeLevel("all");
                 }}
-                className="h-10 px-3 rounded-lg text-sm text-[#2563eb] hover:bg-blue-50"
+                className="h-10 px-3 rounded-lg text-sm font-medium text-[#2563eb] hover:bg-blue-50 whitespace-nowrap"
               >
                 Clear Filters
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 p-6">
-              <div className="border border-gray-200 rounded-xl">
-                <div className="px-4 py-3 border-b border-gray-200 text-sm font-medium text-[#111827]">
-                  Available Subjects ({filteredSubjects.length})
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 min-h-0 flex-1 overflow-hidden">
+              <div className="border border-[#d9e0ea] rounded-xl flex flex-col min-h-[280px] max-h-[52vh] bg-white">
+                <div className="px-4 py-3 border-b border-[#e5eaf2] shrink-0">
+                  <div className="text-sm font-semibold text-[#1e3a8a]">Available Subjects</div>
+                  <div className="text-xs text-[#64748b] mt-0.5">
+                    Showing {filteredSubjects.length} of {normalizedSubjects.length} subjects
+                  </div>
                 </div>
-                <div className="max-h-[320px] overflow-y-auto px-2 py-2">
+                <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
                   {loadingSubjects ? (
-                    <p className="px-3 py-2 text-sm text-[#6b7280]">Loading subjects...</p>
+                    <p className="px-3 py-4 text-sm text-[#6b7280]">Loading subjects…</p>
                   ) : filteredSubjects.length === 0 ? (
-                    <p className="px-3 py-2 text-sm text-[#6b7280]">No subjects match your filters.</p>
+                    <p className="px-3 py-4 text-sm text-[#6b7280]">No subjects match your filters.</p>
                   ) : (
                     filteredSubjects.map((subject) => {
-                      const isChecked = subjectSelectionDraft.includes(subject.name);
+                      const isChecked = modalLeftChecked.includes(subject.name);
                       return (
                         <label
                           key={`${subject.id}-${subject.name}`}
-                          className="flex items-start gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                          className={`flex items-start gap-3 px-3 py-2.5 rounded-lg cursor-pointer border border-transparent ${
+                            isChecked ? "bg-[#eef5ff] border-[#c5daf7]" : "hover:bg-gray-50"
+                          }`}
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={() => toggleDraftSubject(subject.name)}
-                            className="mt-1"
+                            onChange={() => toggleModalLeftCheck(subject.name)}
+                            className="mt-1.5 shrink-0 rounded border-gray-300 text-[#2563eb] focus:ring-[#2563eb]"
                           />
-                          <span className="text-sm text-[#1f2937]">
-                            {subject.name}
-                            <span className="text-[#2563eb]"> ({subject.category})</span>
-                          </span>
+                          <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="text-sm text-[#0f172a] font-medium leading-snug">{subject.name}</span>
+                            <span className="flex flex-wrap gap-1">
+                              {(subject.gradeLevels || []).map((lvl) => (
+                                <span key={`${subject.name}-${lvl}`} className={gradeBadgeClass}>
+                                  {lvl}
+                                </span>
+                              ))}
+                            </span>
+                          </div>
                         </label>
                       );
                     })
                   )}
                 </div>
+                <div className="px-4 py-3 border-t border-[#e5eaf2] flex flex-wrap gap-2 shrink-0 bg-[#fafbfc]">
+                  <button
+                    type="button"
+                    onClick={addCheckedSubjectsToRight}
+                    disabled={modalLeftChecked.length === 0}
+                    className="h-10 px-4 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Add Selected Subjects
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deselectAllLeft}
+                    disabled={modalLeftChecked.length === 0}
+                    className="h-10 px-4 rounded-lg border border-gray-300 text-sm text-[#374151] bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Deselect All
+                  </button>
+                </div>
               </div>
 
-              <div className="border border-gray-200 rounded-xl">
-                <div className="px-4 py-3 border-b border-gray-200 text-sm font-medium text-[#111827]">
-                  Selected Subjects ({subjectSelectionDraft.length})
+              <div className="border border-[#d9e0ea] rounded-xl flex flex-col min-h-[280px] max-h-[52vh] bg-white">
+                <div className="px-4 py-3 border-b border-[#e5eaf2] shrink-0">
+                  <div className="text-sm font-semibold text-[#1e3a8a]">Selected Subjects</div>
+                  <div className="text-xs text-[#64748b] mt-0.5">{modalRightList.length} Subjects Selected</div>
                 </div>
-                <div className="max-h-[320px] overflow-y-auto px-2 py-2">
-                  {subjectSelectionDraft.length === 0 ? (
-                    <p className="px-3 py-2 text-sm text-[#6b7280]">No subjects selected yet.</p>
+                <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
+                  {modalRightList.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-[#6b7280]">No subjects selected yet.</p>
                   ) : (
-                    subjectSelectionDraft.map((name) => (
-                      <div key={name} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-blue-50 mb-2">
-                        <span className="text-sm text-[#1f2937]">{name}</span>
-                        <button
-                          type="button"
-                          onClick={() => toggleDraftSubject(name)}
-                          className="text-xs px-2 py-1 rounded bg-white border border-gray-300 hover:bg-gray-100"
+                    modalRightList.map((name) => {
+                      const lvls = levelsByName.get(String(name).trim().toLowerCase()) || [];
+                      return (
+                        <div
+                          key={name}
+                          className="flex flex-wrap items-center gap-2 px-3 py-2.5 rounded-lg bg-[#f8fbff] border border-[#d9e0ea] mb-2"
                         >
-                          Remove
-                        </button>
-                      </div>
-                    ))
+                          <span className="text-sm font-medium text-[#0f172a] flex-1 min-w-[140px]">{name}</span>
+                          <div className="flex flex-wrap gap-1">
+                            {lvls.map((lvl) => (
+                              <span key={`${name}-${lvl}`} className={gradeBadgeClass}>
+                                {lvl}
+                              </span>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFromModalRight(name)}
+                            className="shrink-0 p-1 rounded text-[#64748b] hover:bg-white hover:text-[#0f172a] border border-transparent hover:border-[#cbd5e1]"
+                            aria-label={`Remove ${name}`}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      );
+                    })
                   )}
+                </div>
+                <div className="px-4 py-3 border-t border-[#e5eaf2] flex justify-end shrink-0 bg-[#fafbfc]">
+                  <button
+                    type="button"
+                    onClick={saveSubjectsFromModal}
+                    className="h-10 px-6 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:opacity-95"
+                  >
+                    Save Subjects
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="px-6 pb-6 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end shrink-0 bg-white">
               <button
                 type="button"
                 onClick={closeSubjectsModal}
-                className="h-10 px-4 rounded-lg border border-gray-300 text-sm text-[#374151] hover:bg-gray-50"
+                className="h-10 px-5 rounded-lg border border-gray-300 text-sm text-[#374151] hover:bg-gray-50"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={saveSubjectsFromModal}
-                className="h-10 px-4 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:opacity-95"
-              >
-                Save Subjects
               </button>
             </div>
           </div>

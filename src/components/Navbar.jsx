@@ -19,11 +19,9 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const isTutorOnboardingPage = [
-    '/create-profile',
-    '/verify-identity',
-    '/ready-to-teach',
-  ].includes(location.pathname);
+  const isVerifyIdentityRoute = location.pathname.startsWith('/verify-identity');
+  const isTutorOnboardingPage =
+    ['/create-profile', '/ready-to-teach'].includes(location.pathname) || isVerifyIdentityRoute;
   const isTutorApproved = user?.role === 'tutor' && user?.prospectStatus === 'active';
 
   // Check if user is logged in
@@ -90,10 +88,11 @@ const Navbar = () => {
   };
 
   const handleLogoutConfirm = () => {
-    // Clear localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('tutorBgCheckTermsAccepted');
+    sessionStorage.removeItem('tutorVerificationSubmitted');
     
     // Close dialog
     setLogoutDialogOpen(false);
@@ -118,8 +117,17 @@ const Navbar = () => {
               user.role === 'tutor' ? '/tutor-dashboard' :
               user.role === 'admin' ? '/admin-dashboard' : '/'
             ) : '/'}
-            className="absolute left-4 sm:left-6 lg:left-8 bottom-0 translate-y-[42%] z-20 flex items-end cursor-pointer"
+            className={`absolute left-4 sm:left-6 lg:left-8 z-20 flex cursor-pointer items-center ${
+              isVerifyIdentityRoute
+                ? 'top-1/2 -translate-y-1/2'
+                : 'bottom-0 translate-y-[42%] items-end'
+            }`}
           >
+            {isVerifyIdentityRoute ? (
+              <span className="text-lg font-bold tracking-tight text-brand-dark-blue sm:text-xl">
+                Tutor Scene
+              </span>
+            ) : (
             <div className="flex items-end">
               <img 
                 src="/images/logo.png.png" 
@@ -142,8 +150,13 @@ const Navbar = () => {
                 </div>
               </div>
             </div>
+            )}
           </Link>
-        <div className="flex flex-1 min-h-[2.75rem] pl-[6.5rem] sm:pl-[8.5rem] md:pl-[10.5rem] lg:pl-[11rem] items-center justify-end gap-2 md:gap-3">
+        <div className={`flex flex-1 min-h-[2.75rem] items-center justify-end gap-2 md:gap-3 ${
+          isVerifyIdentityRoute
+            ? 'pl-28 sm:pl-32 md:pl-36'
+            : 'pl-[6.5rem] sm:pl-[8.5rem] md:pl-[10.5rem] lg:pl-[11rem]'
+        }`}>
               {/* Show Home only when user is not authenticated */}
           <div className="hidden md:flex items-center gap-1 lg:gap-2 flex-shrink-0">
               {isTutorOnboardingPage && (

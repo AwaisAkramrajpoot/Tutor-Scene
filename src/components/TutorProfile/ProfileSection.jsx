@@ -5,7 +5,7 @@ export const ProfileInformationSection = () => {
   const steps = [
     { number: "1", label: "Create Profile", isActive: true },
     { number: "2", label: "Get Verified", isActive: false },
-    { number: "3", label: "Start Teaching", isActive: false },
+    { number: "3", label: "Start Tutoring", isActive: false },
   ];
 
   return (
