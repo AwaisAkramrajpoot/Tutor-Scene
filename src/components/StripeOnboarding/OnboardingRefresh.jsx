@@ -7,7 +7,7 @@ const OnboardingRefresh = () => {
   useEffect(() => {
     // Redirect back to setup payment page
     const timer = setTimeout(() => {
-      navigate('/tutor/payment-setup');
+      navigate('/tutor/wallet');
     }, 2000);
 
     return () => clearTimeout(timer);

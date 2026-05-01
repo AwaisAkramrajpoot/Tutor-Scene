@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Snackbar, Alert } from '@mui/material';
+import { Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Snackbar, Alert, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
 import { apiRequest } from '../utils/api';
+
+const SUBJECT_LEVEL_OPTIONS = ['Elementary', 'Middle', 'High', 'College', 'Adult Learners'];
 
 const DotsVerticalIcon = (props) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -97,7 +99,10 @@ export default function AdminDashboard() {
   const [subjects, setSubjects] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
-  const [subjectForm, setSubjectForm] = useState({ name: '', description: '', category: '' });
+  const [editingSubjectId, setEditingSubjectId] = useState(null);
+  const [subjectForm, setSubjectForm] = useState({ name: '', description: '', category: '', gradeLevels: [] });
+  const [subjectMenuAnchor, setSubjectMenuAnchor] = useState(null);
+  const [subjectMenuRow, setSubjectMenuRow] = useState(null);
   const [testimonials, setTestimonials] = useState([]);
   const [loadingTestimonials, setLoadingTestimonials] = useState(false);
   const [showTestimonialModal, setShowTestimonialModal] = useState(false);
@@ -145,6 +150,17 @@ export default function AdminDashboard() {
   const [suspendingTutor, setSuspendingTutor] = useState(false);
   const [tutorToSuspend, setTutorToSuspend] = useState(null);
 
+  const [interviewTopics, setInterviewTopics] = useState([]);
+  const [loadingInterview, setLoadingInterview] = useState(false);
+  const [showIvTopicModal, setShowIvTopicModal] = useState(false);
+  const [ivTopicForm, setIvTopicForm] = useState({ slug: '', title: '', sortOrder: 0, isActive: true });
+  const [editingIvTopicId, setEditingIvTopicId] = useState(null);
+  const [showIvQuestionModal, setShowIvQuestionModal] = useState(false);
+  const [ivQuestionTopicId, setIvQuestionTopicId] = useState(null);
+  const [ivQuestionForm, setIvQuestionForm] = useState({ optionKey: '', body: '', sortOrder: 0, isActive: true });
+  const [editingIvQuestionId, setEditingIvQuestionId] = useState(null);
+  const [submittingIv, setSubmittingIv] = useState(false);
+
   // Fetch tutors when tab is active or filter changes
   useEffect(() => {
     if (activeTab === 'tutors') {
@@ -175,22 +191,25 @@ export default function AdminDashboard() {
     }
   }, [activeTab, tutorStatusFilter]);
 
-  // Fetch subjects when tab is active
+  const loadDbSubjects = async () => {
+    const data = await apiRequest('/api/v1/subjects/admin');
+    let list = [];
+    if (Array.isArray(data)) {
+      list = data;
+    } else if (Array.isArray(data.subjects)) {
+      list = data.subjects;
+    } else if (Array.isArray(data.data)) {
+      list = data.data;
+    }
+    setSubjects(list);
+  };
+
   useEffect(() => {
     if (activeTab === 'subjects') {
       const fetchSubjects = async () => {
         setLoadingSubjects(true);
         try {
-          const data = await apiRequest('/api/v1/subjects');
-          let list = [];
-          if (Array.isArray(data)) {
-            list = data;
-          } else if (Array.isArray(data.subjects)) {
-            list = data.subjects;
-          } else if (Array.isArray(data.data)) {
-            list = data.data;
-          }
-          setSubjects(list);
+          await loadDbSubjects();
         } catch (err) {
           console.error('Failed to fetch subjects:', err);
           setSubjects([]);
@@ -307,6 +326,29 @@ export default function AdminDashboard() {
         }
       };
       fetchGradeLevels();
+    }
+  }, [activeTab]);
+
+  const loadInterviewCatalog = async () => {
+    const data = await apiRequest('/api/v1/interviews/virtual/questionnaire/admin');
+    const list = Array.isArray(data) ? data : [];
+    setInterviewTopics(list);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'virtualInterview') {
+      const run = async () => {
+        setLoadingInterview(true);
+        try {
+          await loadInterviewCatalog();
+        } catch (err) {
+          console.error('Failed to load interview questionnaire:', err);
+          setInterviewTopics([]);
+        } finally {
+          setLoadingInterview(false);
+        }
+      };
+      run();
     }
   }, [activeTab]);
 
@@ -536,45 +578,101 @@ export default function AdminDashboard() {
   };
 
   const handleOpenSubjectModal = () => {
-    setSubjectForm({ name: '', description: '', category: '' });
+    setEditingSubjectId(null);
+    setSubjectForm({ name: '', description: '', category: '', gradeLevels: [] });
     setShowSubjectModal(true);
   };
 
   const handleCloseSubjectModal = () => {
     setShowSubjectModal(false);
-    setSubjectForm({ name: '', description: '', category: '' });
+    setEditingSubjectId(null);
+    setSubjectForm({ name: '', description: '', category: '', gradeLevels: [] });
   };
 
   const handleSubjectFormChange = (field, value) => {
     setSubjectForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleCreateSubject = async () => {
+  const toggleSubjectLevel = (level) => {
+    setSubjectForm((prev) => {
+      const set = new Set(prev.gradeLevels || []);
+      if (set.has(level)) {
+        set.delete(level);
+      } else {
+        set.add(level);
+      }
+      return { ...prev, gradeLevels: Array.from(set) };
+    });
+  };
+
+  const openSubjectRowMenu = (event, row) => {
+    setSubjectMenuAnchor(event.currentTarget);
+    setSubjectMenuRow(row);
+  };
+
+  const closeSubjectRowMenu = () => {
+    setSubjectMenuAnchor(null);
+    setSubjectMenuRow(null);
+  };
+
+  const handleEditSubjectFromMenu = () => {
+    if (!subjectMenuRow) return;
+    setEditingSubjectId(subjectMenuRow.id);
+    setSubjectForm({
+      name: subjectMenuRow.name || '',
+      description: subjectMenuRow.description || '',
+      category: subjectMenuRow.category || '',
+      gradeLevels: Array.isArray(subjectMenuRow.gradeLevels) ? [...subjectMenuRow.gradeLevels] : [],
+    });
+    setShowSubjectModal(true);
+    closeSubjectRowMenu();
+  };
+
+  const handleDeleteSubjectFromMenu = async () => {
+    const id = subjectMenuRow?.id;
+    closeSubjectRowMenu();
+    if (!id) return;
+    if (!window.confirm('Delete this subject from the database?')) {
+      return;
+    }
+    try {
+      await apiRequest(`/api/v1/subjects/${id}`, { method: 'DELETE' });
+      await loadDbSubjects();
+    } catch (err) {
+      console.error('Failed to delete subject:', err);
+      alert(err.message || 'Failed to delete subject');
+    }
+  };
+
+  const handleSaveSubject = async () => {
     if (!subjectForm.name || !subjectForm.category) {
       alert('Name and Category are required');
       return;
     }
     setSubmittingSubject(true);
     try {
-      await apiRequest('/api/v1/subjects', {
-        method: 'POST',
-        body: JSON.stringify(subjectForm),
-      });
-      handleCloseSubjectModal();
-      // Refresh subjects list
-      const data = await apiRequest('/api/v1/subjects');
-      let list = [];
-      if (Array.isArray(data)) {
-        list = data;
-      } else if (Array.isArray(data.subjects)) {
-        list = data.subjects;
-      } else if (Array.isArray(data.data)) {
-        list = data.data;
+      const payload = {
+        name: subjectForm.name,
+        category: subjectForm.category,
+        description: subjectForm.description || undefined,
+        gradeLevels: subjectForm.gradeLevels?.length ? subjectForm.gradeLevels : [],
+      };
+      if (editingSubjectId) {
+        await apiRequest(`/api/v1/subjects/${editingSubjectId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiRequest('/api/v1/subjects', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
       }
-      setSubjects(list);
+      handleCloseSubjectModal();
+      await loadDbSubjects();
     } catch (err) {
-      console.error('Failed to create subject:', err);
-      alert(err.message || 'Failed to create subject');
+      console.error('Failed to save subject:', err);
+      alert(err.message || 'Failed to save subject');
     } finally {
       setSubmittingSubject(false);
     }
@@ -784,6 +882,139 @@ export default function AdminDashboard() {
     }
   };
 
+  const openIvTopicModal = (topic = null) => {
+    if (topic) {
+      setEditingIvTopicId(topic.id);
+      setIvTopicForm({
+        slug: topic.slug || '',
+        title: topic.title || '',
+        sortOrder: topic.sortOrder ?? 0,
+        isActive: topic.isActive !== false,
+      });
+    } else {
+      setEditingIvTopicId(null);
+      setIvTopicForm({ slug: '', title: '', sortOrder: 0, isActive: true });
+    }
+    setShowIvTopicModal(true);
+  };
+
+  const closeIvTopicModal = () => {
+    setShowIvTopicModal(false);
+    setEditingIvTopicId(null);
+    setIvTopicForm({ slug: '', title: '', sortOrder: 0, isActive: true });
+  };
+
+  const saveIvTopic = async () => {
+    if (!ivTopicForm.slug?.trim() || !ivTopicForm.title?.trim()) {
+      alert('Slug and title are required');
+      return;
+    }
+    setSubmittingIv(true);
+    try {
+      const payload = {
+        slug: ivTopicForm.slug.trim(),
+        title: ivTopicForm.title.trim(),
+        sortOrder: Number(ivTopicForm.sortOrder) || 0,
+        isActive: !!ivTopicForm.isActive,
+      };
+      if (editingIvTopicId) {
+        await apiRequest(`/api/v1/interviews/virtual/topics/${editingIvTopicId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiRequest('/api/v1/interviews/virtual/topics', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      }
+      closeIvTopicModal();
+      await loadInterviewCatalog();
+    } catch (err) {
+      alert(err.message || 'Failed to save topic');
+    } finally {
+      setSubmittingIv(false);
+    }
+  };
+
+  const deleteIvTopic = async (id) => {
+    if (!window.confirm('Delete this topic and all of its questions?')) return;
+    try {
+      await apiRequest(`/api/v1/interviews/virtual/topics/${id}`, { method: 'DELETE' });
+      await loadInterviewCatalog();
+    } catch (err) {
+      alert(err.message || 'Failed to delete topic');
+    }
+  };
+
+  const openIvQuestionModal = (topicId, question = null) => {
+    setIvQuestionTopicId(topicId);
+    if (question) {
+      setEditingIvQuestionId(question.id);
+      setIvQuestionForm({
+        optionKey: question.optionKey || '',
+        body: question.body || '',
+        sortOrder: question.sortOrder ?? 0,
+        isActive: question.isActive !== false,
+      });
+    } else {
+      setEditingIvQuestionId(null);
+      setIvQuestionForm({ optionKey: '', body: '', sortOrder: 0, isActive: true });
+    }
+    setShowIvQuestionModal(true);
+  };
+
+  const closeIvQuestionModal = () => {
+    setShowIvQuestionModal(false);
+    setIvQuestionTopicId(null);
+    setEditingIvQuestionId(null);
+    setIvQuestionForm({ optionKey: '', body: '', sortOrder: 0, isActive: true });
+  };
+
+  const saveIvQuestion = async () => {
+    if (!ivQuestionTopicId) return;
+    if (!ivQuestionForm.optionKey?.trim() || !ivQuestionForm.body?.trim()) {
+      alert('Option key and question text are required');
+      return;
+    }
+    setSubmittingIv(true);
+    try {
+      const payload = {
+        optionKey: ivQuestionForm.optionKey.trim(),
+        body: ivQuestionForm.body.trim(),
+        sortOrder: Number(ivQuestionForm.sortOrder) || 0,
+        isActive: !!ivQuestionForm.isActive,
+      };
+      if (editingIvQuestionId) {
+        await apiRequest(`/api/v1/interviews/virtual/questions/${editingIvQuestionId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiRequest(`/api/v1/interviews/virtual/topics/${ivQuestionTopicId}/questions`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      }
+      closeIvQuestionModal();
+      await loadInterviewCatalog();
+    } catch (err) {
+      alert(err.message || 'Failed to save question');
+    } finally {
+      setSubmittingIv(false);
+    }
+  };
+
+  const deleteIvQuestion = async (id) => {
+    if (!window.confirm('Delete this question?')) return;
+    try {
+      await apiRequest(`/api/v1/interviews/virtual/questions/${id}`, { method: 'DELETE' });
+      await loadInterviewCatalog();
+    } catch (err) {
+      alert(err.message || 'Failed to delete question');
+    }
+  };
+
   const statIcon = (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
       <path d="M3.75 3A.75.75 0 003 3.75v16.5c0 .414.336.75.75.75h16.5a.75.75 0 00.75-.75V3.75A.75.75 0 0020.25 3H3.75zM5.25 6h3v12h-3V6zm4.5 6h3v6h-3v-6zm4.5-4h3v10h-3V8z" />
@@ -811,6 +1042,7 @@ export default function AdminDashboard() {
         <TabButton active={activeTab==='tutors'} onClick={()=>setActiveTab('tutors')}>Tutors</TabButton>
         <TabButton active={activeTab==='subjects'} onClick={()=>setActiveTab('subjects')}>Subjects</TabButton>
         <TabButton active={activeTab==='gradeLevels'} onClick={()=>setActiveTab('gradeLevels')}>Grade Levels</TabButton>
+        <TabButton active={activeTab==='virtualInterview'} onClick={()=>setActiveTab('virtualInterview')}>Virtual Interview</TabButton>
         <TabButton active={activeTab==='discounts'} onClick={()=>setActiveTab('discounts')}>Discounts</TabButton>
         <TabButton active={activeTab==='reviews'} onClick={()=>setActiveTab('reviews')}>Reviews</TabButton>
         <TabButton active={activeTab==='testimonials'} onClick={()=>setActiveTab('testimonials')}>Testimonials</TabButton>
@@ -968,12 +1200,32 @@ export default function AdminDashboard() {
                 { key: 'index', header: '#', render: (_row, idx) => <span className="text-gray-500">{idx + 1}</span> },
                 { key: 'name', header: 'Name' },
                 { key: 'category', header: 'Category' },
+                {
+                  key: 'gradeLevels',
+                  header: 'Levels',
+                  render: (row) => (
+                    <div className="flex flex-wrap gap-1">
+                      {(Array.isArray(row.gradeLevels) ? row.gradeLevels : []).length === 0 ? (
+                        <span className="text-gray-400 text-xs">—</span>
+                      ) : (
+                        row.gradeLevels.map((lvl) => (
+                          <span
+                            key={lvl}
+                            className="inline-flex items-center rounded-full bg-blue-50 text-blue-800 border border-blue-100 px-2 py-0.5 text-xs font-medium"
+                          >
+                            {lvl}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  ),
+                },
                 { key: 'description', header: 'Description', render: (row) => (
                   <span className="text-gray-600">{row.description || 'N/A'}</span>
                 ) },
                 { key: 'actions', header: '', render: (row) => (
                   <div className="flex justify-end">
-                    <IconButton size="small" onClick={(e)=>openMenu(e, row)}>
+                    <IconButton size="small" onClick={(e) => openSubjectRowMenu(e, row)}>
                       <DotsVerticalIcon />
                     </IconButton>
                   </div>
@@ -982,8 +1234,9 @@ export default function AdminDashboard() {
               data={subjects}
             />
           )}
-          <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
-            <MenuItem onClick={viewRow}>View</MenuItem>
+          <Menu anchorEl={subjectMenuAnchor} open={Boolean(subjectMenuAnchor)} onClose={closeSubjectRowMenu} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
+            <MenuItem onClick={handleEditSubjectFromMenu}>Edit</MenuItem>
+            <MenuItem onClick={handleDeleteSubjectFromMenu} className="text-red-600">Delete</MenuItem>
           </Menu>
         </section>
       )}
@@ -1031,6 +1284,114 @@ export default function AdminDashboard() {
               ]}
               data={gradeLevels}
             />
+          )}
+        </section>
+      )}
+
+      {activeTab === 'virtualInterview' && (
+        <section className="space-y-4">
+          <SectionHeader
+            title="Virtual interview questionnaire"
+            right={
+              <button
+                type="button"
+                onClick={() => openIvTopicModal()}
+                className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white text-sm px-4 py-2 rounded-md font-medium transition-colors shadow-lg"
+              >
+                Add topic
+              </button>
+            }
+          />
+          <p className="text-sm text-gray-600 max-w-3xl">
+            Topics and questions appear on the tutor Virtual Interview step. Tutors pick one question per topic and upload a video. Use stable slugs when possible so saved tutor progress keeps working.
+          </p>
+          {loadingInterview ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
+            </div>
+          ) : interviewTopics.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No topics yet. Run DB migrations and seed, or add a topic.</div>
+          ) : (
+            <div className="space-y-4">
+              {interviewTopics.map((topic, ti) => (
+                <div key={topic.id} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-brand-light-blue/50 border-b border-gray-200">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-sm font-semibold text-brand-dark-blue shrink-0">{ti + 1}.</span>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-gray-900 truncate">{topic.title}</div>
+                        <div className="text-xs text-gray-500">
+                          slug: <code className="bg-gray-100 px-1 rounded">{topic.slug}</code> · sort {topic.sortOrder} ·{' '}
+                          {topic.isActive ? 'active' : 'inactive'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openIvTopicModal(topic)}
+                        className="text-sm text-brand-medium-blue font-medium hover:underline"
+                      >
+                        Edit topic
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteIvTopic(topic.id)}
+                        className="text-sm text-red-600 font-medium hover:underline"
+                      >
+                        Delete topic
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openIvQuestionModal(topic.id)}
+                        className="text-sm px-3 py-1 rounded-md bg-brand-medium-blue text-white"
+                      >
+                        Add question
+                      </button>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-gray-50 text-left text-xs uppercase text-gray-600">
+                        <tr>
+                          <th className="px-4 py-2 w-16">Opt</th>
+                          <th className="px-4 py-2">Question</th>
+                          <th className="px-4 py-2 w-20">Sort</th>
+                          <th className="px-4 py-2 w-28">Active</th>
+                          <th className="px-4 py-2 w-40"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {(topic.questions || []).map((q) => (
+                          <tr key={q.id}>
+                            <td className="px-4 py-2 font-mono text-gray-800">{q.optionKey}</td>
+                            <td className="px-4 py-2 text-gray-700 max-w-xl">{q.body}</td>
+                            <td className="px-4 py-2 text-gray-600">{q.sortOrder}</td>
+                            <td className="px-4 py-2">{q.isActive ? 'Yes' : 'No'}</td>
+                            <td className="px-4 py-2 text-right space-x-2">
+                              <button
+                                type="button"
+                                className="text-brand-medium-blue text-xs font-medium"
+                                onClick={() => openIvQuestionModal(topic.id, q)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="text-red-600 text-xs font-medium"
+                                onClick={() => deleteIvQuestion(q.id)}
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </section>
       )}
@@ -1167,9 +1528,8 @@ export default function AdminDashboard() {
         </section>
       )}
 
-      {/* Add Subject Modal */}
       <Dialog open={showSubjectModal} onClose={handleCloseSubjectModal} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Subject</DialogTitle>
+        <DialogTitle>{editingSubjectId ? 'Edit Subject' : 'Add New Subject'}</DialogTitle>
         <DialogContent>
           <div className="space-y-4 pt-2">
             <TextField
@@ -1188,6 +1548,24 @@ export default function AdminDashboard() {
               onChange={(e) => handleSubjectFormChange('category', e.target.value)}
               variant="outlined"
             />
+            <div>
+              <div className="text-sm font-medium text-gray-700 mb-2">Education levels</div>
+              <FormGroup row>
+                {SUBJECT_LEVEL_OPTIONS.map((lvl) => (
+                  <FormControlLabel
+                    key={lvl}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={(subjectForm.gradeLevels || []).includes(lvl)}
+                        onChange={() => toggleSubjectLevel(lvl)}
+                      />
+                    }
+                    label={lvl}
+                  />
+                ))}
+              </FormGroup>
+            </div>
             <TextField
               label="Description"
               fullWidth
@@ -1204,12 +1582,12 @@ export default function AdminDashboard() {
             Cancel
           </Button>
           <Button
-            onClick={handleCreateSubject}
+            onClick={handleSaveSubject}
             variant="contained"
             color="primary"
             disabled={submittingSubject || !subjectForm.name || !subjectForm.category}
           >
-            {submittingSubject ? 'Creating...' : 'Create Subject'}
+            {submittingSubject ? (editingSubjectId ? 'Saving...' : 'Creating...') : (editingSubjectId ? 'Save changes' : 'Create Subject')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1241,6 +1619,110 @@ export default function AdminDashboard() {
             disabled={submittingGradeLevel || !gradeLevelForm.name}
           >
             {submittingGradeLevel ? (editingGradeLevel ? 'Updating...' : 'Creating...') : (editingGradeLevel ? 'Update' : 'Create')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={showIvTopicModal} onClose={closeIvTopicModal} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingIvTopicId ? 'Edit interview topic' : 'Add interview topic'}</DialogTitle>
+        <DialogContent>
+          <div className="space-y-4 pt-2">
+            <TextField
+              label="Slug (stable id)"
+              required
+              fullWidth
+              disabled={!!editingIvTopicId}
+              value={ivTopicForm.slug}
+              onChange={(e) => setIvTopicForm((f) => ({ ...f, slug: e.target.value }))}
+              variant="outlined"
+              helperText={editingIvTopicId ? 'Slug cannot be changed after create.' : 'e.g. teachingPhilosophy'}
+            />
+            <TextField
+              label="Title"
+              required
+              fullWidth
+              value={ivTopicForm.title}
+              onChange={(e) => setIvTopicForm((f) => ({ ...f, title: e.target.value }))}
+              variant="outlined"
+            />
+            <TextField
+              label="Sort order"
+              type="number"
+              fullWidth
+              value={ivTopicForm.sortOrder}
+              onChange={(e) => setIvTopicForm((f) => ({ ...f, sortOrder: e.target.value }))}
+              variant="outlined"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={!!ivTopicForm.isActive}
+                  onChange={(e) => setIvTopicForm((f) => ({ ...f, isActive: e.target.checked }))}
+                />
+              }
+              label="Active"
+            />
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeIvTopicModal} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={saveIvTopic} variant="contained" color="primary" disabled={submittingIv}>
+            {submittingIv ? 'Saving…' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={showIvQuestionModal} onClose={closeIvQuestionModal} maxWidth="md" fullWidth>
+        <DialogTitle>{editingIvQuestionId ? 'Edit question' : 'Add question'}</DialogTitle>
+        <DialogContent>
+          <div className="space-y-4 pt-2">
+            <TextField
+              label="Option key"
+              required
+              fullWidth
+              disabled={!!editingIvQuestionId}
+              value={ivQuestionForm.optionKey}
+              onChange={(e) => setIvQuestionForm((f) => ({ ...f, optionKey: e.target.value }))}
+              variant="outlined"
+              helperText={editingIvQuestionId ? 'Option key cannot be changed.' : 'e.g. A, B, C'}
+            />
+            <TextField
+              label="Question text"
+              required
+              fullWidth
+              multiline
+              minRows={4}
+              value={ivQuestionForm.body}
+              onChange={(e) => setIvQuestionForm((f) => ({ ...f, body: e.target.value }))}
+              variant="outlined"
+            />
+            <TextField
+              label="Sort order"
+              type="number"
+              fullWidth
+              value={ivQuestionForm.sortOrder}
+              onChange={(e) => setIvQuestionForm((f) => ({ ...f, sortOrder: e.target.value }))}
+              variant="outlined"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={!!ivQuestionForm.isActive}
+                  onChange={(e) => setIvQuestionForm((f) => ({ ...f, isActive: e.target.checked }))}
+                />
+              }
+              label="Active"
+            />
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeIvQuestionModal} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={saveIvQuestion} variant="contained" color="primary" disabled={submittingIv}>
+            {submittingIv ? 'Saving…' : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>

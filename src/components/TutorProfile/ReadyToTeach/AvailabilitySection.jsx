@@ -2,7 +2,7 @@ export const AvailabilitySection = () => {
   const steps = [
     { number: "1", label: "Create Profile", isActive: false },
     { number: "2", label: "Get Verified", isActive: false },
-    { number: "3", label: "Start Teaching", isActive: true },
+    { number: "3", label: "Start Tutoring", isActive: true },
   ];
 
   return (

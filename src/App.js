@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './components/Home';
 import SignIn from './components/SignIn';
@@ -11,7 +11,7 @@ import StudentDashboard from './components/StudentDashboard';
 import MySessions from './components/MySessions';
 import SessionRoom from './components/SessionRoom';
 import { CreateProfilePage } from './components/TutorProfile/index';
-import { GetVerified } from './components/IdentityVerification/index';
+import { GetVerified, VerificationStatusPage } from './components/IdentityVerification/index';
 import { StartTeachingPage } from './components/TutorProfile/ReadyToTeach/index';
 import { TutorDashboard } from './components/TutorProfile/TutorDashboard/index';
 import { AboutPage } from './components/About/Index';
@@ -19,7 +19,7 @@ import { Home as BecomeTutorPage } from './components/TutorProfile/Home/index';
 import AdminDashboard from './components/AdminDashboard';
 import TutorDetails from './components/TutorDetails';
 import ProfileUnderReview from './components/ProfileUnderReview';
-import SetupPayment from './components/StripeOnboarding/SetupPayment';
+import MyWalletPage from './components/StripeOnboarding/MyWalletPage';
 import OnboardingRefresh from './components/StripeOnboarding/OnboardingRefresh';
 import OnboardingComplete from './components/StripeOnboarding/OnboardingComplete';
 import TutorAvailability from './components/Availability/TutorAvailability';
@@ -184,6 +184,14 @@ function App() {
           } 
         />
         <Route 
+          path="/verify-identity/status" 
+          element={
+            <RoleProtectedRoute allowedRoles={['tutor']}>
+              <Layout><VerificationStatusPage /></Layout>
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
           path="/ready-to-teach" 
           element={
             <RoleProtectedRoute allowedRoles={['tutor']}>
@@ -203,17 +211,27 @@ function App() {
           path="/profile-under-review" 
           element={
             <RoleProtectedRoute allowedRoles={['tutor']}>
-              <ProfileUnderReview />
+              <Layout><ProfileUnderReview /></Layout>
             </RoleProtectedRoute>
           } 
         />
-        <Route 
-          path="/tutor/payment-setup" 
+        <Route
+          path="/tutor/payment-setup"
           element={
             <RoleProtectedRoute allowedRoles={['tutor']}>
-              <SetupPayment />
+              <Navigate to="/tutor/wallet" replace />
             </RoleProtectedRoute>
-          } 
+          }
+        />
+        <Route
+          path="/tutor/wallet"
+          element={
+            <RoleProtectedRoute allowedRoles={['tutor']}>
+              <Layout>
+                <MyWalletPage />
+              </Layout>
+            </RoleProtectedRoute>
+          }
         />
         <Route 
           path="/tutor/onboarding/refresh" 
