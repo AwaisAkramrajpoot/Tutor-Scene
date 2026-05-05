@@ -73,6 +73,10 @@ export class OnboardingService {
     // Generate unique file name to avoid conflicts
     const uniqueFileName = this.generateUniqueFileName(fileName);
 
+    if (this.configService.get<string>('USE_LOCAL_FILE_STORAGE') === 'true') {
+      return this.storeFileLocally(fileBuffer, uniqueFileName);
+    }
+
     // Determine folder based on file type
     let folder = this.configService.get<string>('AWS_S3_DOCUMENTS_FOLDER', 'Documents');
     const ext = path.extname(fileName).toLowerCase();
