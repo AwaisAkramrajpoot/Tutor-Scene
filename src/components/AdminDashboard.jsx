@@ -1310,7 +1310,7 @@ export default function AdminDashboard() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue"></div>
             </div>
           ) : interviewTopics.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No topics yet. Run DB migrations and seed, or add a topic.</div>
+            <div className="text-center py-8 text-gray-500">No topics yet.</div>
           ) : (
             <div className="space-y-4">
               {interviewTopics.map((topic, ti) => (

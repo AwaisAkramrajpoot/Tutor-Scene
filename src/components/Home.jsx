@@ -332,7 +332,7 @@ const Home = () => {
   </div>
 
   {/* WHITE/GRAY RIBBON — Trusted Tutors tagline */}
-  <section className="relative lg:absolute left-0 right-0 bottom-0 md:bottom-20 z-0 mb-0 lg:mb-10 bg-gray-200 py-5 md:py-1 border-y border-brand-light-blue/40 shadow-[0_-8px_24px_rgba(20,52,96,0.08)] w-full md:w-[80%] md:mr-auto">
+  {/* <section className="relative lg:absolute left-0 right-0 bottom-0 md:bottom-20 z-0 mb-0 lg:mb-10   py-5 md:py-1 border-y border-brand-light-blue/40 shadow-[0_-8px_24px_rgba(20,52,96,0.08)] w-full md:w-[80%] md:mr-auto">
     <div className="px-4 sm:px-6 lg:px-20 max-w-7xl mx-auto text-center md:text-left">
       <h2 className="text-2xl md:text-3xl md:ml-20 font-bold text-brand-medium-blue">
         Trusted Tutors
@@ -342,7 +342,7 @@ const Home = () => {
         Vetted. Experienced. Learner focused.
       </p>
     </div>
-  </section>
+  </section> */}
 </div>
 
       {/* ===== HOW IT WORKS SECTION ===== */}
@@ -418,7 +418,7 @@ const Home = () => {
           </div>
 
           {/* CHANGE 12: Arrow added to Learners Guide button */}
-          <div className="flex justify-center mt-3">
+          <div className="flex justify-center mt-8">
             <button
               type="button"
               onClick={() => setLearnersGuideOpen(true)}
@@ -464,6 +464,119 @@ const Home = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+         {/* ===== WHAT OUR LEARNERS SAY ===== */}
+      {/* CHANGE 7: Removed outline from section title */}
+      <div className="bg-white py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            {/* Left Side */}
+            <div>
+              <p className="text-xs font-bold text-brand-medium-blue uppercase tracking-widest mb-3">
+                Testimonial
+              </p>
+              {/* CHANGE 7: No border/outline on title */}
+              <h2 className="text-4xl font-bold text-brand-medium-blue mb-6">
+                What Our Learners Say
+              </h2>
+              <p className="text-lg text-gray-700 leading-relaxed mb-8">
+                Tutor Scene has earned the trust of learners and tutors
+                worldwide. Learners love our platform because they&apos;re
+                matched with tutors who actually fit how they learn which makes
+                progress feel natural, not forced. Share your experience about
+                The Scene. We would love to hear from you!
+              </p>
+              {/* CHANGE 12: Arrow added to Write Your Review button */}
+              <button
+                type="button"
+                onClick={handleOpenReviewDialog}
+                className="inline-flex items-center border-2 border-brand-medium-blue text-brand-medium-blue hover:bg-brand-medium-blue hover:text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+              >
+                Write Your Review
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Right Side - Review Gallery */}
+            <div className="relative max-w-lg mx-auto lg:mx-0">
+              <div className="relative rounded-3xl overflow-hidden shadow-xl">
+                <img
+                  src={`${process.env.PUBLIC_URL}/images/testimonials.jpg`}
+                  alt="Learner testimonial"
+                  className="w-full h-auto object-cover max-h-[420px]"
+                />
+
+                {!loadingTestimonials && galleryTestimonials.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handlePrevTestimonial}
+                      className="absolute top-1/2 left-3 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
+                      aria-label="Previous review"
+                    >
+                      <svg className="w-5 h-5 text-brand-medium-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextTestimonial}
+                      className="absolute top-1/2 right-3 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
+                      aria-label="Next review"
+                    >
+                      <svg className="w-5 h-5 text-brand-medium-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="relative -mt-28 sm:-mt-32 mx-4 bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-l-4 border-brand-gold">
+                {loadingTestimonials ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue" />
+                  </div>
+                ) : galleryTestimonials.length === 0 ? (
+                  <p className="text-gray-500 text-sm italic">
+                    Reviews will appear here once approved by an administrator.
+                  </p>
+                ) : (
+                  <>
+                    <blockquote className="text-gray-700 text-base leading-relaxed mb-4 italic">
+                      &ldquo;{currentTestimonial?.testimonial || ""}&rdquo;
+                    </blockquote>
+                    {currentTestimonial?.testimonialBy && (
+                      <p className="text-sm font-bold text-gray-900">
+                        {currentTestimonial.testimonialBy}
+                      </p>
+                    )}
+                    {galleryTestimonials.length > 1 && (
+                      <div className="flex justify-start mt-4 gap-2">
+                        {galleryTestimonials.map((item, index) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setCurrentTestimonialIndex(index)}
+                            className={`h-2 rounded-full transition-all ${
+                              index === currentTestimonialIndex
+                                ? "w-8 bg-brand-medium-blue"
+                                : "w-2 bg-gray-300 hover:bg-gray-400"
+                            }`}
+                            aria-label={`Show review ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ===== WHY TUTOR SCENE? SECTION ===== */}
       {/* CHANGE 4: Removed border/outline from section title; globe icon for "Learn Anywhere" */}
@@ -703,123 +816,7 @@ const Home = () => {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* ===== SMART TOOLS SECTION — CHANGE 6: DELETED ===== */}
-
-      {/* ===== WHAT OUR LEARNERS SAY ===== */}
-      {/* CHANGE 7: Removed outline from section title */}
-      <div className="bg-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            {/* Left Side */}
-            <div>
-              <p className="text-xs font-bold text-brand-medium-blue uppercase tracking-widest mb-3">
-                Testimonial
-              </p>
-              {/* CHANGE 7: No border/outline on title */}
-              <h2 className="text-4xl font-bold text-brand-medium-blue mb-6">
-                What Our Learners Say
-              </h2>
-              <p className="text-lg text-gray-700 leading-relaxed mb-8">
-                Tutor Scene has earned the trust of learners and tutors
-                worldwide. Learners love our platform because they&apos;re
-                matched with tutors who actually fit how they learn which makes
-                progress feel natural, not forced. Share your experience about
-                The Scene. We would love to hear from you!
-              </p>
-              {/* CHANGE 12: Arrow added to Write Your Review button */}
-              <button
-                type="button"
-                onClick={handleOpenReviewDialog}
-                className="inline-flex items-center border-2 border-brand-medium-blue text-brand-medium-blue hover:bg-brand-medium-blue hover:text-white font-semibold px-6 py-3 rounded-lg transition-colors"
-              >
-                Write Your Review
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Right Side - Review Gallery */}
-            <div className="relative max-w-lg mx-auto lg:mx-0">
-              <div className="relative rounded-3xl overflow-hidden shadow-xl">
-                <img
-                  src={`${process.env.PUBLIC_URL}/images/testimonials.jpg`}
-                  alt="Learner testimonial"
-                  className="w-full h-auto object-cover max-h-[420px]"
-                />
-
-                {!loadingTestimonials && galleryTestimonials.length > 1 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handlePrevTestimonial}
-                      className="absolute top-1/2 left-3 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
-                      aria-label="Previous review"
-                    >
-                      <svg className="w-5 h-5 text-brand-medium-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNextTestimonial}
-                      className="absolute top-1/2 right-3 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow"
-                      aria-label="Next review"
-                    >
-                      <svg className="w-5 h-5 text-brand-medium-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <div className="relative -mt-28 sm:-mt-32 mx-4 bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-l-4 border-brand-gold">
-                {loadingTestimonials ? (
-                  <div className="flex items-center justify-center py-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue" />
-                  </div>
-                ) : galleryTestimonials.length === 0 ? (
-                  <p className="text-gray-500 text-sm italic">
-                    Reviews will appear here once approved by an administrator.
-                  </p>
-                ) : (
-                  <>
-                    <blockquote className="text-gray-700 text-base leading-relaxed mb-4 italic">
-                      &ldquo;{currentTestimonial?.testimonial || ""}&rdquo;
-                    </blockquote>
-                    {currentTestimonial?.testimonialBy && (
-                      <p className="text-sm font-bold text-gray-900">
-                        {currentTestimonial.testimonialBy}
-                      </p>
-                    )}
-                    {galleryTestimonials.length > 1 && (
-                      <div className="flex justify-start mt-4 gap-2">
-                        {galleryTestimonials.map((item, index) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => setCurrentTestimonialIndex(index)}
-                            className={`h-2 rounded-full transition-all ${
-                              index === currentTestimonialIndex
-                                ? "w-8 bg-brand-medium-blue"
-                                : "w-2 bg-gray-300 hover:bg-gray-400"
-                            }`}
-                            aria-label={`Show review ${index + 1}`}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      </div> 
       {/* ===== WRITE A REVIEW DIALOG ===== */}
       {/* CHANGE 8: 250 character limit */}
      <Dialog

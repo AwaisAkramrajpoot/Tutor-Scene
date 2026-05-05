@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  applyTutorOnboardingStorageForAuthenticatedUser,
+  migrateUnscopedTutorOnboardingForCurrentUser,
+} from '../utils/onboarding';
 
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
@@ -30,9 +34,11 @@ const VerifyEmail = () => {
           return;
         }
 
+        applyTutorOnboardingStorageForAuthenticatedUser(data.user);
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
+        migrateUnscopedTutorOnboardingForCurrentUser();
         setStatus('Email verified. Redirecting...');
 
         const target = data.user?.role === 'tutor' ? '/create-profile' : '/find-tutors';

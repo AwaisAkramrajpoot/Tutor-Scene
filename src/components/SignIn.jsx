@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Alert, Snackbar } from '@mui/material';
 import { startTokenRefreshScheduler } from '../utils/api';
+import {
+  applyTutorOnboardingStorageForAuthenticatedUser,
+  migrateUnscopedTutorOnboardingForCurrentUser,
+} from '../utils/onboarding';
 
 const EyeIcon = (props) => (
   <svg {...props} className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,7 +84,7 @@ const SignIn = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // Store user and token in localStorage
+        applyTutorOnboardingStorageForAuthenticatedUser(data.user);
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
@@ -141,7 +145,7 @@ const SignIn = () => {
                 // Check if payment onboarding is complete
                 if (paymentOnBoarded === false) {
                   console.log('Redirecting to payment setup');
-                  setTimeout(() => navigate('/tutor/wallet'), 1500);
+                  setTimeout(() => navigate('/create-profile'), 1500);
                 } else {
                   console.log('Redirecting to tutor dashboard');
                   setTimeout(() => navigate('/tutor-dashboard'), 1500);
@@ -167,6 +171,7 @@ const SignIn = () => {
           // Default fallback
           setTimeout(() => navigate('/dashboard'), 1500);
         }
+        migrateUnscopedTutorOnboardingForCurrentUser();
       } else {
         setAlert({
           open: true,
