@@ -332,6 +332,42 @@ const Navbar = () => {
                   </button>
                 ) : (
                   <>
+                    {/* ── STUDENT ONLY: Bell + Envelope icon symbols ── */}
+                    {user.role === 'student' && (
+                      <>
+                        {/* Bell Icon - Notifications */}
+                        <Link
+                          to="/notifications"
+                          className="relative text-yellow-500 hover:text-yellow-600 transition-colors"
+                          title="Notifications"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                          </svg>
+                        </Link>
+
+                        {/* Envelope Icon - Messages */}
+                        <Link
+                          to="/messages"
+                          className={`relative transition-colors ${
+                            location.pathname.startsWith('/messages')
+                              ? 'text-brand-medium-blue'
+                              : 'text-brand-medium-blue hover:text-brand-dark-blue'
+                          }`}
+                          title="Messages"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                              {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                          )}
+                        </Link>
+                      </>
+                    )}
+
                     <button
                       onClick={handleMenuOpen}
                       className="flex items-center space-x-2 text-brand-dark-blue hover:text-brand-medium-blue px-3 py-2 text-sm font-semibold transition-colors"
@@ -352,8 +388,22 @@ const Navbar = () => {
                         horizontal: 'right',
                       }}
                     >
-                      <MenuItem onClick={handleDashboardClick}>Dashboard</MenuItem>
-                      <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>
+                      {/* ── STUDENT ONLY: updated dropdown menu items ── */}
+                      {user.role === 'student' ? (
+                        <>
+                          <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>Profile</MenuItem>
+                          <MenuItem onClick={() => { handleMenuClose(); navigate('/account-settings'); }}>Account Settings</MenuItem>
+                          <MenuItem onClick={() => { handleMenuClose(); navigate('/session-history'); }}>Session History</MenuItem>
+                          <MenuItem onClick={() => { handleMenuClose(); navigate('/credits-referrals'); }}>Credits &amp; Referrals</MenuItem>
+                          <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Log Out</MenuItem>
+                        </>
+                      ) : (
+                        // Tutor & Admin: original menu items UNCHANGED
+                        <>
+                          <MenuItem onClick={handleDashboardClick}>Dashboard</MenuItem>
+                          <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>
+                        </>
+                      )}
                     </Menu>
                   </>
                 )}

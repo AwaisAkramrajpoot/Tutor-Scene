@@ -125,7 +125,7 @@ const SignUp = () => {
         payload.gender = selectedGender;
       }
 
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
       const response = await fetch(`${apiUrl}/api/v1/auth/register`, {
         method: 'POST',
         headers: {
@@ -134,7 +134,16 @@ const SignUp = () => {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        // Handle non-JSON responses (like 404 HTML pages from wrong servers)
+        const text = await response.text();
+        console.error('Non-JSON response received:', text);
+        throw new Error(`Server returned an unexpected response (${response.status}). Please ensure the backend is running on port 5000.`);
+      }
 
       if (response.ok) {
         setAlert({
@@ -145,7 +154,7 @@ const SignUp = () => {
       } else {
         setAlert({
           open: true,
-          message: data.message || 'Registration failed. Please try again.',
+          message: data.message || `Registration failed (${response.status}). Please try again.`,
           severity: 'error'
         });
       }
