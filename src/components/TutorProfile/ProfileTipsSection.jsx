@@ -1,9 +1,26 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadOnboardingFile, apiRequest, getCurrentUser, submitTutorOnboarding } from "../../utils/api";
+import {
+  uploadOnboardingFile,
+  apiRequest,
+  getCurrentUser,
+  submitTutorOnboarding,
+  resolveApiAssetUrl,
+} from "../../utils/api";
 import { getTutorOnboarding, setTutorOnboarding } from "../../utils/onboarding";
 
 export const ProfileTipsSection = () => {
+  const tutorLsUserKey = (() => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (!raw) return "";
+      const u = JSON.parse(raw);
+      return String(u.userId || u.id || "");
+    } catch {
+      return "";
+    }
+  })();
+
   const SUBJECT_CATEGORIES = [
     "Biology",
     "Business & Economics",
@@ -91,6 +108,21 @@ export const ProfileTipsSection = () => {
 
     fetchSubjects();
 
+    setAboutMe("");
+    setSubjects("");
+    setSelectedSubjects([]);
+    setYearsOfExperience("");
+    setLegalFirstName("");
+    setLegalLastName("");
+    setDateOfBirthText("");
+    setDateOfBirthIso("");
+    setDateOfBirthError("");
+    setDateOfBirthPickerValue("");
+    setSelectedPhoto(null);
+    setSelectedCV(null);
+    setPhotoPreview(null);
+    setUploadedUrls({ profilePic: "", cv: "" });
+
     const saved = getTutorOnboarding();
     if (saved.teachingPhilosophy) setAboutMe(saved.teachingPhilosophy);
     if (saved.subjects) {
@@ -117,8 +149,12 @@ export const ProfileTipsSection = () => {
       setDateOfBirthPickerValue(parsed.iso);
       setDateOfBirthError(parsed.error);
     }
-    if (saved.profilePic) { setUploadedUrls((u)=>({ ...u, profilePic: saved.profilePic })); setPhotoPreview(saved.profilePic); }
-    if (saved.cv) setUploadedUrls((u)=>({ ...u, cv: saved.cv }));
+    if (saved.profilePic) {
+      const picUrl = resolveApiAssetUrl(saved.profilePic);
+      setUploadedUrls((u) => ({ ...u, profilePic: picUrl }));
+      setPhotoPreview(picUrl);
+    }
+    if (saved.cv) setUploadedUrls((u) => ({ ...u, cv: resolveApiAssetUrl(saved.cv) }));
     
 
     // Autopopulate legal name from Create Account (localStorage user), unless already set
@@ -132,7 +168,7 @@ export const ProfileTipsSection = () => {
     } catch (e) {
       // ignore
     }
-  }, []);
+  }, [tutorLsUserKey]);
 
   // Update subjects string when selectedSubjects changes
   useEffect(() => {
@@ -272,8 +308,9 @@ const handlePhotoFile = async (file) => {
   try {
     setUploading((u) => ({ ...u, photo: true }));
     const res = await uploadOnboardingFile(file);
-    const url = res.url || res.Location || res.fileUrl || res.data?.url;
-    if (!url) throw new Error('No URL returned from upload');
+    const rawUrl = res.url || res.Location || res.fileUrl || res.data?.url;
+    if (!rawUrl) throw new Error('No URL returned from upload');
+    const url = resolveApiAssetUrl(rawUrl);
     setUploadedUrls((u) => ({ ...u, profilePic: url }));
     setTutorOnboarding({ profilePic: url });
   } catch (e) {
@@ -312,8 +349,9 @@ const handleCVFile = async (file) => {
   try {
     setUploading((u) => ({ ...u, cv: true }));
     const res = await uploadOnboardingFile(file);
-    const url = res.url || res.Location || res.fileUrl || res.data?.url;
-    if (!url) throw new Error('No URL returned from upload');
+    const rawUrl = res.url || res.Location || res.fileUrl || res.data?.url;
+    if (!rawUrl) throw new Error('No URL returned from upload');
+    const url = resolveApiAssetUrl(rawUrl);
     setUploadedUrls((u) => ({ ...u, cv: url }));
     setTutorOnboarding({ cv: url });
   } catch (e) {

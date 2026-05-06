@@ -58,6 +58,7 @@ const OnboardingStatusGuard = ({ children }) => {
                 "/tutor/wallet",
                 "/tutor/onboarding/refresh",
                 "/tutor/onboarding/complete",
+                "/create-profile", // ← temporary: allow create-profile
               ];
               if (!paymentSetupPaths.includes(location.pathname)) {
                 navigate("/tutor/wallet", { replace: true });
@@ -76,6 +77,7 @@ const OnboardingStatusGuard = ({ children }) => {
                 "/tutor/wallet",
                 "/tutor/onboarding/refresh",
                 "/tutor/onboarding/complete",
+                "/create-profile", // ← temporary: allow create-profile
               ];
               if (!paymentSetupPaths.includes(location.pathname)) {
                 navigate("/tutor/wallet", { replace: true });
@@ -96,6 +98,7 @@ const OnboardingStatusGuard = ({ children }) => {
               "/tutor/wallet",
               "/tutor/onboarding/refresh",
               "/tutor/onboarding/complete",
+              "/create-profile", // ← temporary: allow create-profile
             ];
             if (!paymentSetupPaths.includes(location.pathname)) {
               navigate("/tutor/wallet", { replace: true });
@@ -294,7 +297,8 @@ const OnboardingStatusGuard = ({ children }) => {
                   if (
                     location.pathname !== "/tutor/wallet" &&
                     location.pathname !== "/tutor/onboarding/refresh" &&
-                    location.pathname !== "/tutor/onboarding/complete"
+                    location.pathname !== "/tutor/onboarding/complete" &&
+                    location.pathname !== "/create-profile" // ← temporary: allow create-profile
                   ) {
                     navigate("/tutor/wallet", { replace: true });
                     setIsAllowed(false);
@@ -314,7 +318,8 @@ const OnboardingStatusGuard = ({ children }) => {
                   if (
                     location.pathname !== "/tutor/wallet" &&
                     location.pathname !== "/tutor/onboarding/refresh" &&
-                    location.pathname !== "/tutor/onboarding/complete"
+                    location.pathname !== "/tutor/onboarding/complete" &&
+                    location.pathname !== "/create-profile" // ← temporary: allow create-profile
                   ) {
                     navigate("/tutor/wallet", { replace: true });
                     setIsAllowed(false);
@@ -336,7 +341,8 @@ const OnboardingStatusGuard = ({ children }) => {
                 if (
                   location.pathname !== "/tutor/wallet" &&
                   location.pathname !== "/tutor/onboarding/refresh" &&
-                  location.pathname !== "/tutor/onboarding/complete"
+                  location.pathname !== "/tutor/onboarding/complete" &&
+                  location.pathname !== "/create-profile" // ← temporary: allow create-profile
                 ) {
                   navigate("/tutor/wallet", { replace: true });
                   setIsAllowed(false);

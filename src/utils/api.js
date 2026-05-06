@@ -1,6 +1,22 @@
-// API utility to handle requests with authorization token and automatic token refresh
+import { migrateUnscopedTutorOnboardingForCurrentUser } from './onboarding';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://tutor-scene-alb-470637409.us-east-1.elb.amazonaws.com';
+const API_URL =
+  process.env.REACT_APP_API_URL ||
+  (process.env.NODE_ENV === 'development'
+    ? 'http://localhost:3000'
+    : 'http://tutor-scene-alb-470637409.us-east-1.elb.amazonaws.com');
+
+export const resolveApiAssetUrl = (u) => {
+  if (!u || typeof u !== 'string') return '';
+  if (u.startsWith('/')) return `${API_URL}${u}`;
+  try {
+    const parsed = new URL(u);
+    if (parsed.pathname.startsWith('/uploads/')) {
+      return `${API_URL}${parsed.pathname}${parsed.search}`;
+    }
+  } catch (_) {}
+  return u;
+};
 
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
@@ -425,6 +441,7 @@ export const isAuthenticated = () => {
  */
 export const logout = () => {
   stopTokenRefreshScheduler();
+  migrateUnscopedTutorOnboardingForCurrentUser();
   localStorage.removeItem('user');
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
