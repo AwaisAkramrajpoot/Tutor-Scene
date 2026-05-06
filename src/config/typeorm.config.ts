@@ -22,6 +22,15 @@ import { Testimonial } from '../database/entities/testimonial.entity';
 
 config();
 
+const parseBoolean = (value: string | undefined, defaultValue = false): boolean => {
+  if (!value) return defaultValue;
+  return ['true', '1', 'yes', 'y'].includes(value.trim().toLowerCase());
+};
+
+const sslEnabled = parseBoolean(process.env.DATABASE_SSL, false);
+const sslRejectUnauthorized = parseBoolean(process.env.DATABASE_SSL_REJECT_UNAUTHORIZED, false);
+const sslOptions = sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : undefined;
+
 export default new DataSource({
   type: 'postgres',
   host: process.env.DATABASE_HOST || 'localhost',
@@ -53,4 +62,9 @@ export default new DataSource({
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
   logging: false,
+  extra: {
+    connectionLimit: parseInt(process.env.DATABASE_CONNECTION_LIMIT || '10', 10),
+    ...(sslOptions ? { ssl: sslOptions } : {}),
+  },
+  ...(sslOptions ? { ssl: sslOptions } : {}),
 });
