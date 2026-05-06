@@ -5,9 +5,39 @@ import * as nodemailer from 'nodemailer';
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
+  private fromAddress: string;
 
   constructor(private readonly configService: ConfigService) {
-    // Configure SMTP transporter with Gmail-specific settings
+    const sendgridKey = (this.configService.get<string>('SENDGRID_API_KEY') || '').trim();
+    const sendgridSender = (this.configService.get<string>('SENDGRID_SENDER_EMAIL') || '').trim();
+    const fromName = this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene');
+
+    // Prefer SendGrid sender email when present (so emails come from verify@rankk.app).
+    const fromEmail =
+      sendgridSender || (this.configService.get<string>('SMTP_FROM_EMAIL') || '').trim();
+
+    this.fromAddress = fromEmail
+      ? `"${fromName}" <${fromEmail}>`
+      : `"${fromName}" <no-reply@tutorscene.com>`;
+
+    // Use SendGrid SMTP when SENDGRID_API_KEY exists, otherwise fallback to Gmail SMTP.
+    if (sendgridKey) {
+      this.transporter = nodemailer.createTransport({
+        host: 'smtp.sendgrid.net',
+        port: 587,
+        secure: false,
+        auth: {
+          user: 'apikey',
+          pass: sendgridKey,
+        },
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 10,
+      });
+      console.log(`📧 [Email] SendGrid SMTP configured. From: ${this.fromAddress}`);
+      return;
+    }
+
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -18,6 +48,7 @@ export class MailService {
       maxConnections: 5,
       maxMessages: 10,
     });
+    console.log(`📧 [Email] Gmail SMTP configured. From: ${this.fromAddress}`);
   }
 
   async sendResetPasswordEmail(to: string, resetToken: string): Promise<void> {
@@ -25,7 +56,7 @@ export class MailService {
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Password Reset Request',
       html: `
@@ -65,7 +96,7 @@ export class MailService {
     const verifyUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Verify Your Email - Tutor Scene',
       html: `
@@ -120,7 +151,7 @@ export class MailService {
     });
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Complete Your Booking Payment - Tutor Scene',
       html: `
@@ -199,7 +230,7 @@ export class MailService {
     });
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Booking Cancellation Notice - Tutor Scene',
       html: `
@@ -275,7 +306,7 @@ export class MailService {
     });
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Student Cancelled Booking - Tutor Scene',
       html: `
@@ -350,7 +381,7 @@ export class MailService {
     });
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Your Interview Has Been Scheduled - Tutor Scene',
       html: `
@@ -478,7 +509,7 @@ export class MailService {
     }
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject,
       html: `
