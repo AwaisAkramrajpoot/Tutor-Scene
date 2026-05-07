@@ -32,6 +32,56 @@ import RoleProtectedRoute from './components/RoleProtectedRoute';
 import OnboardingStatusGuard from './components/OnboardingStatusGuard';
 import { apiRequest } from './utils/api';
 
+// ─── NEW: Google OAuth Success Handler ────────────────────────────────────────
+function GoogleAuthSuccess() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const accessToken = params.get('accessToken');
+    const refreshToken = params.get('refreshToken');
+
+    if (accessToken && refreshToken) {
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+
+      // Decode the JWT to get user info (without verifying signature on client)
+      try {
+        const base64Payload = accessToken.split('.')[1];
+        const decoded = JSON.parse(atob(base64Payload));
+        // Fetch the full user profile using the token
+        fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/v1/auth/me`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+          .then((res) => res.json())
+          .then((user) => {
+            localStorage.setItem('user', JSON.stringify(user));
+            // Redirect based on role
+            if (user.role === 'tutor') {
+              navigate('/tutor-dashboard');
+            } else if (user.role === 'admin') {
+              navigate('/admin-dashboard');
+            } else {
+              navigate('/dashboard');
+            }
+          })
+          .catch(() => navigate('/signin?error=google_failed'));
+      } catch {
+        navigate('/signin?error=google_failed');
+      }
+    } else {
+      navigate('/signin?error=google_failed');
+    }
+  }, [navigate]);
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <p>Signing you in with Google...</p>
+    </div>
+  );
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 // Component to handle tutor status check and redirect
 function TutorStatusChecker() {
   const navigate = useNavigate();
@@ -123,6 +173,7 @@ function App() {
         <Route path="/about" element={<Layout><AboutPage /></Layout>} />
         <Route path="/become-tutor" element={<Layout><BecomeTutorPage /></Layout>} />
         <Route path="/payments" element={<Layout><PaymentPage /></Layout>} />
+        <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
 
         {/* Student Routes - Requires Student role */}
         <Route 
