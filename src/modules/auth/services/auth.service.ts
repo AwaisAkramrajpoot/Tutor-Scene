@@ -288,6 +288,55 @@ export class AuthService {
     }
   }
 
+  // ─── NEW: Google OAuth Login ───────────────────────────────────────────────
+  async googleLogin(googleUser: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    profilePhotoUrl?: string;
+    googleId: string;
+    role?: string; //  add this
+  }): Promise<AuthResponseDto> {
+    const normalizedEmail = googleUser.email.toLowerCase();
+  
+    let user = await this.userRepository.findOne({
+      where: { email: normalizedEmail },
+    });
+  
+    if (!user) {
+      // Use the role passed from frontend, default to student
+      const role = (googleUser.role === 'tutor' ? UserRole.TUTOR : UserRole.STUDENT);
+      
+      user = this.userRepository.create({
+        email: normalizedEmail,
+        firstName: googleUser.firstName,
+        lastName: googleUser.lastName,
+        profilePhotoUrl: googleUser.profilePhotoUrl,
+        googleId: googleUser.googleId,
+        status: UserStatus.ACTIVE,
+        role: role, //  dynamic role
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
+        passwordHash: '',
+      });
+      await this.userRepository.save(user);
+    } else {
+      if (!user.googleId) {
+        await this.userRepository.update(user.id, {
+          googleId: googleUser.googleId,
+          emailVerified: true,
+          emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+        });
+        user.googleId = googleUser.googleId;
+        user.emailVerified = true;
+      }
+    }
+  
+    await this.userRepository.update(user.id, { lastLoginAt: new Date() });
+    return this.generateAuthResponse(user);
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   private async generateAuthResponse(user: User): Promise<AuthResponseDto> {
     const payload = {
       sub: user.id,

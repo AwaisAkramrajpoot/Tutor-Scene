@@ -100,6 +100,9 @@ export class User extends BaseEntity {
   @Column({ type: 'text', nullable: true, name: 'suspension_reason' })
   suspensionReason: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'google_id' })
+  googleId: string;
+  
   get fullName(): string {
     return `${this.firstName} ${this.lastName}`;
   }

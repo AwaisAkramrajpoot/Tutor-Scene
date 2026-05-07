@@ -52,7 +52,7 @@ export class MailService {
   }
 
   async sendResetPasswordEmail(to: string, resetToken: string): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://tutorscene.com');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
     const mailOptions = {
@@ -92,7 +92,7 @@ export class MailService {
   }
 
   async sendEmailVerificationEmail(to: string, verificationToken: string): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const verifyUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
 
     const mailOptions = {
@@ -134,7 +134,7 @@ export class MailService {
     classStartTime: Date,
     paymentIntentId: string,
   ): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://tutorscene.com');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const paymentUrl = `${frontendUrl}/payments?bookingId=${bookingId}&paymentIntentId=${paymentIntentId}&amount=${amount}`;
 
     // Format the class start time

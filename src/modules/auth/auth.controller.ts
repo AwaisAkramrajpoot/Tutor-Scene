@@ -1,5 +1,7 @@
-import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Query, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import { Response } from 'express';
 import { AuthService } from './services/auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -119,4 +121,32 @@ export class AuthController {
       updatedAt: user.updatedAt,
     };
   }
+
+  // ─── NEW: Google OAuth Endpoints ──────────────────────────────────────────
+
+  @Public()
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Initiate Google OAuth login' })
+  async googleAuth() {
+    // Passport automatically redirects to Google — no body needed
+  }
+
+  @Public()
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleCallback(@CurrentUser() user: any, @Res() res: Response) {
+    const tokens = await this.authService.googleLogin(user);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    
+    // Also pass role so frontend can route to correct dashboard
+    res.redirect(
+      `${frontendUrl}/auth/google/success` +
+      `?accessToken=${tokens.accessToken}` +
+      `&refreshToken=${tokens.refreshToken}` +
+      `&role=${tokens.user.role}`,
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
 }
