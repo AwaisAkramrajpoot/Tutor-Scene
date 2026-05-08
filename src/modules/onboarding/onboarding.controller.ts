@@ -230,6 +230,8 @@ export class OnboardingController {
     @Query('availability') availability?: string,
     @Query('searchString') searchString?: string,
     @Query('level') level?: string,
+    @Query('minFee') minFee?: string,
+    @Query('maxFee') maxFee?: string,
   ): Promise<{ tutors: Prospect[]; count: number }> {
     try {
       const tutors = await this.onboardingService.searchTutors(
@@ -238,6 +240,8 @@ export class OnboardingController {
         availability,
         searchString,
         level,
+        minFee,
+        maxFee,
       );
       return {
         tutors,
@@ -356,11 +360,11 @@ export class OnboardingController {
   })
   @ApiResponse({ status: 404, description: 'Tutor not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getTutorById(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<Prospect> {
+  async getTutorById(@Param('id', ParseIntPipe) id: number) {
     try {
-      return await this.onboardingService.getTutorById(id);
+      const prospect = await this.onboardingService.getTutorById(id);
+      const meta = await this.onboardingService.getLearnerMetaForProspect(prospect);
+      return { ...(prospect as any), ...meta };
     } catch (error) {
       this.logger.error(`Failed to get tutor with ID ${id}`, error.stack);
       if (error instanceof NotFoundException) {

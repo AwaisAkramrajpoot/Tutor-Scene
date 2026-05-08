@@ -9,6 +9,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public, CurrentUser } from './decorators/auth.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 import { User } from '@/database/entities/user.entity';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -126,11 +127,9 @@ export class AuthController {
 
   @Public()
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleOAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
-  async googleAuth() {
-    // Passport automatically redirects to Google — no body needed
-  }
+  async googleAuth() {}
 
   @Public()
   @Get('google/callback')

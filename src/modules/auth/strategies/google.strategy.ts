@@ -14,12 +14,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
-  // ✅ Read role from the incoming request and encode it in OAuth state
   authorizationParams(options: any): Record<string, string> {
-    const role = options?.role || 'student'; // options here comes from req.query via Passport
+    const raw = options?.state ?? options?.role ?? 'student';
+    const state = String(raw).toLowerCase() === 'tutor' ? 'tutor' : 'student';
     return {
       prompt: 'select_account',
-      state: role, // encode role as the state string
+      state,
     };
   }
 
@@ -32,8 +32,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ): Promise<any> {
     const { name, emails, photos } = profile;
 
-    // ✅ Google sends your state string back in req.query.state on callback
-    const role = req.query?.state || 'student';
+    const rawState = req.query?.state;
+    const role =
+      typeof rawState === 'string' && rawState.toLowerCase() === 'tutor'
+        ? 'tutor'
+        : 'student';
 
     const user = {
       email: emails[0].value,

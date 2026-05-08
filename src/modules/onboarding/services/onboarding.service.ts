@@ -6,10 +6,16 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets } from 'typeorm';
+import { Repository, Brackets, IsNull } from 'typeorm';
 import { Prospect } from '@/database/entities/prospect.entity';
 import { User } from '@/database/entities/user.entity';
 import { AvailabilitySlot } from '@/database/entities/availability-slot.entity';
+import { Conversation } from '@/database/entities/conversation.entity';
+import { Message } from '@/database/entities/message.entity';
+import {
+  buildSubjectPillsFromProspect,
+  computeFeeRangeFromBaseFee,
+} from '../tutor-learner-meta.util';
 import { OnboardingDto } from '../dto/onboarding.dto';
 import { FileType } from '../dto/file-upload.dto';
 import { ProspectStatus, UserRole } from '@/database/entities/enums';
@@ -34,6 +40,10 @@ export class OnboardingService {
     private userRepository: Repository<User>,
     @InjectRepository(AvailabilitySlot)
     private availabilityRepository: Repository<AvailabilitySlot>,
+    @InjectRepository(Conversation)
+    private conversationRepository: Repository<Conversation>,
+    @InjectRepository(Message)
+    private messageRepository: Repository<Message>,
     private configService: ConfigService,
   ) {
     // Initialize S3 client
@@ -439,6 +449,8 @@ export class OnboardingService {
     availability?: string,
     searchString?: string,
     level?: string,
+    minFee?: string,
+    maxFee?: string,
   ): Promise<Prospect[]> {
     try {
       const queryBuilder = this.prospectRepository
@@ -457,6 +469,19 @@ export class OnboardingService {
         queryBuilder.andWhere('LOWER(prospect.gradeLevels) LIKE LOWER(:level)', {
           level: `%${level}%`,
         });
+      }
+
+      if (minFee !== undefined && minFee !== null && minFee !== '') {
+        const n = Number(minFee);
+        if (!Number.isNaN(n)) {
+          queryBuilder.andWhere('prospect.fee >= :minFee', { minFee: n });
+        }
+      }
+      if (maxFee !== undefined && maxFee !== null && maxFee !== '') {
+        const n = Number(maxFee);
+        if (!Number.isNaN(n)) {
+          queryBuilder.andWhere('prospect.fee <= :maxFee', { maxFee: n });
+        }
       }
 
       // Filter by search string (searches in fullName and subjects)
@@ -663,5 +688,63 @@ export class OnboardingService {
       fullName: p.fullName,
       status: p.status,
     }));
+  }
+
+  async getAverageTutorResponseHours(tutorUserId: number): Promise<number | null> {
+    if (!tutorUserId) return null;
+    const convs = await this.conversationRepository.find({
+      where: { tutorId: tutorUserId, deletedAt: IsNull() },
+      select: ['id', 'studentId', 'tutorId'],
+    });
+    if (!convs.length) return null;
+    const deltasHours: number[] = [];
+    for (const c of convs) {
+      const msgs = await this.messageRepository.find({
+        where: { conversationId: c.id },
+        order: { createdAt: 'ASC' },
+        select: ['senderId', 'createdAt'],
+      });
+      let anchor: Date | null = null;
+      for (const m of msgs) {
+        if (m.senderId === c.studentId) {
+          if (!anchor) anchor = m.createdAt;
+        } else if (m.senderId === c.tutorId && anchor) {
+          if (m.createdAt > anchor) {
+            deltasHours.push(
+              (m.createdAt.getTime() - anchor.getTime()) / 3600000,
+            );
+            anchor = null;
+            break;
+          }
+        }
+      }
+    }
+    if (!deltasHours.length) return null;
+    const avg =
+      deltasHours.reduce((a, b) => a + b, 0) / deltasHours.length;
+    return Math.round(avg * 10) / 10;
+  }
+
+  async getLearnerMetaForProspect(prospect: Prospect): Promise<{
+    subjectPills: ReturnType<typeof buildSubjectPillsFromProspect>;
+    feeRangeMin: number;
+    feeRangeMax: number;
+    averageResponseHours: number | null;
+  }> {
+    const feeNum =
+      prospect.fee != null ? Number(prospect.fee) : NaN;
+    const { feeRangeMin, feeRangeMax } = computeFeeRangeFromBaseFee(
+      Number.isFinite(feeNum) ? feeNum : undefined,
+    );
+    const subjectPills = buildSubjectPillsFromProspect(prospect.subjects || '');
+    const averageResponseHours = await this.getAverageTutorResponseHours(
+      prospect.userId,
+    );
+    return {
+      subjectPills,
+      feeRangeMin,
+      feeRangeMax,
+      averageResponseHours,
+    };
   }
 }

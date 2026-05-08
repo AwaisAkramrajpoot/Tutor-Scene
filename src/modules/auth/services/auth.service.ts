@@ -304,8 +304,8 @@ export class AuthService {
     });
   
     if (!user) {
-      // Use the role passed from frontend, default to student
-      const role = (googleUser.role === 'tutor' ? UserRole.TUTOR : UserRole.STUDENT);
+      const roleStr = String(googleUser.role || '').toLowerCase();
+      const role = roleStr === 'tutor' ? UserRole.TUTOR : UserRole.STUDENT;
       
       user = this.userRepository.create({
         email: normalizedEmail,

@@ -23,6 +23,7 @@ import { Testimonial } from '../database/entities/testimonial.entity';
 import { VirtualInterviewResponse } from '../database/entities/virtual-interview-response.entity';
 import { InterviewTopic } from '../database/entities/interview-topic.entity';
 import { InterviewQuestion } from '../database/entities/interview-question.entity';
+import { LearnerAssessmentResponse } from '../database/entities/learner-assessment-response.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -87,6 +88,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         VirtualInterviewResponse,
         InterviewTopic,
         InterviewQuestion,
+        LearnerAssessmentResponse,
       ],
       synchronize: false, // Auto-create tables from entities
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),
