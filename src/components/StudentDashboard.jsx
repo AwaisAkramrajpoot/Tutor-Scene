@@ -9,6 +9,7 @@ import {
   Button,
 } from "@mui/material";
 import NotificationsPanel from "./Notifications/NotificationsPanel";
+import BookSessionLearnerFlow from "./bookSession/BookSessionLearnerFlow";
 
 // Icons
 const CalendarIcon = (props) => (
@@ -61,24 +62,6 @@ const UsersIcon = () => (
   </svg>
 );
 
-const ChevronDownIcon = ({ collapsed }) => (
-  <svg
-    className={`w-5 h-5 transition-transform duration-300 ${
-      collapsed ? "rotate-180" : ""
-    }`}
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M19 9l-7 7-7-7"
-    />
-  </svg>
-);
-
 // All 11 My Tutors filter options
 const TUTOR_FILTER_OPTIONS = [
   {
@@ -123,8 +106,8 @@ const TUTOR_FILTER_OPTIONS = [
   },
   {
     key: "unavailable",
-    label: "Unavailable / Not Accepting",
-    desc: "Currently full — saved for later",
+    label: "Unavailable / Not Accepting New Students",
+    desc: "Tutors you liked who are currently full — saved for later",
   },
   {
     key: "blocked",
@@ -138,6 +121,13 @@ const TUTOR_FILTER_OPTIONS = [
   },
 ];
 
+const MOCK_LEARNER_TABS = [
+  { label: "Emma (6)", key: "emma" },
+  { label: "Jack (2)", key: "jack" },
+  { label: "Sarah (1)", key: "sarah" },
+  { label: "Michael (3)", key: "michael" },
+];
+
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [upcomingSessions, setUpcomingSessions] = useState([]);
@@ -147,9 +137,6 @@ const StudentDashboard = () => {
   const [error, setError] = useState(null);
   const [tutorsError, setTutorsError] = useState(null);
   const [user, setUser] = useState(null);
-
-  // Collapse state for "Book a Session in 3 Easy Steps"
-  const [bookSectionCollapsed, setBookSectionCollapsed] = useState(false);
 
   // My Tutors active tab (learner tabs)
   const [activeTutorTab, setActiveTutorTab] = useState(0);
@@ -184,6 +171,10 @@ const StudentDashboard = () => {
   const [cancellingBooking, setCancellingBooking] = useState(false);
 
   useEffect(() => {
+    setActiveTutorTab(0);
+  }, [activeTutorFilter]);
+
+  useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (userStr) {
       const userData = JSON.parse(userStr);
@@ -198,7 +189,7 @@ const StudentDashboard = () => {
         setLoading(true);
         const response = await apiRequest(
           `/api/v1/bookings/student/${user.id}/sessions?status=upcoming`,
-          "GET"
+          { method: "GET" }
         );
         setUpcomingSessions(response.data || []);
         setError(null);
@@ -219,9 +210,10 @@ const StudentDashboard = () => {
         setLoadingTutors(true);
         const response = await apiRequest(
           `/api/v1/conversations/student/${user.id}/recent-tutors`,
-          "GET"
+          { method: "GET" }
         );
-        setRecentTutors(response.data || response || []);
+        const list = Array.isArray(response) ? response : response?.data || [];
+        setRecentTutors(list);
         setTutorsError(null);
       } catch (err) {
         console.error("Error fetching recent tutors:", err);
@@ -241,7 +233,6 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleViewInChat = () => navigate("/messages");
   const handleFindTutors = () => navigate("/find-tutors");
   const handleMySessions = () => navigate("/my-sessions");
   const handleBookSession = () => navigate("/book-session");
@@ -292,8 +283,7 @@ const StudentDashboard = () => {
     setFavoritedTutors((prev) => ({ ...prev, [tutorId]: !prev[tutorId] }));
   };
 
-  // Filter tutors by search query
-  const filteredTutors = recentTutors.filter((item) => {
+  const matchesSearch = (item) => {
     const tutorInfo = item.tutor || {};
     const prospectInfo = item.prospectInfo || {};
     const name = (
@@ -301,82 +291,69 @@ const StudentDashboard = () => {
       `${tutorInfo.firstName || ""} ${tutorInfo.lastName || ""}`
     ).toLowerCase();
     return name.includes(tutorSearch.toLowerCase());
-  });
+  };
 
-  const learnerTabs = user
-    ? [{ label: `${user.firstName || "Me"} (${filteredTutors.length})` }]
-    : [];
+  const searchedRecent = recentTutors.filter(matchesSearch);
+
+  let displayTutors = [];
+  if (
+    activeTutorFilter === "recently-contacted" ||
+    activeTutorFilter === "saved-for-student"
+  ) {
+    displayTutors = searchedRecent;
+  } else if (activeTutorFilter === "favorited") {
+    displayTutors = searchedRecent.filter((item) => {
+      const id = item.tutorId ?? item.tutor?.id;
+      return favoritedTutors[id];
+    });
+  } else {
+    displayTutors = [];
+  }
+
+  const learnerTabs =
+    activeTutorFilter === "saved-for-student"
+      ? MOCK_LEARNER_TABS
+      : user
+      ? [
+          {
+            label: `${user.firstName || "Me"} (${displayTutors.length})`,
+            key: "self",
+          },
+        ]
+      : [];
+
+  const tutorFirstName = (item) => {
+    const t = item.tutor || {};
+    if (t.firstName) return t.firstName;
+    const full = item.prospectInfo?.fullName;
+    if (full) return full.trim().split(/\s+/)[0] || "Tutor";
+    return "Tutor";
+  };
+
+  const goChat = (item) => {
+    if (item.conversationId) {
+      navigate(`/messages?conversation=${item.conversationId}`);
+    } else {
+      navigate("/messages");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Header Banner ── */}
       <div className="bg-gradient-to-r from-brand-dark-blue to-brand-medium-blue text-white">
-        {/* Welcome text */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-24 md:ml-36 pt-10 pb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-24 md:ml-36 pt-10 pb-6">
           <h1 className="text-4xl font-bold mb-1">
             Hello {user?.firstName || "Student"}
           </h1>
-          <p className="text-lg text-brand-light-blue">
+          <p className="text-lg text-brand-light-blue italic">
             Continue your learning journey on The Scene!
           </p>
         </div>
+      </div>
 
-        {/* Book a Session Section */}
-        <div className="max-w-[980px] mx-auto px-4 sm:px-6 lg:px-8 pb-10">
-          {/* Heading with lines */}
-          <div
-            className="flex items-center justify-center gap-4 mb-8 cursor-pointer"
-            onClick={() => setBookSectionCollapsed(!bookSectionCollapsed)}
-          >
-            <div className="flex-1 h-[1px] bg-white/40"></div>
-            <h2 className="text-2xl text-center whitespace-nowrap">
-              <span className="font-semibold">Book a Session</span>{" "}
-              <span className="font-light">in 3 Easy Steps</span>
-            </h2>
-            <div className="flex-1 h-[1px] bg-white/40"></div>
-            <ChevronDownIcon collapsed={!bookSectionCollapsed} />
-          </div>
-
-          {/* Cards */}
-          {!bookSectionCollapsed && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((step) => {
-                const content = [
-                  {
-                    title: "Browse Your Way",
-                    desc: "Learning Style Match or Custom Search",
-                  },
-                  {
-                    title: "Check Availability",
-                    desc: "View tutor calendars and compare times",
-                  },
-                  {
-                    title: "Get Scheduled",
-                    desc: "Request a date and time to secure your session",
-                  },
-                ];
-                return (
-                  <div
-                    key={step}
-                    className="relative bg-white rounded-xl p-10 text-center shadow-md"
-                  >
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                      <div className="w-10 h-10 rounded-full bg-white border border-gray-300 flex items-center justify-center font-bold text-brand-medium-blue shadow">
-                        {step}
-                      </div>
-                    </div>
-                    <h3 className="font-bold text-gray-900 text-[22px] text-base">
-                      {content[step - 1].title}
-                    </h3>
-                    <p className="text-gray-500 text-md mt-2 leading-snug">
-                      {content[step - 1].desc}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+      <div className="w-full bg-white border-b border-gray-200">
+        <BookSessionLearnerFlow embedded />
       </div>
 
       {/* ── Main Content ── */}
@@ -385,11 +362,10 @@ const StudentDashboard = () => {
           {/* ── Left Column ── */}
           <div className="lg:col-span-3 space-y-6">
             {/* Quick Action Cards */}
-            <div className="grid grid-cols-3 gap-4">
-              {/* Book a Session */}
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
               <div
                 onClick={handleBookSession}
-                className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center"
+                className="flex-1 min-w-0 basis-0 bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center"
               >
                 <div className="w-14 h-14 bg-brand-medium-blue rounded-full flex items-center justify-center border-2 border-brand-gold mb-3">
                   <svg
@@ -402,7 +378,7 @@ const StudentDashboard = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                     />
                   </svg>
                 </div>
@@ -414,10 +390,9 @@ const StudentDashboard = () => {
                 </p>
               </div>
 
-              {/* Find Tutor */}
               <div
                 onClick={handleFindTutors}
-                className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center"
+                className="flex-1 min-w-0 basis-0 bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center"
               >
                 <div className="w-14 h-14 bg-brand-medium-blue rounded-full flex items-center justify-center border-2 border-brand-gold mb-3">
                   <svg
@@ -440,10 +415,9 @@ const StudentDashboard = () => {
                 <p className="text-gray-500 text-xs mt-1">Custom Search</p>
               </div>
 
-              {/* My Sessions */}
               <div
                 onClick={handleMySessions}
-                className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center"
+                className="flex-1 min-w-0 basis-0 bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center"
               >
                 <div className="w-14 h-14 bg-brand-medium-blue rounded-full flex items-center justify-center border-2 border-brand-gold mb-3">
                   <svg
@@ -597,7 +571,7 @@ const StudentDashboard = () => {
                       <div className="flex gap-2 mb-3">
                         {learnerTabs.map((tab, idx) => (
                           <button
-                            key={idx}
+                            key={tab.key || idx}
                             onClick={() => setActiveTutorTab(idx)}
                             className={`px-3 py-1 rounded-md text-xs font-medium border ${
                               activeTutorTab === idx
@@ -636,27 +610,29 @@ const StudentDashboard = () => {
                     </div>
 
                     {/* Tutor List */}
-                    {filteredTutors.length === 0 ? (
+                    {displayTutors.length === 0 ? (
                       <p className="text-gray-500 text-sm py-4">
-                        No tutors found
+                        {activeTutorFilter === "recently-contacted" ||
+                        activeTutorFilter === "saved-for-student"
+                          ? "No tutors found"
+                          : "No tutors in this list yet."}
                       </p>
                     ) : (
                       <div className="space-y-3">
-                        {filteredTutors.map((item) => {
+                        {displayTutors.map((item) => {
                           const tutorInfo = item.tutor || {};
                           const prospectInfo = item.prospectInfo || {};
-                          const tutorId = item.tutorId || item.conversationId;
+                          const tutorId = item.tutorId ?? tutorInfo.id;
                           const isFav = !!favoritedTutors[tutorId];
+                          const hasConversation = !!item.conversationId;
 
                           return (
                             <div
-                              key={tutorId}
+                              key={item.conversationId || tutorId}
                               className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
                             >
-                              {/* Top row: avatar + name + action buttons */}
-                              <div className="flex items-center justify-between">
-                                {/* Avatar + name */}
-                                <div className="flex items-center space-x-3">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="flex items-center space-x-3 min-w-0">
                                   <div className="w-9 h-9 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
                                     <img
                                       src={
@@ -670,38 +646,47 @@ const StudentDashboard = () => {
                                       className="w-full h-full object-cover"
                                     />
                                   </div>
-                                  <div>
-                                    <h3 className="text-sm font-semibold text-gray-800">
-                                      {prospectInfo.fullName ||
-                                        `${tutorInfo.firstName || ""} ${
-                                          tutorInfo.lastName || ""
-                                        }`}
+                                  <div className="min-w-0">
+                                    <h3 className="text-sm font-semibold text-gray-800 truncate">
+                                      {tutorFirstName(item)}
                                     </h3>
-                                    {prospectInfo.yearsOfExperience && (
+                                    {prospectInfo.yearsOfExperience != null && (
                                       <p className="text-xs text-gray-500">
-                                        {prospectInfo.yearsOfExperience} yrs exp
+                                        {prospectInfo.yearsOfExperience} years
+                                        experience
                                       </p>
                                     )}
                                   </div>
                                 </div>
 
-                                {/* Action Buttons: View Profile | View in Chat | Book */}
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex flex-wrap items-center gap-1.5 justify-start sm:justify-end">
                                   <button
+                                    type="button"
                                     onClick={() =>
-                                      navigate(`/tutor-profile/${tutorId}`)
+                                      navigate(`/tutor/${tutorId}`)
                                     }
                                     className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
                                   >
                                     View Profile
                                   </button>
                                   <button
-                                    onClick={handleViewInChat}
+                                    type="button"
+                                    onClick={() => goChat(item)}
+                                    className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
+                                  >
+                                    {hasConversation
+                                      ? "View Message"
+                                      : "Send Message"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => goChat(item)}
                                     className="text-xs px-2.5 py-1.5 rounded-md border border-brand-medium-blue text-brand-medium-blue hover:bg-brand-medium-blue hover:text-white transition-colors whitespace-nowrap"
                                   >
                                     View in Chat
                                   </button>
                                   <button
+                                    type="button"
                                     onClick={handleBookSession}
                                     className="text-xs px-2.5 py-1.5 rounded-md bg-brand-medium-blue text-white hover:bg-brand-dark-blue transition-colors whitespace-nowrap"
                                   >
@@ -829,9 +814,12 @@ const StudentDashboard = () => {
                     )}
 
                     {/* Manage Lists */}
-                    <button className="mt-4 flex items-center text-xs text-gray-600 hover:text-gray-900 transition-colors">
+                    <button
+                      type="button"
+                      className="mt-4 flex items-center text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                    >
                       <svg
-                        className="w-4 h-4 mr-1"
+                        className="w-4 h-4 mr-1 flex-shrink-0"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -840,7 +828,7 @@ const StudentDashboard = () => {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                         />
                       </svg>
                       Manage Lists
@@ -999,7 +987,7 @@ const StudentDashboard = () => {
         fullWidth
       >
         <DialogTitle>
-          {noteModal.type === "tag" ? "🏷 Add Tag" : "📝 Add Note"}
+          {noteModal.type === "tag" ? "Add Tag" : "Add Note"}
         </DialogTitle>
         <DialogContent>
           <input
@@ -1059,7 +1047,7 @@ const StudentDashboard = () => {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>👧 Assign to Student</DialogTitle>
+        <DialogTitle>Assign to Student</DialogTitle>
         <DialogContent>
           <p className="text-sm text-gray-600 mt-2">
             Select which student(s) to assign this tutor to:

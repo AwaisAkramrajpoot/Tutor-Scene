@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { startTokenRefreshScheduler } from '../utils/api';
 import {
   applyTutorOnboardingStorageForAuthenticatedUser,
   migrateUnscopedTutorOnboardingForCurrentUser,
@@ -34,15 +35,23 @@ const VerifyEmail = () => {
           return;
         }
 
-        applyTutorOnboardingStorageForAuthenticatedUser(data.user);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        const userPayload = data.user && typeof data.user === 'object' ? data.user : null;
+        if (!userPayload?.id) {
+          setStatus('Verification succeeded but user data was incomplete. Please sign in.');
+          return;
+        }
+
+        applyTutorOnboardingStorageForAuthenticatedUser(userPayload);
+        localStorage.setItem('user', JSON.stringify(userPayload));
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         migrateUnscopedTutorOnboardingForCurrentUser();
+        startTokenRefreshScheduler();
         setStatus('Email verified. Redirecting...');
 
-        const target = data.user?.role === 'tutor' ? '/create-profile' : '/find-tutors';
-        window.setTimeout(() => navigate(target), 900);
+        const role = String(userPayload.role ?? '').toLowerCase();
+        const target = role === 'tutor' ? '/create-profile' : '/find-tutors';
+        window.setTimeout(() => navigate(target, { replace: true }), 900);
       } catch (error) {
         setStatus(error.message || 'Network error while verifying email.');
       }

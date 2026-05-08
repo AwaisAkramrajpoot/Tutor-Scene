@@ -220,8 +220,8 @@ const SignUp = () => {
 
   const handleGoogleSignUp = () => {
     const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
-    // Pass the active tab role as a state parameter
-    window.location.href = `${apiUrl}/api/v1/auth/google?role=${activeTab}`;
+    const role = activeTab === "tutor" ? "tutor" : "student";
+    window.location.href = `${apiUrl}/api/v1/auth/google?role=${encodeURIComponent(role)}`;
   };
 
   return (
