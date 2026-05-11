@@ -14,6 +14,9 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/auth.decorator';
+import { User } from '@/database/entities/user.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { OnboardingService } from './services/onboarding.service';
@@ -349,6 +352,16 @@ export class OnboardingController {
       }
       throw new InternalServerErrorException('Failed to retrieve payment onboarding status');
     }
+  }
+
+  @Get('tutor/me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user tutor prospect profile' })
+  @ApiResponse({ status: 200, description: 'Prospect profile or null' })
+  async getMyTutorProspect(@CurrentUser() user: User) {
+    const prospect = await this.onboardingService.getProspectByUserId(user.id);
+    return { prospect };
   }
 
   @Get('tutor/:id')

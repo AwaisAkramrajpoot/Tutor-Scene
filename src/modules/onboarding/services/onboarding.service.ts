@@ -316,27 +316,46 @@ export class OnboardingService {
         where: { userId: onboardingDto.userId },
       });
 
+      let saved: Prospect;
       if (existing) {
         Object.assign(existing, onboardingDto, {
           status: ProspectStatus.PENDING,
         });
-        return await this.prospectRepository.save(existing);
+        saved = await this.prospectRepository.save(existing);
+      } else {
+        const prospectId = await this.generateProspectId();
+
+        const prospect = this.prospectRepository.create({
+          prospectId: prospectId,
+          ...onboardingDto,
+          status: ProspectStatus.PENDING,
+        });
+        saved = await this.prospectRepository.save(prospect);
       }
 
-      // Generate 5-digit numeric prospect ID
-      const prospectId = await this.generateProspectId();
-
-      const prospect = this.prospectRepository.create({
-        prospectId: prospectId,
-        ...onboardingDto,
-        status: ProspectStatus.PENDING, // Set status as pending automatically
+      const user = await this.userRepository.findOne({
+        where: { id: onboardingDto.userId },
       });
-      return await this.prospectRepository.save(prospect);
+      if (user) {
+        const trimmed = String(onboardingDto.fullName || '').trim();
+        const parts = trimmed.split(/\s+/).filter(Boolean);
+        if (parts.length > 0) {
+          user.firstName = parts[0];
+          user.lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
+          await this.userRepository.save(user);
+        }
+      }
+
+      return saved;
     } catch (error) {
       throw new InternalServerErrorException(
         'Failed to save prospect information',
       );
     }
+  }
+
+  async getProspectByUserId(userId: number): Promise<Prospect | null> {
+    return this.prospectRepository.findOne({ where: { userId } });
   }
 
   private async generateProspectId(): Promise<string> {
@@ -457,30 +476,65 @@ export class OnboardingService {
         .createQueryBuilder('prospect')
         .where('prospect.status = :status', { status: ProspectStatus.ACTIVE });
 
-      // Filter by subject if provided
-      if (subject) {
-        queryBuilder.andWhere('LOWER(prospect.subjects) LIKE LOWER(:subject)', {
-          subject: `%${subject}%`,
-        });
+      if (subject && String(subject).trim()) {
+        const trimmed = String(subject).trim();
+        const baseName = trimmed.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        queryBuilder.andWhere(
+          new Brackets((qb) => {
+            qb.where('LOWER(prospect.subjects) LIKE LOWER(:subjectFull)', {
+              subjectFull: `%${trimmed}%`,
+            });
+            if (baseName && baseName.toLowerCase() !== trimmed.toLowerCase()) {
+              qb.orWhere('LOWER(prospect.subjects) LIKE LOWER(:subjectBase)', {
+                subjectBase: `%${baseName}%`,
+              });
+            }
+          }),
+        );
       }
 
-      // Filter by grade level if provided (exact match)
-      if (level) {
-        queryBuilder.andWhere('LOWER(prospect.gradeLevels) LIKE LOWER(:level)', {
-          level: `%${level}%`,
-        });
+      if (level && String(level).trim()) {
+        const lev = String(level).trim();
+        const firstTok = lev.split(/\s+/)[0] || lev;
+        queryBuilder.andWhere(
+          new Brackets((qb) => {
+            qb.where("TRIM(COALESCE(prospect.gradeLevels, '')) = ''").orWhere(
+              new Brackets((qb2) => {
+                qb2
+                  .where('LOWER(prospect.gradeLevels) LIKE LOWER(:lvFull)', {
+                    lvFull: `%${lev}%`,
+                  })
+                  .orWhere('LOWER(prospect.gradeLevels) LIKE LOWER(:lvFirst)', {
+                    lvFirst: `%${firstTok}%`,
+                  });
+              }),
+            );
+          }),
+        );
       }
 
       if (minFee !== undefined && minFee !== null && minFee !== '') {
         const n = Number(minFee);
         if (!Number.isNaN(n)) {
-          queryBuilder.andWhere('prospect.fee >= :minFee', { minFee: n });
+          queryBuilder.andWhere(
+            new Brackets((qb) => {
+              qb.where('prospect.fee IS NULL').orWhere('prospect.fee >= :minFee', {
+                minFee: n,
+              });
+            }),
+          );
         }
       }
       if (maxFee !== undefined && maxFee !== null && maxFee !== '') {
         const n = Number(maxFee);
         if (!Number.isNaN(n)) {
-          queryBuilder.andWhere('prospect.fee <= :maxFee', { maxFee: n });
+          queryBuilder.andWhere(
+            new Brackets((qb) => {
+              qb.where('prospect.fee IS NULL').orWhere('prospect.fee <= :maxFee', {
+                maxFee: n,
+              });
+            }),
+          );
         }
       }
 
@@ -533,6 +587,8 @@ export class OnboardingService {
 
       // Secondary sort by creation date
       queryBuilder.addOrderBy('prospect.createdAt', 'DESC');
+
+      queryBuilder.take(150);
 
       const tutors = await queryBuilder.getMany();
 
