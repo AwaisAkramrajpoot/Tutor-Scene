@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import BookSession from './BookSession';
 import MessageRequestButton from './Messaging/MessageRequestButton';
-import { apiRequest } from '../utils/api';
+import { apiRequest, resolveApiAssetUrl } from '../utils/api';
 import {
   tutorFirstName,
   formatAverageResponseLabel,
   formatLearnerRateDisplay,
   filterSubjectPills,
+  bioPreview,
 } from '../utils/tutorLearnerDisplay';
 
 const ClockIcon = (props) => (
@@ -60,6 +61,12 @@ const TutorProfile = () => {
   }, [id]);
 
   useEffect(() => {
+    if (!loading && tutorDetails) {
+      window.scrollTo(0, 0);
+    }
+  }, [loading, tutorDetails, id]);
+
+  useEffect(() => {
     const fetchTutorData = async () => {
       if (!id) return;
       try {
@@ -106,8 +113,7 @@ const TutorProfile = () => {
   const filteredPills = useMemo(() => {
     const pills = tutorDetails?.subjectPills;
     if (!Array.isArray(pills) || !pills.length) return [];
-    const f = filterSubjectPills(pills, filterSubject, filterLevel);
-    return f.length ? f : pills;
+    return filterSubjectPills(pills, filterSubject, filterLevel);
   }, [tutorDetails, filterSubject, filterLevel]);
 
   const rateDisplay = useMemo(() => {
@@ -117,8 +123,9 @@ const TutorProfile = () => {
       tutorDetails.feeRangeMin,
       tutorDetails.feeRangeMax,
       filterSubject,
+      filterLevel,
     );
-  }, [tutorDetails, filterSubject]);
+  }, [tutorDetails, filterSubject, filterLevel]);
 
   const handleBookSession = () => {
     const bookingData = {
@@ -242,7 +249,7 @@ const TutorProfile = () => {
             <div className="w-36 h-36 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
               <img
                 src={
-                  mergedTutorData.profilePhotoUrl ||
+                  resolveApiAssetUrl(mergedTutorData.profilePhotoUrl) ||
                   'https://placehold.co/144x144/E0E0E0/333333?text=Tutor'
                 }
                 alt={displayFirst}
@@ -279,8 +286,8 @@ const TutorProfile = () => {
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">About Me</h2>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {mergedTutorData.description}
+              <p className="text-gray-700 leading-relaxed">
+                {bioPreview(mergedTutorData.description, 35, 50)}
               </p>
             </div>
 
@@ -381,7 +388,10 @@ const TutorProfile = () => {
                     controls
                     playsInline
                     preload="none"
-                    poster={mergedTutorData.profilePhotoUrl || undefined}
+                    poster={
+                      resolveApiAssetUrl(mergedTutorData.profilePhotoUrl) ||
+                      undefined
+                    }
                     className="w-full h-full object-contain"
                   >
                     <source src={introSrc} type="video/mp4" />

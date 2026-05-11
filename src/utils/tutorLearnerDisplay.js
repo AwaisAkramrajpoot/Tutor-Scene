@@ -78,8 +78,11 @@ export function filterSubjectPills(pills, subjectFilter, levelFilter) {
     const lv = levelFilter.trim().toLowerCase();
     out = out.filter((p) => {
       const g = (p.gradeLevelsDisplay || '').toLowerCase();
-      if (!g) return true;
-      return g.includes(lv);
+      if (!g) return false;
+      if (g.includes(lv)) return true;
+      const words = lv.split(/\s+/).filter((w) => w.length >= 3);
+      if (!words.length) return false;
+      return words.some((w) => g.includes(w));
     });
   }
   return out;
@@ -101,11 +104,21 @@ export function formatAverageResponseLabel(hours) {
   return `Average Response Time: ${ceil} hour${ceil === 1 ? '' : 's'}`;
 }
 
-export function formatLearnerRateDisplay(fee, feeRangeMin, feeRangeMax, selectedSubject) {
+export function formatLearnerRateDisplay(
+  fee,
+  feeRangeMin,
+  feeRangeMax,
+  selectedSubject,
+  selectedLevel,
+) {
   const base = Number(fee);
   const sub = selectedSubject && String(selectedSubject).trim();
-  if (sub && Number.isFinite(base)) {
-    return { line: `$${Math.round(base)}/hour for ${sub.trim()}` };
+  const lev = selectedLevel && String(selectedLevel).trim();
+  if ((sub || lev) && Number.isFinite(base)) {
+    const parts = [];
+    if (sub) parts.push(sub.trim());
+    if (lev) parts.push(lev.trim());
+    return { line: `$${Math.round(base)}/hour for ${parts.join(' · ')}` };
   }
   const lo =
     feeRangeMin != null ? Math.round(Number(feeRangeMin)) : null;

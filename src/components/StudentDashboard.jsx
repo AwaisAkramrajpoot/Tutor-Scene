@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiRequest } from "../utils/api";
+import { apiRequest, resolveApiAssetUrl } from "../utils/api";
 import {
   Dialog,
   DialogTitle,
@@ -137,6 +137,8 @@ const StudentDashboard = () => {
   const [error, setError] = useState(null);
   const [tutorsError, setTutorsError] = useState(null);
   const [user, setUser] = useState(null);
+  const [discoverTutors, setDiscoverTutors] = useState([]);
+  const [loadingDiscover, setLoadingDiscover] = useState(false);
 
   // My Tutors active tab (learner tabs)
   const [activeTutorTab, setActiveTutorTab] = useState(0);
@@ -223,6 +225,26 @@ const StudentDashboard = () => {
       }
     };
     fetchRecentTutors();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const loadDiscover = async () => {
+      if (!user?.id) return;
+      try {
+        setLoadingDiscover(true);
+        const res = await apiRequest(
+          "/api/v1/onboarding/tutor?priceRange=lowToHigh",
+          { method: "GET" }
+        );
+        const list = res.tutors || res.data || [];
+        setDiscoverTutors(Array.isArray(list) ? list.slice(0, 8) : []);
+      } catch {
+        setDiscoverTutors([]);
+      } finally {
+        setLoadingDiscover(false);
+      }
+    };
+    loadDiscover();
   }, [user?.id]);
 
   const handleJoinSession = (zoomLink) => {
@@ -440,6 +462,77 @@ const StudentDashboard = () => {
                 <p className="text-gray-500 text-xs mt-1">View History</p>
               </div>
             </div>
+
+            {/* <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Available tutors
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Recently approved tutors on Tutor Scene. My Tutors below only lists people you have messaged.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleFindTutors}
+                  className="shrink-0 text-sm font-medium text-brand-medium-blue hover:text-brand-dark-blue hover:underline"
+                >
+                  Search all tutors
+                </button>
+              </div>
+              {loadingDiscover ? (
+                <div className="flex justify-center py-6">
+                  <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-brand-medium-blue" />
+                </div>
+              ) : discoverTutors.length === 0 ? (
+                <p className="text-sm text-gray-500 py-2">
+                  No active tutors are listed yet. Try again after an admin approves a tutor, or use Find Tutor to search by subject.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {discoverTutors.map((t) => {
+                    const pic = t.profilePic
+                      ? resolveApiAssetUrl(t.profilePic)
+                      : null;
+                    const name = t.fullName || "Tutor";
+                    const first = name.trim().split(/\s+/)[0] || "Tutor";
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => navigate(`/tutor/${t.id}`)}
+                        className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 text-left hover:border-brand-medium-blue hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-200">
+                          {pic ? (
+                            <img
+                              src={pic}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-600">
+                              {first.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-900">
+                            {name}
+                          </p>
+                          {t.subjects ? (
+                            <p className="truncate text-xs text-gray-500">
+                              {t.subjects}
+                            </p>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div> */}
 
             {/* Upcoming Sessions */}
             <div className="bg-white rounded-xl shadow-lg p-6">

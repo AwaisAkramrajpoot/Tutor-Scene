@@ -1,6 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { apiRequest } from '../../utils/api';
+import { apiRequest, resolveApiAssetUrl } from '../../utils/api';
+import {
+  tutorFirstName,
+  bioPreview,
+  buildSubjectPillsFromCatalog,
+  filterSubjectPills,
+  computeFeeRangeFromBaseFee,
+  formatLearnerRateDisplay,
+} from '../../utils/tutorLearnerDisplay';
 
 const CheckIcon = () => (
   <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -13,6 +21,13 @@ const PencilIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
   </svg>
 );
+
+const normalizeSubjectsResponse = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.subjects)) return response.subjects;
+  if (Array.isArray(response?.data)) return response.data;
+  return [];
+};
 
 const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) => {
   const [learners, setLearners] = useState([]);
@@ -69,16 +84,29 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
   useEffect(() => {
     const run = async () => {
       try {
-        const response = await apiRequest('/api/v1/subjects?databaseOnly=true');
-        const subjectsList =
-          response.subjects || response.data || response || [];
-        setAvailableSubjects(subjectsList);
+        const response = await apiRequest('/api/v1/subjects');
+        setAvailableSubjects(normalizeSubjectsResponse(response));
       } catch {
         setAvailableSubjects([]);
       }
     };
     run();
   }, []);
+
+  const subjectsByCategory = useMemo(() => {
+    const map = new Map();
+    availableSubjects.forEach((s) => {
+      const cat = s.category || 'Other';
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat).push(s);
+    });
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([category, items]) => ({
+        category,
+        items: items.sort((x, y) => (x.name || '').localeCompare(y.name || '')),
+      }));
+  }, [availableSubjects]);
 
   const fetchTutors = async () => {
     if (!selectedLabel) {
@@ -95,7 +123,7 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
       if (searchQuery) params.append('searchString', searchQuery);
       params.append('subject', subject);
       if (level) params.append('level', level);
-      if (priceRange) params.append('priceRange', priceRange);
+      params.append('priceRange', priceRange || 'lowToHigh');
       if (selectedDate) params.append('availability', selectedDate);
       if (minFee !== '' && minFee != null) params.append('minFee', String(minFee));
       if (maxFee !== '' && maxFee != null) params.append('maxFee', String(maxFee));
@@ -194,11 +222,11 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
                       if (e.key === 'Enter' || e.key === ' ')
                         setSelectedLabel(row.learnerLabel);
                     }}
-                    className={`cursor-pointer border-b border-gray-100 transition-colors ${
+                    className={`cursor-pointer transition-colors ${
                       sel ? 'bg-amber-100' : 'hover:bg-gray-50'
                     }`}
                   >
-                    <td className="py-3 pr-4">
+                    <td className={`py-3 pr-4 ${sel ? 'rounded-l-md' : ''}`}>
                       <CheckIcon />
                     </td>
                     <td className="py-3 pr-4 font-medium text-gray-900">
@@ -218,7 +246,7 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
                     <td className="py-3 pr-4 text-gray-700">
                       {row.relationshipToLearner || '—'}
                     </td>
-                    <td className="py-3">
+                    <td className={`py-3 ${sel ? 'rounded-r-md' : ''}`}>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -254,12 +282,15 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-md sm:p-6">
         <h3 className="text-lg font-bold text-brand-dark-blue">Get Matched</h3>
         <p className="mt-1 text-sm font-medium text-brand-medium-blue">
-          Set filters to view the top 3 tutor matches
+          Subject is required. Other filters are optional. Up to 3 tutor matches are shown.
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          Matches use your search and filters together with the learner you selected above.
         </p>
 
         <form onSubmit={handleSearchSubmit} className="mt-4">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
+            <div className="relative min-w-0 flex-1">
               <svg
                 className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
                 fill="none"
@@ -276,7 +307,7 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex shrink-0 gap-2">
               <button
                 type="submit"
                 className="rounded-lg bg-brand-medium-blue px-6 py-3 text-sm font-semibold text-white hover:bg-brand-dark-blue"
@@ -295,52 +326,79 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
         </form>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
+          <div className="sm:col-span-2 lg:col-span-1">
             <label className="mb-1 block text-xs font-medium text-gray-600">
               Subject <span className="text-red-600">*</span>
             </label>
-            <select
-              className="w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-8 text-sm text-black focus:border-brand-medium-blue focus:outline-none focus:ring-2 focus:ring-brand-medium-blue/30"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              required
-            >
-              <option value="">Select subject</option>
-              {availableSubjects.map((subj) => (
-                <option key={subj.id} value={subj.name}>
-                  {subj.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="block w-full appearance-none rounded-lg border border-gray-300 py-2.5 pl-3 pr-10 text-sm text-gray-900 focus:border-brand-medium-blue focus:outline-none focus:ring-2 focus:ring-brand-medium-blue/30"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              >
+                <option value="">Select subject</option>
+                {subjectsByCategory.map(({ category, items }) => (
+                  <optgroup key={category} label={category}>
+                    {items.map((subj) => (
+                      <option
+                        key={`${category}-${subj.name}-${subj.id ?? subj.name}`}
+                        value={subj.name}
+                      >
+                        {subj.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">
-              Levels
+              Level
             </label>
-            <select
-              className="w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-8 text-sm text-black focus:border-brand-medium-blue focus:outline-none focus:ring-2 focus:ring-brand-medium-blue/30"
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
-            >
-              <option value="">All Levels</option>
-              <option value="Elementary">Elementary</option>
-              <option value="Middle School">Middle School</option>
-              <option value="High School">High School</option>
-            </select>
+            <div className="relative">
+              <select
+                className="block w-full appearance-none rounded-lg border border-gray-300 py-2.5 pl-3 pr-10 text-sm text-gray-900 focus:border-brand-medium-blue focus:outline-none focus:ring-2 focus:ring-brand-medium-blue/30"
+                value={level}
+                onChange={(e) => setLevel(e.target.value)}
+              >
+                <option value="">All Levels</option>
+                <option value="Elementary">Elementary</option>
+                <option value="Middle School">Middle School</option>
+                <option value="High School">High School</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">
               Price sort
             </label>
-            <select
-              className="w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-8 text-sm text-black focus:border-brand-medium-blue focus:outline-none focus:ring-2 focus:ring-brand-medium-blue/30"
-              value={priceRange}
-              onChange={(e) => setPriceRange(e.target.value)}
-            >
-              <option value="">All Prices</option>
-              <option value="lowToHigh">Low to High</option>
-              <option value="highToLow">High to Low</option>
-            </select>
+            <div className="relative">
+              <select
+                className="block w-full appearance-none rounded-lg border border-gray-300 py-2.5 pl-3 pr-10 text-sm text-gray-900 focus:border-brand-medium-blue focus:outline-none focus:ring-2 focus:ring-brand-medium-blue/30"
+                value={priceRange}
+                onChange={(e) => setPriceRange(e.target.value)}
+              >
+                <option value="">All Prices</option>
+                <option value="lowToHigh">Low to High</option>
+                <option value="highToLow">High to Low</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
           <div className="flex items-end">
             <button
@@ -348,17 +406,19 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
               onClick={() => setShowDateModal(true)}
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white py-2.5 px-3 text-sm text-gray-800 hover:bg-gray-50"
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
-              {selectedDate || selectedTime || recurring
-                ? 'Filter set'
-                : 'Filter by Date/Time'}
+              <span className="truncate">
+                {selectedDate || selectedTime || recurring
+                  ? 'Date/Time filter set'
+                  : 'Filter by Date/Time'}
+              </span>
             </button>
           </div>
         </div>
 
-        {/* <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">
               Min price ($/hr)
@@ -367,8 +427,8 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
               type="number"
               min={0}
               step={1}
-              placeholder="Min"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Optional min"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-brand-medium-blue focus:outline-none focus:ring-2 focus:ring-brand-medium-blue/30"
               value={minFee}
               onChange={(e) => setMinFee(e.target.value)}
             />
@@ -381,13 +441,13 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
               type="number"
               min={0}
               step={1}
-              placeholder="Max"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Optional max"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-brand-medium-blue focus:outline-none focus:ring-2 focus:ring-brand-medium-blue/30"
               value={maxFee}
               onChange={(e) => setMaxFee(e.target.value)}
             />
           </div>
-        </div> */}
+        </div>
 
         {showDateModal && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
@@ -407,7 +467,7 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
                 </button>
               </div>
               <p className="mb-3 text-xs text-gray-500">
-                Pick a date to match tutor availability. Optional time and recurring preferences apply to how you browse availability; date is sent to the server when set.
+                Choose a date to narrow by tutor availability. Optional time and recurring preferences describe how you want to meet; the date is sent to the server when you apply.
               </p>
               <label className="mb-1 block text-sm font-medium text-gray-700">
                 Date
@@ -442,6 +502,10 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
                   type="button"
                   onClick={() => {
                     setShowDateModal(false);
+                    if (!subject.trim()) {
+                      window.alert('Please choose a subject before applying date filters.');
+                      return;
+                    }
                     fetchTutors();
                   }}
                   className="flex-1 rounded-lg bg-brand-medium-blue py-2 text-sm font-medium text-white hover:bg-brand-dark-blue"
@@ -472,78 +536,104 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
             </div>
           ) : tutors.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-500">
-              Choose a subject and search to see up to 3 tutor matches.
+              Select a subject (required), optionally set other filters, then click Search to see up to 3 tutor matches.
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              {tutors.map((tutor) => (
+              {tutors.map((tutor) => {
+                const allPills = buildSubjectPillsFromCatalog(
+                  tutor.subjects,
+                  availableSubjects,
+                );
+                const pills = filterSubjectPills(allPills, subject, level);
+                const hasSubjectOrLevelFilter = Boolean(
+                  subject.trim() || level.trim(),
+                );
+                const cardPills = hasSubjectOrLevelFilter ? pills : allPills;
+                const { feeRangeMin, feeRangeMax } = computeFeeRangeFromBaseFee(
+                  tutor.fee,
+                );
+                const rateLine = formatLearnerRateDisplay(
+                  tutor.fee,
+                  feeRangeMin,
+                  feeRangeMax,
+                  // subject.trim() ? subject : null,
+                  // level.trim() ? level : null,
+                ).line;
+                return (
                 <div
                   key={tutor.id}
-                  className="rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm"
+                  className="rounded-xl border border-gray-200 bg-white p-6 text-left shadow-sm"
                 >
-                  {tutor.profilePic ? (
-                    <img
-                      src={tutor.profilePic}
-                      alt=""
-                      className="mx-auto mb-4 h-24 w-24 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-gray-200 text-gray-500">
-                      <svg className="h-12 w-12" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                      </svg>
+                  <div className="flex gap-4 items-start">
+                    {tutor.profilePic ? (
+                      <img
+                        src={resolveApiAssetUrl(tutor.profilePic)}
+                        alt=""
+                        className="h-24 w-24 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500">
+                        <svg className="h-12 w-12" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1 pt-1">
+                      <h4 className="text-lg font-bold text-gray-900">
+                        {tutorFirstName(tutor.fullName)}
+                      </h4>
                     </div>
-                  )}
-                  <h4 className="text-lg font-bold text-gray-900">
-                    {tutor.fullName}
-                  </h4>
-                  <div className="mt-2 flex flex-wrap justify-center gap-2">
-                    {(Array.isArray(tutor.subjects)
-                      ? tutor.subjects
-                      : (tutor.subjects || '')
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean)
-                    ).map((sub, i) => (
+                  </div>
+                  <p className="mt-3 text-sm text-gray-600">
+                    {bioPreview(
+                      tutor.teachingPhilosophy ||
+                        'Passionate educator dedicated to student success',
+                      35,
+                      50,
+                    )}
+                  </p>
+                  <p className="mt-3 text-sm font-medium text-gray-900">Subject(s)</p>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {cardPills.map((p, index) => (
                       <span
-                        key={i}
-                        className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"
+                        key={`${p.fullName}-${index}`}
+                        className="inline-flex max-w-full flex-wrap items-baseline gap-x-1 rounded-md border border-brand-gold bg-blue-50 px-2.5 py-1 text-[11px] text-brand-dark-blue sm:text-xs"
                       >
-                        {sub}
+                        <span className="font-bold">{p.category}</span>
+                        <span>– {p.subjectLine}</span>
+                        {p.gradeLevelsDisplay ? (
+                          <span className="font-normal text-gray-700">
+                            {' '}
+                            {p.gradeLevelsDisplay}
+                          </span>
+                        ) : null}
                       </span>
                     ))}
                   </div>
-                  <p className="mt-2 line-clamp-3 text-sm text-gray-600">
-                    {tutor.teachingPhilosophy || 'Tutor on The Scene'}
-                  </p>
-                  {tutor.gradeLevels && (
-                    <p className="mt-2 text-xs text-gray-500">
-                      Grade Levels: {tutor.gradeLevels}
-                    </p>
-                  )}
                   {tutor.yearsOfExperience != null && (
-                    <p className="text-xs text-gray-500">
+                    <p className="mt-2 text-xs text-gray-500">
                       {tutor.yearsOfExperience} years of experience
                     </p>
                   )}
-                  <p className="mt-3 text-xl font-bold text-gray-900">
-                    ${tutor.fee ?? '0'}
-                    <span className="text-sm font-normal text-gray-600">/hour</span>
-                  </p>
-                  <Link
-                    to={(() => {
-                      const u = new URLSearchParams();
-                      if (subject.trim()) u.set('subject', subject.trim());
-                      if (level.trim()) u.set('level', level.trim());
-                      const q = u.toString();
-                      return q ? `/tutor/${tutor.id}?${q}` : `/tutor/${tutor.id}`;
-                    })()}
-                    className="mt-4 inline-block rounded-lg bg-brand-medium-blue px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark-blue"
-                  >
-                    View Profile
-                  </Link>
+                  <p className="mt-3 text-xl font-bold text-gray-900">{rateLine}</p>
+                  <div className="mt-4 flex justify-center">
+                    <Link
+                      to={(() => {
+                        const u = new URLSearchParams();
+                        if (subject.trim()) u.set('subject', subject.trim());
+                        if (level.trim()) u.set('level', level.trim());
+                        const q = u.toString();
+                        return q ? `/tutor/${tutor.id}?${q}` : `/tutor/${tutor.id}`;
+                      })()}
+                      className="inline-block rounded-lg bg-brand-medium-blue px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark-blue"
+                    >
+                      View Profile
+                    </Link>
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

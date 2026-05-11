@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { apiRequest } from '../utils/api';
+import { apiRequest, resolveApiAssetUrl } from '../utils/api';
 import {
   tutorFirstName,
   bioPreview,
@@ -65,6 +65,27 @@ const FindTutorsPage = () => {
     fetchSubjects();
   }, []);
 
+  const loadDefaultTutors = useCallback(async () => {
+    try {
+      setLoading(true);
+      setSearchAttempted(false);
+      const response = await apiRequest(
+        '/api/v1/onboarding/tutor?priceRange=lowToHigh',
+        { method: 'GET' },
+      );
+      const tutorsList = response.tutors || response.data || [];
+      setTutors(Array.isArray(tutorsList) ? tutorsList : []);
+    } catch {
+      setTutors([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDefaultTutors();
+  }, [loadDefaultTutors]);
+
   const subjectsByCategory = useMemo(() => {
     const map = new Map();
     availableSubjects.forEach((s) => {
@@ -81,16 +102,18 @@ const FindTutorsPage = () => {
   }, [availableSubjects]);
 
   const fetchTutors = async () => {
-    if (!subject || !String(subject).trim()) {
-      window.alert('Please select a subject from the catalog to search for tutors.');
+    const sub = String(subject || '').trim();
+    const q = String(searchQuery || '').trim();
+    if (!sub && !q) {
+      await loadDefaultTutors();
       return;
     }
     try {
       setLoading(true);
       setSearchAttempted(true);
       const params = new URLSearchParams();
-      if (searchQuery) params.append('searchString', searchQuery);
-      params.append('subject', subject.trim());
+      if (q) params.append('searchString', q);
+      if (sub) params.append('subject', sub);
       if (level) params.append('level', level);
       if (priceRange) params.append('priceRange', priceRange);
       if (selectedDate) params.append('availability', selectedDate);
@@ -122,8 +145,7 @@ const FindTutorsPage = () => {
     setSelectedDate('');
     setSelectedTime('');
     setRecurring(false);
-    setTutors([]);
-    setSearchAttempted(false);
+    loadDefaultTutors();
   };
 
   const filterSummary =
@@ -187,20 +209,19 @@ const FindTutorsPage = () => {
           </form>
 
           <p className="text-xs text-gray-500 mb-4 -mt-2">
-            Subject is required. The list combines the official Tutor Scene catalog with subjects created in Admin.
+            Select a subject and/or type a tutor name. Catalog includes subjects your admin adds.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Subject <span className="text-red-600">*</span>
+                Subject
               </label>
               <div className="relative">
                 <select
                   className="block w-full appearance-none bg-white border border-gray-300 rounded-lg py-3 pl-4 pr-10 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-brand-medium-blue"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  required
                 >
                   <option value="">Select subject</option>
                   {subjectsByCategory.map(({ category, items }) => (
@@ -389,7 +410,7 @@ const FindTutorsPage = () => {
             </h3>
             <p className="text-gray-600 max-w-md mx-auto">
               {!searchAttempted
-                ? 'Choose a subject from the catalog, adjust optional filters, then click Search.'
+                ? 'No active tutors are available yet, or the list is still loading. You can also use Search with a subject or tutor name to narrow results.'
                 : 'Try broadening level, price range, or date filters, or pick another subject.'}
             </p>
           </div>
@@ -401,7 +422,10 @@ const FindTutorsPage = () => {
                 availableSubjects,
               );
               const pills = filterSubjectPills(allPills, subject, level);
-              const cardPills = pills.length ? pills : allPills;
+              const hasSubjectOrLevelFilter = Boolean(
+                subject.trim() || level.trim(),
+              );
+              const cardPills = hasSubjectOrLevelFilter ? pills : allPills;
               const { feeRangeMin, feeRangeMax } = computeFeeRangeFromBaseFee(
                 tutor.fee,
               );
@@ -410,6 +434,7 @@ const FindTutorsPage = () => {
                 feeRangeMin,
                 feeRangeMax,
                 subject.trim() ? subject : null,
+                level.trim() ? level : null,
               ).line;
               const profileQs = new URLSearchParams();
               if (subject.trim()) profileQs.set('subject', subject.trim());
@@ -420,38 +445,44 @@ const FindTutorsPage = () => {
               return (
                 <div
                   key={tutor.id}
-                  className="bg-white rounded-xl shadow-md p-6 text-center border border-gray-200 hover:shadow-lg transition-shadow"
+                  className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow text-left"
                 >
-                  {tutor.profilePic ? (
-                    <img
-                      src={tutor.profilePic}
-                      alt={tutorFirstName(tutor.fullName)}
-                      className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
-                      <svg className="w-12 h-12 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                      </svg>
+                  <div className="flex gap-4 items-start">
+                    {tutor.profilePic ? (
+                      <img
+                        src={resolveApiAssetUrl(tutor.profilePic)}
+                        alt={tutorFirstName(tutor.fullName)}
+                        className="w-24 h-24 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 shrink-0 bg-gray-300 rounded-full flex items-center justify-center">
+                        <svg className="w-12 h-12 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1 pt-1">
+                      <h3 className="text-xl font-bold text-gray-900">
+                        {tutorFirstName(tutor.fullName)}
+                      </h3>
                     </div>
-                  )}
+                  </div>
 
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    {tutorFirstName(tutor.fullName)}
-                  </h3>
-
-                  <p className="text-gray-600 text-sm mb-3 min-h-[2.5rem]">
+                  <p className="text-gray-600 text-sm mt-3 min-h-[2.5rem]">
                     {bioPreview(
                       tutor.teachingPhilosophy ||
                         'Passionate educator dedicated to student success',
+                      35,
+                      50,
                     )}
                   </p>
 
-                  <div className="flex flex-wrap justify-center gap-2 mb-3 text-left">
+                  <p className="text-sm font-medium text-gray-900 mt-3">Subject(s)</p>
+                  <div className="flex flex-wrap gap-2 mt-1 mb-3">
                     {cardPills.map((p, index) => (
                       <span
                         key={`${p.fullName}-${index}`}
-                        className="inline-flex flex-wrap items-baseline gap-x-1 rounded-full border border-brand-gold bg-blue-50 px-2.5 py-1 text-[11px] sm:text-xs text-brand-dark-blue max-w-full"
+                        className="inline-flex flex-wrap items-baseline gap-x-1 rounded-md border border-brand-gold bg-blue-50 px-2.5 py-1 text-[11px] sm:text-xs text-brand-dark-blue max-w-full"
                       >
                         <span className="font-bold">{p.category}</span>
                         <span>– {p.subjectLine}</span>
@@ -472,14 +503,14 @@ const FindTutorsPage = () => {
                       </p>
                     )}
 
-                  <div className="flex items-center justify-center gap-1 mb-6 flex-wrap">
+                  <div className="flex items-center gap-1 mb-6 flex-wrap">
                     <DollarIcon className="text-gray-500 shrink-0" />
                     <span className="text-xl sm:text-2xl font-bold text-gray-900">
                       {rateLine}
                     </span>
                   </div>
 
-                  <div className="flex gap-4 justify-center">
+                  <div className="flex justify-center">
                     <Link
                       to={profileTo}
                       className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white font-semibold py-2 px-4 rounded-lg transition-colors"

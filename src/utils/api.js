@@ -495,3 +495,4 @@ export const submitTutorOnboarding = (payload) => apiRequest('/api/v1/onboarding
   method: 'POST',
   body: JSON.stringify(payload),
 });
+export const fetchMyTutorProspect = () => apiRequest('/api/v1/onboarding/tutor/me', { method: 'GET' });
