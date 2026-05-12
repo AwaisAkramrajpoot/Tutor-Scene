@@ -27,6 +27,9 @@ import MessagingPage from './components/Messaging/MessagingPage';
 import InterviewsPage from './components/Interviews/InterviewsPage';
 import PaymentPage from './components/Payment/PaymentPage';
 import PaymentSuccess from './components/Payment/PaymentSuccess';
+import BookSessionPage from './components/BookSessionPage';
+import StudentNotificationsPage from './components/student/StudentNotificationsPage';
+import StudentStaticPage from './components/student/StudentStaticPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import OnboardingStatusGuard from './components/OnboardingStatusGuard';
@@ -207,6 +210,52 @@ function App() {
               <Layout><MySessions /></Layout>
             </RoleProtectedRoute>
           } 
+        />
+        <Route
+          path="/book-session"
+          element={
+            <RoleProtectedRoute allowedRoles={['student']}>
+              <BookSessionPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <RoleProtectedRoute allowedRoles={['student']}>
+              <StudentNotificationsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RoleProtectedRoute allowedRoles={['student']}>
+              <StudentStaticPage title="Profile">
+                <p>Update your profile and how tutors see you here.</p>
+              </StudentStaticPage>
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/account-settings"
+          element={
+            <RoleProtectedRoute allowedRoles={['student']}>
+              <StudentStaticPage title="Account Settings">
+                <p>Account security and preferences will be available here.</p>
+              </StudentStaticPage>
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/credits-referrals"
+          element={
+            <RoleProtectedRoute allowedRoles={['student']}>
+              <StudentStaticPage title="Credits & Referrals">
+                <p>Track credits and share your referral link from this page.</p>
+              </StudentStaticPage>
+            </RoleProtectedRoute>
+          }
         />
         <Route 
           path="/bookings/:id/success" 

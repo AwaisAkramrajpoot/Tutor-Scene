@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getNotifications } from '../../services/notificationsService';
+import { getConversations } from '../../services/messagingService';
 import { useNavigate } from 'react-router-dom';
 
 const getTimeLabel = (dateString) => {
@@ -32,8 +33,25 @@ const NotificationsPanel = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // 👉 Example unread count (replace with real later)
-  const unreadCount = 1;
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const loadUnread = async () => {
+      try {
+        const conversations = await getConversations();
+        const total = conversations.reduce(
+          (sum, c) => sum + (c.unreadCount || 0),
+          0
+        );
+        setUnreadCount(total);
+      } catch {
+        setUnreadCount(0);
+      }
+    };
+    loadUnread();
+    const t = setInterval(loadUnread, 30000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -74,17 +92,18 @@ const NotificationsPanel = () => {
         className="bg-white rounded-xl shadow-md p-4 flex items-center justify-between cursor-pointer hover:shadow-lg transition"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100">
-            📩
+          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100 text-brand-medium-blue">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
           </div>
           <h3 className="text-lg font-semibold text-gray-900">Messages</h3>
         </div>
 
-        {/* Unread Badge */}
-        <div className="relative">
+        <div className="relative min-w-[1.5rem] flex justify-end">
           {unreadCount > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-              {unreadCount}
+            <span className="bg-red-500 text-white text-xs font-bold min-w-[1.25rem] h-6 px-1.5 rounded-full flex items-center justify-center">
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </div>
@@ -93,7 +112,8 @@ const NotificationsPanel = () => {
       {/* 🔹 Stripe Button */}
       <div className="text-center">
         <button
-          onClick={() => window.open('https://dashboard.stripe.com', '_blank')}
+          type="button"
+          onClick={() => window.open('https://dashboard.stripe.com/login', '_blank', 'noopener,noreferrer')}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg shadow-md transition"
         >
           Connect to Stripe
@@ -121,8 +141,11 @@ const NotificationsPanel = () => {
             <p className="text-red-600 text-sm">{error}</p>
           </div>
         ) : notifications.length === 0 ? (
-          <div className="text-center py-6">
-            <p className="text-gray-500 text-sm">No notifications</p>
+          <div className="text-center py-6 space-y-2">
+            <p className="text-gray-500 text-sm">No notifications yet.</p>
+            <p className="text-gray-400 text-xs leading-relaxed">
+              You will see session reminders, booking confirmations, cancellation alerts, messages from tutors, and messages from Tutor Scene Support here.
+            </p>
           </div>
         ) : (
           <div className="overflow-y-auto max-h-[400px] pr-1">

@@ -4,13 +4,18 @@ export const DashboardStatsSection = () => {
   const [userName, setUserName] = useState('');
 
   useEffect(() => {
-    // Get user from localStorage
     const userStr = localStorage.getItem('user');
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
-        const firstName = user.firstName || user.first_name || '';
-        setUserName(firstName);
+        const full =
+          (typeof user.fullName === 'string' && user.fullName.trim()) ||
+          [user.firstName || user.first_name, user.lastName || user.last_name]
+            .filter(Boolean)
+            .join(' ')
+            .trim() ||
+          (user.firstName || user.first_name || '');
+        setUserName(full);
       } catch (error) {
         console.error('Error parsing user data:', error);
         setUserName('');

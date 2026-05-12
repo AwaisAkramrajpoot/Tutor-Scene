@@ -1,14 +1,23 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiRequest, uploadOnboardingFile, getCurrentUser, submitTutorOnboarding } from '../../utils/api';
+import { Alert, Snackbar } from '@mui/material';
+import { apiRequest, uploadOnboardingFile, getCurrentUser, submitTutorOnboarding, resolveApiAssetUrl } from '../../utils/api';
 import { getTutorOnboarding } from '../../utils/onboarding';
 
 function normalizeTopicProgress(raw) {
   if (!raw || typeof raw !== 'object') return { selectedQuestion: '', videos: {} };
   const videos = { ...(typeof raw.videos === 'object' && raw.videos ? raw.videos : {}) };
-  const sel = raw.selectedQuestion || '';
+  let sel = raw.selectedQuestion || '';
   if (raw.videoUrl && sel && videos[sel] == null) {
     videos[sel] = raw.videoUrl;
+  }
+  if (!sel && raw.videoUrl && typeof videos === 'object') {
+    const matchKey = Object.keys(videos).find((k) => videos[k] === raw.videoUrl);
+    if (matchKey) sel = matchKey;
+    else {
+      const firstKey = Object.keys(videos).find((k) => videos[k]);
+      if (firstKey) sel = firstKey;
+    }
   }
   return { selectedQuestion: sel, videos };
 }
@@ -21,6 +30,23 @@ function VideoCameraIcon({ className }) {
   );
 }
 
+function saveAndContinueValidationToast(topics, payload) {
+  for (let i = 0; i < topics.length; i++) {
+    const t = topics[i];
+    const r = payload[t.slug];
+    if (!r?.selectedQuestion) {
+      return `Please select a question for "${t.title}" before continuing.`;
+    }
+    if (!r?.videoUrl) {
+      if (i === 0) {
+        return 'Please upload your introduction video before continuing.';
+      }
+      return `Please upload a video for "${t.title}" before continuing.`;
+    }
+  }
+  return 'Please complete all 5 topics (one question + video each) before Save and Continue.';
+}
+
 const TutorInterviewsPage = ({ embedded = false }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -31,6 +57,20 @@ const TutorInterviewsPage = ({ embedded = false }) => {
   const [draftFiles, setDraftFiles] = useState({});
   const [uploadingKey, setUploadingKey] = useState('');
   const [dragOverKey, setDragOverKey] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const showSnackbar = useCallback((message, severity = 'info') => {
+    setSnackbar({ open: true, message, severity });
+  }, []);
+
+  const handleSnackbarClose = (_, reason) => {
+    if (reason === 'clickaway') return;
+    setSnackbar((s) => ({ ...s, open: false }));
+  };
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -40,11 +80,20 @@ const TutorInterviewsPage = ({ embedded = false }) => {
         apiRequest('/api/v1/interviews/virtual/me', { method: 'GET' }),
       ]);
       const list = qRes?.topics || qRes?.data?.topics || [];
-      setTopics(Array.isArray(list) ? list : []);
-      const raw = progRes?.responses || {};
+      const topicsArr = Array.isArray(list) ? list : [];
+      setTopics(topicsArr);
+      const raw =
+        (progRes && progRes.responses) ||
+        (progRes && progRes.data && progRes.data.responses) ||
+        {};
       const next = {};
-      Object.keys(raw).forEach((slug) => {
+      topicsArr.forEach((t) => {
+        const slug = t.slug;
+        if (!slug) return;
         next[slug] = normalizeTopicProgress(raw[slug]);
+      });
+      Object.keys(raw).forEach((slug) => {
+        if (next[slug] == null) next[slug] = normalizeTopicProgress(raw[slug]);
       });
       setResponses(next);
     } catch (err) {
@@ -80,10 +129,12 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     if (!file) return;
     if (responses[topicSlug]?.selectedQuestion !== optionKey) {
       setMessage('Select this question (checkbox) before uploading a video.');
+      showSnackbar('Select this question (checkbox) before uploading a video.', 'error');
       return;
     }
     if (!file.type.startsWith('video/')) {
       setMessage('Please upload a valid video file.');
+      showSnackbar('Please upload a valid video file.', 'error');
       return;
     }
     setMessage('');
@@ -96,7 +147,9 @@ const TutorInterviewsPage = ({ embedded = false }) => {
         [draftKey(topicSlug, optionKey)]: { name: file.name, url },
       }));
     } catch (err) {
-      setMessage(err?.message || 'Video upload failed.');
+      const msg = err?.message || 'Video upload failed.';
+      setMessage(msg);
+      showSnackbar(msg, 'error');
     } finally {
       setUploadingKey('');
     }
@@ -106,11 +159,13 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     const norm = normalizeTopicProgress(responses[topicSlug]);
     if (norm.selectedQuestion !== optionKey) {
       setMessage('Select this question before saving its video.');
+      showSnackbar('Select this question before saving its video.', 'error');
       return;
     }
     const draft = draftFiles[draftKey(topicSlug, optionKey)];
     if (!draft?.url) {
       setMessage('Upload a video for this question before Save.');
+      showSnackbar('Upload a video for this question before Save.', 'error');
       return;
     }
     setResponses((prev) => {
@@ -124,6 +179,7 @@ const TutorInterviewsPage = ({ embedded = false }) => {
       };
     });
     setMessage('Saved for this question.');
+    showSnackbar('Saved for this question.', 'success');
   };
 
   const clearQuestion = (topicSlug, optionKey) => {
@@ -175,6 +231,7 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     });
     if (completed && !allOk) {
       setMessage('Please complete all 5 topics (one question + video each) before Save and Continue.');
+      showSnackbar(saveAndContinueValidationToast(topics, payload), 'error');
       return;
     }
     setSaving(true);
@@ -217,12 +274,16 @@ const TutorInterviewsPage = ({ embedded = false }) => {
             }),
           );
         }
-        navigate('/verify-identity');
+        showSnackbar('Interview details saved successfully.', 'success');
+        setTimeout(() => navigate('/verify-identity'), 1600);
       } else {
         setMessage('Progress saved. You can continue later.');
+        showSnackbar('Interview details saved successfully.', 'success');
       }
     } catch (err) {
-      setMessage(err?.message || 'Failed to save interview progress.');
+      const msg = err?.message || 'Failed to save interview progress.';
+      setMessage(msg);
+      showSnackbar(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -260,6 +321,7 @@ const TutorInterviewsPage = ({ embedded = false }) => {
   }
 
   return (
+    <>
     <div className={embedded ? '' : 'min-h-screen bg-[#f2f4f8] py-8'}>
       <div
         className={`${
@@ -393,6 +455,15 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                               : draft?.name ||
                                 (savedUrl ? 'Video saved' : isSelected ? 'No file selected' : 'Select question first')}
                           </p>
+                          {savedUrl ? (
+                            <video
+                              key={String(savedUrl).slice(0, 120)}
+                              className="mt-2 w-full max-h-44 rounded-lg border border-[#d1dae6] bg-black object-contain"
+                              src={resolveApiAssetUrl(savedUrl)}
+                              controls
+                              playsInline
+                            />
+                          ) : null}
                         </div>
                       </div>
                     );
@@ -431,6 +502,22 @@ const TutorInterviewsPage = ({ embedded = false }) => {
         </div>
       </div>
     </div>
+    <Snackbar
+      open={snackbar.open}
+      autoHideDuration={6000}
+      onClose={handleSnackbarClose}
+      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+    >
+      <Alert
+        onClose={handleSnackbarClose}
+        severity={snackbar.severity}
+        variant="filled"
+        sx={{ width: '100%' }}
+      >
+        {snackbar.message}
+      </Alert>
+    </Snackbar>
+    </>
   );
 };
 

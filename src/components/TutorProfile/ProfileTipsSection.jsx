@@ -6,6 +6,7 @@ import {
   getCurrentUser,
   submitTutorOnboarding,
   resolveApiAssetUrl,
+  fetchMyTutorProspect,
 } from "../../utils/api";
 import { getTutorOnboarding, setTutorOnboarding } from "../../utils/onboarding";
 
@@ -93,81 +94,133 @@ export const ProfileTipsSection = () => {
   };
 
   useEffect(() => {
-    const fetchSubjects = async () => {
+    let cancelled = false;
+
+    const cvNameFromUrl = (url) => {
+      const s = String(url || "");
       try {
-        setLoadingSubjects(true);
-        const response = await apiRequest('/api/v1/subjects?databaseOnly=true');
-        const subjectsList = response.subjects || response.data || response || [];
-        setAvailableSubjects(subjectsList);
-      } catch (error) {
-        console.error('Failed to fetch subjects:', error);
-      } finally {
-        setLoadingSubjects(false);
+        const p = new URL(s).pathname;
+        return p.split("/").filter(Boolean).pop() || "Uploaded CV";
+      } catch {
+        return s.split("/").filter(Boolean).pop() || "Uploaded CV";
       }
     };
 
-    fetchSubjects();
+    const hydrate = async () => {
+      try {
+        setLoadingSubjects(true);
+        const [response, prospectWrap] = await Promise.all([
+          apiRequest("/api/v1/subjects?databaseOnly=true"),
+          fetchMyTutorProspect().catch(() => ({ prospect: null })),
+        ]);
+        const subjectsList = response.subjects || response.data || response || [];
+        if (cancelled) return;
+        setAvailableSubjects(subjectsList);
 
-    setAboutMe("");
-    setSubjects("");
-    setSelectedSubjects([]);
-    setYearsOfExperience("");
-    setLegalFirstName("");
-    setLegalLastName("");
-    setDateOfBirthText("");
-    setDateOfBirthIso("");
-    setDateOfBirthError("");
-    setDateOfBirthPickerValue("");
-    setSelectedPhoto(null);
-    setSelectedCV(null);
-    setPhotoPreview(null);
-    setUploadedUrls({ profilePic: "", cv: "" });
+        const prospect = prospectWrap?.prospect ?? null;
+        const local = getTutorOnboarding();
+        const merged = { ...local, ownerUserId: local.ownerUserId };
+        if (prospect && typeof prospect === "object") {
+          if (prospect.fullName) merged.fullName = prospect.fullName;
+          if (prospect.subjects != null && prospect.subjects !== "") merged.subjects = prospect.subjects;
+          if (prospect.teachingPhilosophy != null && prospect.teachingPhilosophy !== "")
+            merged.teachingPhilosophy = prospect.teachingPhilosophy;
+          if (prospect.yearsOfExperience != null && !Number.isNaN(Number(prospect.yearsOfExperience)))
+            merged.yearsOfExperience = prospect.yearsOfExperience;
+          if (prospect.profilePic) merged.profilePic = prospect.profilePic;
+          if (prospect.cv) merged.cv = prospect.cv;
+          const dobRaw = prospect.dateOfBirth;
+          const dobIso =
+            typeof dobRaw === "string"
+              ? dobRaw.slice(0, 10)
+              : dobRaw && typeof dobRaw === "object" && dobRaw.toISOString
+                ? dobRaw.toISOString().slice(0, 10)
+                : "";
+          if (dobIso && /^\d{4}-\d{2}-\d{2}$/.test(dobIso)) {
+            merged.dateOfBirth = dobIso;
+            merged.dateOfBirthDisplay = formatIsoToMmDdYyyy(dobIso);
+          }
+          const fnParts = String(prospect.fullName || "")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+          if (fnParts.length && !merged.legalFirstName) merged.legalFirstName = fnParts[0];
+          if (fnParts.length > 1 && !merged.legalLastName)
+            merged.legalLastName = fnParts.slice(1).join(" ");
+        }
+        setTutorOnboarding(merged);
 
-    const saved = getTutorOnboarding();
-    if (saved.teachingPhilosophy) setAboutMe(saved.teachingPhilosophy);
-    if (saved.subjects) {
-      setSubjects(saved.subjects);
-      // Parse saved subjects and match with available subjects
-      const savedSubjectNames = saved.subjects.split(',').map(s => s.trim());
-      setSelectedSubjects(savedSubjectNames);
-    }
-    if (saved.yearsOfExperience) setYearsOfExperience(String(saved.yearsOfExperience));
-    if (saved.legalFirstName) setLegalFirstName(saved.legalFirstName);
-    if (saved.legalLastName) setLegalLastName(saved.legalLastName);
-    if (!saved.legalFirstName || !saved.legalLastName) {
-      if (saved.fullName) {
-        const parts = String(saved.fullName).trim().split(/\s+/);
-        if (parts.length > 0 && !saved.legalFirstName) setLegalFirstName(parts[0]);
-        if (parts.length > 1 && !saved.legalLastName) setLegalLastName(parts.slice(1).join(" "));
+        setAboutMe(merged.teachingPhilosophy || "");
+        if (merged.subjects) {
+          setSubjects(merged.subjects);
+          setSelectedSubjects(merged.subjects.split(",").map((s) => s.trim()).filter(Boolean));
+        } else {
+          setSubjects("");
+          setSelectedSubjects([]);
+        }
+        setYearsOfExperience(
+          merged.yearsOfExperience !== undefined && merged.yearsOfExperience !== null && merged.yearsOfExperience !== ""
+            ? String(merged.yearsOfExperience)
+            : "",
+        );
+        setLegalFirstName(merged.legalFirstName || "");
+        setLegalLastName(merged.legalLastName || "");
+        if (!merged.legalFirstName || !merged.legalLastName) {
+          if (merged.fullName) {
+            const parts = String(merged.fullName).trim().split(/\s+/);
+            if (parts.length > 0 && !merged.legalFirstName) setLegalFirstName(parts[0]);
+            if (parts.length > 1 && !merged.legalLastName) setLegalLastName(parts.slice(1).join(" "));
+          }
+        }
+        const dobFromSaved =
+          merged.dateOfBirthDisplay ||
+          (merged.dateOfBirth ? formatIsoToMmDdYyyy(String(merged.dateOfBirth).slice(0, 10)) : "");
+        if (dobFromSaved) {
+          setDateOfBirthText(dobFromSaved);
+          const parsed = parseMmDdYyyyToIso(dobFromSaved);
+          setDateOfBirthIso(parsed.iso);
+          setDateOfBirthPickerValue(parsed.iso);
+          setDateOfBirthError(parsed.error);
+        } else {
+          setDateOfBirthText("");
+          setDateOfBirthIso("");
+          setDateOfBirthPickerValue("");
+          setDateOfBirthError("");
+        }
+        setSelectedPhoto(null);
+        setSelectedCV(null);
+        setUploadedUrls({ profilePic: "", cv: "" });
+        setPhotoPreview(null);
+        if (merged.profilePic) {
+          const picUrl = resolveApiAssetUrl(merged.profilePic);
+          setUploadedUrls((u) => ({ ...u, profilePic: picUrl }));
+          setPhotoPreview(picUrl);
+        }
+        if (merged.cv) {
+          const cvUrl = resolveApiAssetUrl(merged.cv);
+          setUploadedUrls((u) => ({ ...u, cv: cvUrl }));
+          setSelectedCV({ name: cvNameFromUrl(merged.cv), size: 0, fromServer: true });
+        }
+
+        try {
+          const rawUser = localStorage.getItem("user");
+          if (rawUser) {
+            const u = JSON.parse(rawUser);
+            if (!merged.legalFirstName && !merged.fullName && u?.firstName) setLegalFirstName(u.firstName);
+            if (!merged.legalLastName && !merged.fullName && u?.lastName) setLegalLastName(u.lastName);
+          }
+        } catch {}
+      } catch (error) {
+        console.error("Failed to fetch subjects:", error);
+      } finally {
+        if (!cancelled) setLoadingSubjects(false);
       }
-    }
-    const dobFromSaved = saved.dateOfBirthDisplay || (saved.dateOfBirth ? formatIsoToMmDdYyyy(saved.dateOfBirth) : "");
-    if (dobFromSaved) {
-      setDateOfBirthText(dobFromSaved);
-      const parsed = parseMmDdYyyyToIso(dobFromSaved);
-      setDateOfBirthIso(parsed.iso);
-      setDateOfBirthPickerValue(parsed.iso);
-      setDateOfBirthError(parsed.error);
-    }
-    if (saved.profilePic) {
-      const picUrl = resolveApiAssetUrl(saved.profilePic);
-      setUploadedUrls((u) => ({ ...u, profilePic: picUrl }));
-      setPhotoPreview(picUrl);
-    }
-    if (saved.cv) setUploadedUrls((u) => ({ ...u, cv: resolveApiAssetUrl(saved.cv) }));
-    
+    };
 
-    // Autopopulate legal name from Create Account (localStorage user), unless already set
-    try {
-      const rawUser = localStorage.getItem("user");
-      if (rawUser) {
-        const u = JSON.parse(rawUser);
-        if (!saved.legalFirstName && !saved.fullName && u?.firstName) setLegalFirstName(u.firstName);
-        if (!saved.legalLastName && !saved.fullName && u?.lastName) setLegalLastName(u.lastName);
-      }
-    } catch (e) {
-      // ignore
-    }
+    hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, [tutorLsUserKey]);
 
   // Update subjects string when selectedSubjects changes
@@ -384,18 +437,21 @@ const handleCVFile = async (file) => {
             Profile Photo
           </label>
           <div
-            className={`relative w-64 h-64 mx-auto rounded-xl border-2 ${selectedPhoto
-              ? 'border-solid border-green-500 bg-green-50'
-              : isDraggingPhoto
-                ? 'border-dashed border-brand-medium-blue bg-brand-light-blue'
-                : 'border-dashed border-[#d0d5db] bg-white'
-              } hover:border-brand-medium-blue transition-colors cursor-pointer overflow-hidden`}
+            className={`relative w-64 h-64 mx-auto rounded-xl border-2 ${
+              selectedPhoto
+                ? "border-solid border-green-500 bg-green-50"
+                : photoPreview
+                  ? "border-solid border-[#5b8fd4] bg-[#f0f7ff]"
+                  : isDraggingPhoto
+                    ? "border-dashed border-brand-medium-blue bg-brand-light-blue"
+                    : "border-dashed border-[#d0d5db] bg-white"
+            } hover:border-brand-medium-blue transition-colors cursor-pointer overflow-hidden`}
             onClick={handlePhotoClick}
             onDragOver={handlePhotoDragOver}
             onDragLeave={handlePhotoDragLeave}
             onDrop={handlePhotoDrop}
           >
-            {selectedPhoto && photoPreview ? (
+            {photoPreview ? (
               <div className="absolute inset-0 w-full h-full">
                 <img
                   src={photoPreview}
@@ -404,9 +460,11 @@ const handleCVFile = async (file) => {
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
                   <div className="text-white text-center">
-                    <p className="text-lg font-medium mb-2">{uploading.photo ? 'Uploading...' : 'Photo Selected'}</p>
-                    <p className="text-sm">{selectedPhoto?.name || 'Profile Picture'}</p>
-                    <p className="text-xs mt-1">{uploadedUrls.profilePic ? 'Uploaded ✅' : 'Click to change'}</p>
+                    <p className="text-lg font-medium mb-2">
+                      {uploading.photo ? "Uploading..." : selectedPhoto ? "Photo Selected" : "Saved profile photo"}
+                    </p>
+                    <p className="text-sm">{selectedPhoto?.name || "Profile Picture"}</p>
+                    <p className="text-xs mt-1">{uploadedUrls.profilePic ? "Uploaded ✅" : "Click to change"}</p>
                   </div>
                 </div>
               </div>
@@ -619,34 +677,37 @@ const handleCVFile = async (file) => {
             Upload Resume/CV
           </label>
           <div
-            className={`relative w-full h-48 rounded-xl border-2 ${selectedCV
-              ? 'border-solid border-green-500 bg-green-50'
-              : isDraggingCV
-                ? 'border-dashed border-brand-medium-blue bg-brand-light-blue'
-                : 'border-dashed border-[#d0d5db] bg-white'
-              } hover:border-brand-medium-blue transition-colors cursor-pointer`}
+            className={`relative w-full h-48 rounded-xl border-2 ${
+              selectedCV && !selectedCV.fromServer
+                ? "border-solid border-green-500 bg-green-50"
+                : uploadedUrls.cv
+                  ? "border-solid border-[#5b8fd4] bg-[#f0f7ff]"
+                  : isDraggingCV
+                    ? "border-dashed border-brand-medium-blue bg-brand-light-blue"
+                    : "border-dashed border-[#d0d5db] bg-white"
+            } hover:border-brand-medium-blue transition-colors cursor-pointer`}
             onClick={handleCVClick}
             onDragOver={handleCVDragOver}
             onDragLeave={handleCVDragLeave}
             onDrop={handleCVDrop}
           >
             <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center pointer-events-none">
-              {selectedCV ? (
+              {selectedCV || uploadedUrls.cv ? (
                 <>
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-3">
                     <span className="text-4xl">✓</span>
                   </div>
                   <p className="text-base text-green-700 font-medium mb-1">
-                    {uploading.cv ? 'Uploading...' : 'Resume/CV Selected'}
+                    {uploading.cv ? "Uploading..." : selectedCV?.fromServer ? "Resume/CV on file" : "Resume/CV Selected"}
                   </p>
                   <p className="text-sm text-[#495565] mb-2 px-4 text-center">
-                    {selectedCV.name}
+                    {selectedCV?.name || "Uploaded document"}
                   </p>
-                  <p className="text-xs text-[#697282]">
-                    {(selectedCV.size / 1024).toFixed(2)} KB
-                  </p>
+                  {selectedCV && selectedCV.size > 0 ? (
+                    <p className="text-xs text-[#697282]">{(selectedCV.size / 1024).toFixed(2)} KB</p>
+                  ) : null}
                   <p className="text-xs text-[#697282] mt-2">
-                    {uploadedUrls.cv ? 'Uploaded ✅' : 'Click to change Resume/CV'}
+                    {uploadedUrls.cv ? "Uploaded ✅" : "Click to change Resume/CV"}
                   </p>
                 </>
               ) : (
@@ -728,12 +789,39 @@ const handleCVFile = async (file) => {
                 cv: onboardingPayload.cv,
               });
               const prospect = submitResponse?.prospect;
+              const persistedPic = prospect?.profilePic || onboardingPayload.profilePic;
+              const persistedCv = prospect?.cv || onboardingPayload.cv;
+              setTutorOnboarding({
+                ...onboardingPayload,
+                profilePic: persistedPic,
+                cv: persistedCv,
+              });
+              if (persistedPic) {
+                const picUrl = resolveApiAssetUrl(persistedPic);
+                setUploadedUrls((u) => ({ ...u, profilePic: picUrl }));
+                setPhotoPreview(picUrl);
+              }
+              if (persistedCv) {
+                const cvUrl = resolveApiAssetUrl(persistedCv);
+                setUploadedUrls((u) => ({ ...u, cv: cvUrl }));
+                const cvLabel = (() => {
+                  try {
+                    return new URL(cvUrl).pathname.split("/").filter(Boolean).pop() || "Uploaded CV";
+                  } catch {
+                    return String(persistedCv).split("/").filter(Boolean).pop() || "Uploaded CV";
+                  }
+                })();
+                setSelectedCV({ name: cvLabel, size: 0, fromServer: true });
+              }
               if (prospect?.status != null) {
                 const sessionUser = getCurrentUser();
                 if (sessionUser) {
                   const next = {
                     ...sessionUser,
                     prospectStatus: String(prospect.status),
+                    firstName: String(onboardingPayload.legalFirstName || "").trim() || sessionUser.firstName,
+                    lastName: String(onboardingPayload.legalLastName || "").trim() || sessionUser.lastName,
+                    fullName: onboardingPayload.fullName || sessionUser.fullName,
                   };
                   if (prospect.prospectId != null && prospect.prospectId !== "") {
                     next.prospectId = String(prospect.prospectId);
