@@ -112,7 +112,7 @@ export default function AdminDashboard() {
   const [testimonialToDelete, setTestimonialToDelete] = useState(null);
   const [deletingTestimonial, setDeletingTestimonial] = useState(false);
   const [submittingTestimonial, setSubmittingTestimonial] = useState(false);
-  const [alert, setAlert] = useState({ open: false, message: '', severity: 'success' });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [submittingSubject, setSubmittingSubject] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -400,12 +400,12 @@ export default function AdminDashboard() {
   };
 
   const handleCloseAlert = () => {
-    setAlert({ ...alert, open: false });
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   const handleSaveTestimonial = async () => {
     if (!testimonialForm.testimonial || !testimonialForm.testimonialBy) {
-      setAlert({
+      setSnackbar({
         open: true,
         message: 'All fields are required',
         severity: 'error'
@@ -432,7 +432,7 @@ export default function AdminDashboard() {
           method: 'PATCH',
           body: JSON.stringify(payload),
         });
-        setAlert({
+        setSnackbar({
           open: true,
           message: 'Testimonial updated successfully',
           severity: 'success'
@@ -442,7 +442,7 @@ export default function AdminDashboard() {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        setAlert({
+        setSnackbar({
           open: true,
           message: 'Testimonial created successfully',
           severity: 'success'
@@ -456,7 +456,7 @@ export default function AdminDashboard() {
       setTestimonials(Array.isArray(data) ? data : data.data || []);
     } catch (err) {
       console.error('Failed to save testimonial:', err);
-      setAlert({
+      setSnackbar({
         open: true,
         message: err.message || 'Failed to save testimonial',
         severity: 'error'
@@ -484,7 +484,7 @@ export default function AdminDashboard() {
       await apiRequest(`/api/v1/testimonials/${testimonialToDelete.id}`, {
         method: 'DELETE',
       });
-      setAlert({
+      setSnackbar({
         open: true,
         message: 'Testimonial deleted successfully',
         severity: 'success'
@@ -497,7 +497,7 @@ export default function AdminDashboard() {
       setTestimonials(Array.isArray(data) ? data : data.data || []);
     } catch (err) {
       console.error('Failed to delete testimonial:', err);
-      setAlert({
+      setSnackbar({
         open: true,
         message: err.message || 'Failed to delete testimonial',
         severity: 'error'
@@ -2011,13 +2011,13 @@ export default function AdminDashboard() {
 
       {/* Alert Snackbar */}
       <Snackbar
-        open={alert.open}
+        open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleCloseAlert}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <Alert onClose={handleCloseAlert} severity={alert.severity} sx={{ width: '100%' }}>
-          {alert.message}
+        <Alert onClose={handleCloseAlert} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
         </Alert>
       </Snackbar>
     </div>

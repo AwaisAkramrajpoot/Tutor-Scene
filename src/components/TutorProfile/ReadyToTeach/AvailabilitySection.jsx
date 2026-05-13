@@ -1,9 +1,9 @@
+import { TutorOnboardingStepper } from "../TutorOnboardingStepper";
+import { useTutorOnboardingNavigation } from "../../../hooks/useTutorOnboardingNavigation";
+
 export const AvailabilitySection = () => {
-  const steps = [
-    { number: "1", label: "Create Profile", isActive: false },
-    { number: "2", label: "Get Verified", isActive: false },
-    { number: "3", label: "Start Tutoring", isActive: true },
-  ];
+  const step = "start";
+  const { onStepClick } = useTutorOnboardingNavigation(step);
 
   return (
     <section className="w-full bg-gradient-to-b from-[#A8C7F0] to-[#2A66B8] text-white">
@@ -17,19 +17,9 @@ export const AvailabilitySection = () => {
         <p className="mt-4 text-brand-light-blue text-base sm:text-lg max-w-3xl mx-auto">
           Once approved, set your schedule and start connecting with students from around the world.
         </p>
-        <nav aria-label="Progress steps" className="mt-8 inline-flex items-center gap-2 bg-white/10 rounded-full px-3 py-2">
-          {steps.map((step, i) => (
-            <div key={step.number} className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 ${!step.isActive ? "opacity-60" : ""}`} aria-current={step.isActive ? "step" : undefined}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${step.isActive ? "bg-white text-[#2A66B8]" : "bg-white/30 text-white"}`}>
-                  <span className="text-base">{step.number}</span>
-                </div>
-                <span className="text-sm whitespace-nowrap">{step.label}</span>
-              </div>
-              {i < steps.length - 1 && <span className="text-brand-gold">→</span>}
-            </div>
-          ))}
-        </nav>
+        <div className="mt-8 flex justify-center px-2">
+          <TutorOnboardingStepper activeKey={step} onStepClick={onStepClick} />
+        </div>
       </div>
     </section>
   );

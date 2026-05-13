@@ -321,8 +321,10 @@ const Navbar = () => {
               )}
               {user &&
                 user.role !== 'student' &&
-                (user.role === 'admin' ||
-                  (user.role === 'tutor' && user.prospectStatus === 'active')) && (
+                (user.role === 'admin'
+                  //  ||
+                  // (user.role === 'tutor' && user.prospectStatus === 'active')
+                ) && (
                   <Link
                     to={user.role === 'tutor' ? '/tutor-dashboard' : '/admin-dashboard'}
                     className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
@@ -336,16 +338,16 @@ const Navbar = () => {
                   </Link>
                 )}
               {/* Show Availability only for authenticated tutors with active status */}
-              {user && user.role === 'tutor' && user.prospectStatus === 'active' && (
+              {/* {user && user.role === 'tutor' && user.prospectStatus === 'active' && (
                 <Link
                   to="/tutor/availability"
                   className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
                 >
                   Availability
                 </Link>
-              )}
+              )} */}
               {/* Show Interviews link for authenticated tutors and admins */}
-              {user && (user.role === 'tutor' || user.role === 'admin') && !isTutorOnboardingPage && (
+              {/* {user && (user.role === 'tutor' || user.role === 'admin') && !isTutorOnboardingPage && (
                 <Link
                   to="/interviews"
                   className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
@@ -356,11 +358,12 @@ const Navbar = () => {
                 >
                   Interviews
                 </Link>
-              )}
+              )} */}
               {user &&
                 user.role !== 'student' &&
-                (user.role === 'admin' ||
-                  (user.role === 'tutor' && user.prospectStatus === 'active')) && (
+                (user.role === 'admin'  
+                  // (user.role === 'tutor' && user.prospectStatus === 'active')
+                ) && (
                   <Link
                     to="/messages"
                     className={`relative px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${

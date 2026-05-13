@@ -53,6 +53,10 @@ export const ProfileTipsSection = () => {
   const [dateOfBirthText, setDateOfBirthText] = useState("");
   const [dateOfBirthIso, setDateOfBirthIso] = useState("");
   const [dateOfBirthError, setDateOfBirthError] = useState("");
+  const [profilePhotoError, setProfilePhotoError] = useState("");
+  const [subjectsFieldError, setSubjectsFieldError] = useState("");
+  const [yearsOfExperienceError, setYearsOfExperienceError] = useState("");
+  const [cvFieldError, setCvFieldError] = useState("");
   const [dateOfBirthPickerValue, setDateOfBirthPickerValue] = useState("");
   const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
@@ -195,11 +199,13 @@ export const ProfileTipsSection = () => {
           const picUrl = resolveApiAssetUrl(merged.profilePic);
           setUploadedUrls((u) => ({ ...u, profilePic: picUrl }));
           setPhotoPreview(picUrl);
+          setProfilePhotoError("");
         }
         if (merged.cv) {
           const cvUrl = resolveApiAssetUrl(merged.cv);
           setUploadedUrls((u) => ({ ...u, cv: cvUrl }));
           setSelectedCV({ name: cvNameFromUrl(merged.cv), size: 0, fromServer: true });
+          setCvFieldError("");
         }
 
         try {
@@ -227,6 +233,7 @@ export const ProfileTipsSection = () => {
   useEffect(() => {
     const subjectsString = selectedSubjects.join(', ');
     setSubjects(subjectsString);
+    if (selectedSubjects.length > 0) setSubjectsFieldError("");
   }, [selectedSubjects]);
 
 
@@ -366,6 +373,7 @@ const handlePhotoFile = async (file) => {
     const url = resolveApiAssetUrl(rawUrl);
     setUploadedUrls((u) => ({ ...u, profilePic: url }));
     setTutorOnboarding({ profilePic: url });
+    setProfilePhotoError("");
   } catch (e) {
     console.error(e);
     alert('Failed to upload profile photo.');
@@ -407,6 +415,7 @@ const handleCVFile = async (file) => {
     const url = resolveApiAssetUrl(rawUrl);
     setUploadedUrls((u) => ({ ...u, cv: url }));
     setTutorOnboarding({ cv: url });
+    setCvFieldError("");
   } catch (e) {
     console.error(e);
     alert('Failed to upload CV.');
@@ -417,9 +426,7 @@ const handleCVFile = async (file) => {
 
   const profileTips = [
     "Use a professional, friendly photo where your face is clearly visible",
-    "Highlight your qualifications, experience, teaching philosophy, and tutoring style",
-    "Intro videos increase booking rates by 60% — show your personality!",
-    "Research competitive rates for your subject and experience level",
+    "Highlight your qualifications, experience, teaching philosophy, and tutoring style", 
   ];
 
   return (
@@ -434,7 +441,7 @@ const handleCVFile = async (file) => {
         {/* Profile Photo */}
         <div className="mb-6 relative">
           <label htmlFor="profile-photo" className="block text-base text-[#101727] mb-3 font-normal">
-            Profile Photo
+            Profile Photo <span className="text-red-500">*</span>
           </label>
           <div
             className={`relative w-64 h-64 mx-auto rounded-xl border-2 ${
@@ -494,6 +501,9 @@ const handleCVFile = async (file) => {
               }}
             />
           </div>
+          {profilePhotoError ? (
+            <p className="text-sm text-red-600 mt-2 text-center">{profilePhotoError}</p>
+          ) : null}
         </div>
 
         {/* About Me */}
@@ -608,7 +618,7 @@ const handleCVFile = async (file) => {
         {/* Subjects You Tutor */}
         <div className="mb-6">
           <label htmlFor="subjects" className="block text-base text-[#101727] mb-3 font-normal">
-            Subjects You Tutor
+            Subjects You Tutor <span className="text-red-500">*</span>
           </label>
           
           {/* Selected Subjects Display */}
@@ -652,29 +662,38 @@ const handleCVFile = async (file) => {
           >
             Select Subjects
           </button>
+          {subjectsFieldError ? (
+            <p className="text-sm text-red-600 mt-2">{subjectsFieldError}</p>
+          ) : null}
         </div>
 
 
         {/* Years of Experience */}
         <div className="mb-6">
           <label htmlFor="yoe" className="block text-base text-[#101727] mb-3 font-normal">
-            Years of Experience
+            Years of Experience <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
             id="yoe"
             value={yearsOfExperience}
-            onChange={(e) => setYearsOfExperience(e.target.value)}
+            onChange={(e) => {
+              setYearsOfExperience(e.target.value);
+              setYearsOfExperienceError("");
+            }}
             min="0"
             className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
           />
+          {yearsOfExperienceError ? (
+            <p className="text-sm text-red-600 mt-2">{yearsOfExperienceError}</p>
+          ) : null}
         </div>
 
 
         {/* Upload CV */}
         <div className="mb-6">
           <label htmlFor="cv-upload" className="block text-base text-[#101727] mb-3 font-normal">
-            Upload Resume/CV
+            Upload Resume/CV <span className="text-red-500">*</span>
           </label>
           <div
             className={`relative w-full h-48 rounded-xl border-2 ${
@@ -737,6 +756,7 @@ const handleCVFile = async (file) => {
               }}
             />
           </div>
+          {cvFieldError ? <p className="text-sm text-red-600 mt-2">{cvFieldError}</p> : null}
         </div>
 
         <p className="text-sm text-[#495565] mb-4">
@@ -747,6 +767,14 @@ const handleCVFile = async (file) => {
         <button
           type="button"
           onClick={async () => {
+            setProfilePhotoError("");
+            setSubjectsFieldError("");
+            setYearsOfExperienceError("");
+            setCvFieldError("");
+            if (!String(uploadedUrls.profilePic || "").trim()) {
+              setProfilePhotoError("Profile photo is required.");
+              return;
+            }
             if (!dateOfBirthText.trim()) {
               setDateOfBirthError("Date of Birth is required in MM/DD/YYYY format.");
               return;
@@ -757,6 +785,24 @@ const handleCVFile = async (file) => {
               return;
             }
             setDateOfBirthError("");
+            if (selectedSubjects.length === 0) {
+              setSubjectsFieldError("Select at least one subject you tutor.");
+              return;
+            }
+            const yoeStr = String(yearsOfExperience ?? "").trim();
+            if (!yoeStr) {
+              setYearsOfExperienceError("Years of experience is required.");
+              return;
+            }
+            const yoeNum = Number(yearsOfExperience);
+            if (Number.isNaN(yoeNum) || yoeNum < 0) {
+              setYearsOfExperienceError("Enter a valid number of years (0 or greater).");
+              return;
+            }
+            if (!String(uploadedUrls.cv || "").trim()) {
+              setCvFieldError("Resume/CV upload is required.");
+              return;
+            }
             const combinedFullName = `${String(legalFirstName || "").trim()} ${String(legalLastName || "").trim()}`.trim();
             const onboardingPayload = {
               legalFirstName: String(legalFirstName || "").trim(),
@@ -766,7 +812,7 @@ const handleCVFile = async (file) => {
               dateOfBirthDisplay: dateOfBirthText,
               subjects,
               gradeLevels: "",
-              yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
+              yearsOfExperience: yoeNum,
               teachingPhilosophy: aboutMe,
               profilePic: uploadedUrls.profilePic || undefined,
               cv: uploadedUrls.cv || undefined,
@@ -876,6 +922,35 @@ const handleCVFile = async (file) => {
               </li>
             ))}
           </ul>
+        </div>
+
+        <div className="rounded-2xl border border-[#E8D5A0] bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#E8F0FE]" aria-hidden>
+              <svg width="28" height="22" viewBox="0 0 28 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M4 3h9c1.1 0 2 .9 2 2v14c0-1.1-.9-2-2-2H4V3z"
+                  fill="#ffffff"
+                  stroke="#4A8FCC"
+                  strokeWidth="1.2"
+                />
+                <path
+                  d="M15 3h9c1.1 0 2 .9 2 2v14c0-1.1-.9-2-2-2h-9V3z"
+                  fill="#4A8FCC"
+                  fillOpacity="0.15"
+                  stroke="#4A8FCC"
+                  strokeWidth="1.2"
+                />
+                <path d="M14 3v16" stroke="#4A8FCC" strokeWidth="1.2" />
+              </svg>
+            </span>
+            <h3 className="text-lg font-medium text-[#374151]">Why This Matters</h3>
+          </div>
+          <p className="text-sm leading-relaxed text-[#495565]">
+            Your profile is the first impression{" "}
+            <strong className="font-semibold text-[#101727]">learners</strong> have of you. A complete, professional
+            profile helps you stand out and attracts more bookings.
+          </p>
         </div>
 
         {/* Subjects Selected */}
@@ -1115,7 +1190,7 @@ const handleCVFile = async (file) => {
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end shrink-0 bg-white">
+            {/* <div className="px-6 py-4 border-t border-gray-200 flex justify-end shrink-0 bg-white">
               <button
                 type="button"
                 onClick={closeSubjectsModal}
@@ -1123,7 +1198,7 @@ const handleCVFile = async (file) => {
               >
                 Cancel
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       )}

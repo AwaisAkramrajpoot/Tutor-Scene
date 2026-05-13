@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Alert, Snackbar } from "@mui/material";
+import {
+  Alert,
+  Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from "@mui/material";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 
@@ -110,11 +118,12 @@ const SignUp = () => {
 
   const [selectedGender, setSelectedGender] = useState("");
   const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState({
+  const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
+  const [roleChoiceModalOpen, setRoleChoiceModalOpen] = useState(true);
 
   // --- Handlers ---
   const handleChange = (e) => {
@@ -125,8 +134,13 @@ const SignUp = () => {
     }));
   };
 
-  const handleCloseAlert = () => {
-    setAlert({ ...alert, open: false });
+  const handleCloseSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
+
+  const confirmSignupRole = (role) => {
+    setActiveTab(role);
+    setRoleChoiceModalOpen(false);
   };
 
   const passwordIsStrong = passwordMeetsAllRules(formData.password);
@@ -149,7 +163,7 @@ const SignUp = () => {
     e.preventDefault();
 
     if (!formData.agreeTerms) {
-      setAlert({
+      setSnackbar({
         open: true,
         message: "Please agree to the Terms and Privacy Policies",
         severity: "error",
@@ -158,7 +172,7 @@ const SignUp = () => {
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setAlert({
+      setSnackbar({
         open: true,
         message: "Passwords do not match",
         severity: "error",
@@ -167,7 +181,7 @@ const SignUp = () => {
     }
 
     if (!passwordIsStrong) {
-      setAlert({
+      setSnackbar({
         open: true,
         message:
           "Password must be at least 8 characters long and include uppercase letters, lowercase letters, numbers, and special characters.",
@@ -177,7 +191,7 @@ const SignUp = () => {
     }
 
     if (!phoneNumber || phoneNumber.length <= 4) {
-      setAlert({
+      setSnackbar({
         open: true,
         message: "Please enter a valid phone number.",
         severity: "error",
@@ -186,7 +200,7 @@ const SignUp = () => {
     }
 
     if (activeTab === "tutor" && !selectedGender.trim()) {
-      setAlert({
+      setSnackbar({
         open: true,
         message: "Please select a gender identity.",
         severity: "error",
@@ -234,7 +248,7 @@ const SignUp = () => {
       }
 
       if (response.ok) {
-        setAlert({
+        setSnackbar({
           open: true,
           message:
             data.message ||
@@ -242,7 +256,7 @@ const SignUp = () => {
           severity: "success",
         });
       } else {
-        setAlert({
+        setSnackbar({
           open: true,
           message:
             data.message ||
@@ -251,7 +265,7 @@ const SignUp = () => {
         });
       }
     } catch (error) {
-      setAlert({
+      setSnackbar({
         open: true,
         message:
           error.message || "Network error. Please check your connection.",
@@ -282,6 +296,59 @@ const SignUp = () => {
 
   return (
     <>
+      <Dialog
+        open={roleChoiceModalOpen}
+        onClose={(_, reason) => {
+          if (reason === "backdropClick" || reason === "escapeKeyDown") {
+            return;
+          }
+        }}
+        maxWidth="sm"
+        fullWidth
+        disableEscapeKeyDown
+        aria-labelledby="signup-role-dialog-title"
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle id="signup-role-dialog-title" component="div">
+          <div className="text-xl font-bold text-gray-900 pr-6">
+            How would you like to use Tutor Scene?
+          </div>
+          <p className="text-sm font-normal text-gray-600 mt-2 mb-0">
+            Select the type of account you want to create before continuing.
+          </p>
+        </DialogTitle>
+        <DialogContent>
+          <div className="flex flex-col gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => confirmSignupRole("student")}
+              className="w-full text-left rounded-lg border-2 border-brand-gold p-4 transition-colors hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-brand-medium-blue focus:ring-offset-2"
+            >
+              <div className="text-base font-semibold text-gray-900">
+                Learner / Guardian
+              </div>
+              <div className="text-sm text-gray-600 mt-1">
+                Find tutors, book sessions, and manage learning for yourself or your family.
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => confirmSignupRole("tutor")}
+              className="w-full text-left rounded-lg border-2 border-brand-gold p-4 transition-colors hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-brand-medium-blue focus:ring-offset-2"
+            >
+              <div className="text-base font-semibold text-gray-900">Tutor</div>
+              <div className="text-sm text-gray-600 mt-1">
+                Create a tutor profile, connect with students, and teach on the platform.
+              </div>
+            </button>
+          </div>
+        </DialogContent>
+        <DialogActions className="px-6 pb-4 flex-wrap gap-2">
+          <Button onClick={() => navigate("/signin")} color="inherit">
+            Back to sign in
+          </Button>
+        </DialogActions>
+      </Dialog>
       {/*
         react-phone-input-2 override styles.
         These target the library's default classes to match the form's existing look.
@@ -860,19 +927,18 @@ const SignUp = () => {
         </div>
       </div>
 
-      {/* Alert Snackbar */}
       <Snackbar
-        open={alert.open}
+        open={snackbar.open}
         autoHideDuration={6000}
-        onClose={handleCloseAlert}
+        onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <Alert
-          onClose={handleCloseAlert}
-          severity={alert.severity}
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
           sx={{ width: "100%" }}
         >
-          {alert.message}
+          {snackbar.message}
         </Alert>
       </Snackbar>
     </>
