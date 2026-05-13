@@ -50,7 +50,8 @@ const VerifyEmail = () => {
         setStatus('Email verified. Redirecting...');
 
         const role = String(userPayload.role ?? '').toLowerCase();
-        const target = role === 'tutor' ? '/create-profile' : '/find-tutors';
+        const target =
+          role === 'tutor' ? '/create-profile' : role === 'admin' ? '/admin-dashboard' : '/dashboard';
         window.setTimeout(() => navigate(target, { replace: true }), 900);
       } catch (error) {
         setStatus(error.message || 'Network error while verifying email.');

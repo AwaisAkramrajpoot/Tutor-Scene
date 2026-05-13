@@ -47,6 +47,8 @@ function saveAndContinueValidationToast(topics, payload) {
   return 'Please complete all 5 topics (one question + video each) before Save and Continue.';
 }
 
+const MAX_INTERVIEW_VIDEO_BYTES = 50 * 1024 * 1024;
+
 const TutorInterviewsPage = ({ embedded = false }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -135,6 +137,13 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     if (!file.type.startsWith('video/')) {
       setMessage('Please upload a valid video file.');
       showSnackbar('Please upload a valid video file.', 'error');
+      return;
+    }
+    if (file.size > MAX_INTERVIEW_VIDEO_BYTES) {
+      const msg =
+        'File size is too big. Each interview video must be 50MB or less. Please use a shorter recording or compress your file.';
+      setMessage(msg);
+      showSnackbar(msg, 'error');
       return;
     }
     setMessage('');
