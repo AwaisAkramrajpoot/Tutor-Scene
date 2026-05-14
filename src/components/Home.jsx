@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   Dialog,
   DialogTitle,
@@ -15,6 +15,8 @@ const COMING_SOON_COUNTDOWN_START =
 
 const Home = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [postSignupEmailVerifyOpen, setPostSignupEmailVerifyOpen] = useState(false);
   const [testimonials, setTestimonials] = useState([]);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
   const [loadingTestimonials, setLoadingTestimonials] = useState(true);
@@ -39,6 +41,13 @@ const Home = () => {
     }
     navigate("/find-tutors");
   };
+
+  useEffect(() => {
+    if (location.state?.showPostSignupEmailVerify) {
+      setPostSignupEmailVerifyOpen(true);
+      navigate(".", { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   useEffect(() => {
     const fetchTestimonials = async () => {
@@ -461,6 +470,35 @@ const Home = () => {
           </Button>
           <Button onClick={() => setLearnersGuideOpen(false)} color="inherit">
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={postSignupEmailVerifyOpen}
+        onClose={() => setPostSignupEmailVerifyOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        aria-labelledby="post-signup-verify-title"
+      >
+        <DialogTitle id="post-signup-verify-title">Verify your account</DialogTitle>
+        <DialogContent>
+          <p className="text-gray-700 leading-relaxed">
+            Please check your email and verify your account before logging in.
+          </p>
+        </DialogContent>
+        <DialogActions className="px-4 pb-3">
+          <Button onClick={() => setPostSignupEmailVerifyOpen(false)} color="inherit">
+            Close
+          </Button>
+          <Button
+            component={Link}
+            to="/signin"
+            variant="contained"
+            color="primary"
+            onClick={() => setPostSignupEmailVerifyOpen(false)}
+          >
+            Sign in
           </Button>
         </DialogActions>
       </Dialog>

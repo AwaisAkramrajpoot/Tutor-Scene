@@ -248,22 +248,19 @@ const SignUp = () => {
       }
 
       if (response.ok) {
-        setSnackbar({
-          open: true,
-          message:
-            data.message ||
-            "Registration successful! Check your email to verify your account.",
-          severity: "success",
+        navigate("/", {
+          replace: true,
+          state: { showPostSignupEmailVerify: true },
         });
-      } else {
-        setSnackbar({
-          open: true,
-          message:
-            data.message ||
-            `Registration failed (${response.status}). Please try again.`,
-          severity: "error",
-        });
+        return;
       }
+      setSnackbar({
+        open: true,
+        message:
+          data.message ||
+          `Registration failed (${response.status}). Please try again.`,
+        severity: "error",
+      });
     } catch (error) {
       setSnackbar({
         open: true,

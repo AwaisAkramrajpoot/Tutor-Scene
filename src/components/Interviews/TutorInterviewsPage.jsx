@@ -30,21 +30,40 @@ function VideoCameraIcon({ className }) {
   );
 }
 
+function shortenText(s, max) {
+  const t = String(s || "").trim().replace(/\s+/g, " ");
+  if (t.length <= max) return t;
+  return `${t.slice(0, max)}…`;
+}
+
+function getQuestionSummary(topic, optionKey) {
+  const qs = Array.isArray(topic?.questions) ? topic.questions : [];
+  const q = qs.find((x) => String(x.optionKey) === String(optionKey));
+  if (!q) {
+    return optionKey ? `Option ${optionKey}` : "the question you chose";
+  }
+  const body = shortenText(q.body, 100);
+  return `Option ${q.optionKey}${body ? ` — ${body}` : ""}`;
+}
+
 function saveAndContinueValidationToast(topics, payload) {
   for (let i = 0; i < topics.length; i++) {
     const t = topics[i];
     const r = payload[t.slug];
+    const step = i + 1;
+    const topicTitle = t.title || t.slug || "this topic";
     if (!r?.selectedQuestion) {
-      return `Please select a question for "${t.title}" before continuing.`;
+      return `Step ${step} (${topicTitle}): no question selected. Pick one option, then upload your video and click Save.`;
     }
     if (!r?.videoUrl) {
+      const qSummary = getQuestionSummary(t, r.selectedQuestion);
       if (i === 0) {
-        return 'Please upload your introduction video before continuing.';
+        return `Step ${step} (${topicTitle}): video missing for ${qSummary}. Upload your introduction video and click Save before continuing.`;
       }
-      return `Please upload a video for "${t.title}" before continuing.`;
+      return `Step ${step} (${topicTitle}): video missing for ${qSummary}. Upload your video and click Save before continuing.`;
     }
   }
-  return 'Please complete all 5 topics (one question + video each) before Save and Continue.';
+  return "Please complete all topics (one question + saved video each) before Save and Continue.";
 }
 
 const MAX_INTERVIEW_VIDEO_BYTES = 50 * 1024 * 1024;
@@ -239,8 +258,9 @@ const TutorInterviewsPage = ({ embedded = false }) => {
       return r?.selectedQuestion && r?.videoUrl;
     });
     if (completed && !allOk) {
-      setMessage('Please complete all 5 topics (one question + video each) before Save and Continue.');
-      showSnackbar(saveAndContinueValidationToast(topics, payload), 'error');
+      const detail = saveAndContinueValidationToast(topics, payload);
+      setMessage(detail);
+      showSnackbar(detail, 'error');
       return;
     }
     setSaving(true);

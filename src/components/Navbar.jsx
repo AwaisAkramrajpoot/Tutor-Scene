@@ -24,7 +24,8 @@ const Navbar = () => {
   const isStudent = user?.role === 'student';
   const isVerifyIdentityRoute = location.pathname.startsWith('/verify-identity');
   const isTutorOnboardingPage =
-    ['/create-profile', '/ready-to-teach'].includes(location.pathname) || isVerifyIdentityRoute;
+    ['/create-profile', '/ready-to-teach', '/interviews'].includes(location.pathname) ||
+    isVerifyIdentityRoute;
   const isTutorApproved = user?.role === 'tutor' && user?.prospectStatus === 'active';
 
   // Check if user is logged in
