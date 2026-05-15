@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { apiRequest, resolveApiAssetUrl } from '../../utils/api';
 import {
@@ -29,7 +29,12 @@ const normalizeSubjectsResponse = (response) => {
   return [];
 };
 
-const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) => {
+const BookSessionMatchFlow = ({
+  refreshKey,
+  onEditAssessment,
+  onAfterRemove,
+  profileReturnPath = '/find-tutors',
+}) => {
   const [learners, setLearners] = useState([]);
   const [selectedLabel, setSelectedLabel] = useState('');
   const [loadingList, setLoadingList] = useState(true);
@@ -47,6 +52,8 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
   const [tutors, setTutors] = useState([]);
   const [loadingTutors, setLoadingTutors] = useState(false);
   const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [learnerSelectionError, setLearnerSelectionError] = useState('');
+  const prevLearnersCountRef = useRef(0);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -82,6 +89,18 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
   }, [learners, selectedLabel]);
 
   useEffect(() => {
+    const wasEmpty = prevLearnersCountRef.current === 0;
+    prevLearnersCountRef.current = learners.length;
+    if (wasEmpty && learners.length === 1) {
+      setSelectedLabel(learners[0].learnerLabel);
+    }
+  }, [learners]);
+
+  useEffect(() => {
+    if (selectedLabel) setLearnerSelectionError('');
+  }, [selectedLabel]);
+
+  useEffect(() => {
     const run = async () => {
       try {
         const response = await apiRequest('/api/v1/subjects');
@@ -108,11 +127,19 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
       }));
   }, [availableSubjects]);
 
+  const toggleLearnerSelection = (learnerLabel) => {
+    setSelectedLabel((prev) => (prev === learnerLabel ? '' : learnerLabel));
+    setLearnerSelectionError('');
+  };
+
   const fetchTutors = async () => {
     if (!selectedLabel) {
-      window.alert('Select a learner in My Learners before searching for matches.');
+      setLearnerSelectionError(
+        'Select a learner in My Learners using the Select option before searching for matches.',
+      );
       return;
     }
+    setLearnerSelectionError('');
     if (!subject || !String(subject).trim()) {
       window.alert('Please choose a subject to view tutors.');
       return;
@@ -176,6 +203,8 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
   const displayName = (row) =>
     row.learnerFirstName || row.learnerLabel || 'Learner';
 
+  const selectedLearner = learners.find((l) => l.learnerLabel === selectedLabel);
+
   if (loadingList && learners.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
@@ -195,12 +224,28 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-md sm:p-6">
         <h3 className="text-lg font-bold text-brand-dark-blue">My Learners</h3>
         <p className="mt-1 text-sm font-medium text-brand-medium-blue">
-          Select a learner to Get Matched
+          Choose who you are matching tutors for using the Select column below.
         </p>
+        {selectedLearner ? (
+          <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-brand-gold bg-amber-50 px-3 py-2 text-sm text-brand-dark-blue">
+            <span className="font-medium">Selected for matching:</span>
+            <span className="font-semibold">{displayName(selectedLearner)}</span>
+          </p>
+        ) : (
+          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            No learner selected yet. Use the Select column to choose one before searching.
+          </p>
+        )}
+        {learnerSelectionError ? (
+          <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {learnerSelectionError}
+          </p>
+        ) : null}
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-200 text-gray-600">
+                <th className="w-24 py-2 pr-2 text-center font-medium">Select</th>
                 <th className="py-2 pr-4 font-medium">Status</th>
                 <th className="py-2 pr-4 font-medium">Learner First Name</th>
                 <th className="py-2 pr-4 font-medium">Grade Level</th>
@@ -215,19 +260,27 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
                 return (
                   <tr
                     key={row.learnerLabel}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedLabel(row.learnerLabel)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ')
-                        setSelectedLabel(row.learnerLabel);
-                    }}
-                    className={`cursor-pointer transition-colors ${
-                      sel ? 'bg-amber-100' : 'hover:bg-gray-50'
-                    }`}
+                    className={`transition-colors ${sel ? 'bg-amber-50' : 'hover:bg-gray-50'}`}
                   >
-                    <td className={`py-3 pr-4 ${sel ? 'rounded-l-md' : ''}`}>
-                      <CheckIcon />
+                    <td className={`py-3 pr-2 text-center ${sel ? 'rounded-l-md' : ''}`}>
+                      <label className="inline-flex cursor-pointer items-center justify-center gap-2">
+                        <input
+                          type="radio"
+                          name="bookSessionSelectedLearner"
+                          checked={sel}
+                          onClick={() => toggleLearnerSelection(row.learnerLabel)}
+                          readOnly
+                          className="h-4 w-4 cursor-pointer border-gray-300 text-brand-medium-blue focus:ring-brand-medium-blue"
+                          aria-label={`${sel ? 'Deselect' : 'Select'} ${displayName(row)} for matching`}
+                        />
+                        <span className="sr-only">Select {displayName(row)}</span>
+                      </label>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
+                        <CheckIcon />
+                        Complete
+                      </span>
                     </td>
                     <td className="py-3 pr-4 font-medium text-gray-900">
                       <span className="inline-flex items-center gap-2">
@@ -285,7 +338,13 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
           Subject is required. Other filters are optional. Up to 3 tutor matches are shown.
         </p>
         <p className="mt-1 text-xs text-gray-500">
-          Matches use your search and filters together with the learner you selected above.
+          Matches use your search and filters together with{' '}
+          {selectedLearner ? (
+            <span className="font-semibold text-brand-dark-blue">{displayName(selectedLearner)}</span>
+          ) : (
+            'the learner you select above'
+          )}
+          .
         </p>
 
         <form onSubmit={handleSearchSubmit} className="mt-4">
@@ -626,6 +685,7 @@ const BookSessionMatchFlow = ({ refreshKey, onEditAssessment, onAfterRemove }) =
                         const q = u.toString();
                         return q ? `/tutor/${tutor.id}?${q}` : `/tutor/${tutor.id}`;
                       })()}
+                      state={{ returnTo: profileReturnPath }}
                       className="inline-block rounded-lg bg-brand-medium-blue px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark-blue"
                     >
                       View Profile

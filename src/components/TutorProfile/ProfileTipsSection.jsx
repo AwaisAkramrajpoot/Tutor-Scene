@@ -67,6 +67,13 @@ export const ProfileTipsSection = () => {
   const [uploadedUrls, setUploadedUrls] = useState({ profilePic: "", cv: "" });
   const [savingProfile, setSavingProfile] = useState(false);
 
+  const formatMmDdYyyyInput = (value) => {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  };
+
   const parseMmDdYyyyToIso = (value) => {
     const v = String(value || "").trim();
     const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -96,6 +103,11 @@ export const ProfileTipsSection = () => {
     if (!m) return "";
     return `${m[2]}/${m[3]}/${m[1]}`;
   };
+
+  const sortSubjectNames = (names) =>
+    [...names].sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, { sensitivity: "base" }),
+    );
 
   useEffect(() => {
     let cancelled = false;
@@ -157,7 +169,9 @@ export const ProfileTipsSection = () => {
         setAboutMe(merged.teachingPhilosophy || "");
         if (merged.subjects) {
           setSubjects(merged.subjects);
-          setSelectedSubjects(merged.subjects.split(",").map((s) => s.trim()).filter(Boolean));
+          setSelectedSubjects(
+            sortSubjectNames(merged.subjects.split(",").map((s) => s.trim()).filter(Boolean)),
+          );
         } else {
           setSubjects("");
           setSelectedSubjects([]);
@@ -240,7 +254,7 @@ export const ProfileTipsSection = () => {
   const maxAboutMeLength = 250;
 
   const removeSubject = (subjectName) => {
-    setSelectedSubjects(prev => prev.filter(s => s !== subjectName));
+    setSelectedSubjects((prev) => sortSubjectNames(prev.filter((s) => s !== subjectName)));
   };
 
   const normalizedSubjects = useMemo(
@@ -271,28 +285,71 @@ export const ProfileTipsSection = () => {
     return m;
   }, [normalizedSubjects]);
 
+  const sortedSelectedSubjects = useMemo(
+    () => sortSubjectNames(selectedSubjects),
+    [selectedSubjects],
+  );
+
   const modalCategoryOptions = useMemo(() => {
     const fromDb = new Set(normalizedSubjects.map((s) => s.category).filter(Boolean));
     SUBJECT_CATEGORIES.forEach((c) => fromDb.add(c));
     return Array.from(fromDb).sort((a, b) => a.localeCompare(b));
   }, [normalizedSubjects]);
 
-  const filteredSubjects = normalizedSubjects.filter((subject) => {
+  const filteredSubjects = useMemo(() => {
     const keyword = subjectKeyword.trim().toLowerCase();
-    const matchesKeyword =
-      !keyword ||
-      subject.name.toLowerCase().includes(keyword) ||
-      subject.category.toLowerCase().includes(keyword);
-    const matchesCategory = subjectCategory === "all" || subject.category === subjectCategory;
-    const matchesGrade =
-      subjectGradeLevel === "all" ||
-      subject.gradeLevels.some((grade) => grade === subjectGradeLevel);
+    return normalizedSubjects.filter((subject) => {
+      const matchesKeyword =
+        !keyword ||
+        subject.name.toLowerCase().includes(keyword) ||
+        subject.category.toLowerCase().includes(keyword);
+      const matchesCategory = subjectCategory === "all" || subject.category === subjectCategory;
+      const matchesGrade =
+        subjectGradeLevel === "all" ||
+        subject.gradeLevels.some((grade) => grade === subjectGradeLevel);
 
-    return matchesKeyword && matchesCategory && matchesGrade;
-  });
+      return matchesKeyword && matchesCategory && matchesGrade;
+    });
+  }, [normalizedSubjects, subjectKeyword, subjectCategory, subjectGradeLevel]);
+
+  const filteredAvailableSubjects = useMemo(() => {
+    const selectedSet = new Set(
+      modalRightList.map((name) => String(name).trim().toLowerCase()),
+    );
+    return filteredSubjects.filter(
+      (subject) => !selectedSet.has(String(subject.name).trim().toLowerCase()),
+    );
+  }, [filteredSubjects, modalRightList]);
+
+  const totalAvailableSubjectCount = useMemo(() => {
+    const selectedSet = new Set(
+      modalRightList.map((name) => String(name).trim().toLowerCase()),
+    );
+    return normalizedSubjects.filter(
+      (subject) => !selectedSet.has(String(subject.name).trim().toLowerCase()),
+    ).length;
+  }, [normalizedSubjects, modalRightList]);
+
+  const isProfileComplete = useMemo(() => {
+    if (!String(uploadedUrls.profilePic || "").trim()) return false;
+    if (!dateOfBirthIso) return false;
+    if (selectedSubjects.length === 0) return false;
+    const yoeStr = String(yearsOfExperience ?? "").trim();
+    if (!yoeStr) return false;
+    const yoeNum = Number(yearsOfExperience);
+    if (Number.isNaN(yoeNum) || yoeNum < 0) return false;
+    if (!String(uploadedUrls.cv || "").trim()) return false;
+    return true;
+  }, [
+    uploadedUrls.profilePic,
+    uploadedUrls.cv,
+    dateOfBirthIso,
+    selectedSubjects.length,
+    yearsOfExperience,
+  ]);
 
   const openSubjectsModal = () => {
-    setModalRightList([...selectedSubjects]);
+    setModalRightList(sortSubjectNames([...selectedSubjects]));
     setModalLeftChecked([]);
     setIsSubjectsModalOpen(true);
   };
@@ -312,7 +369,7 @@ export const ProfileTipsSection = () => {
     setModalRightList((prev) => {
       const next = new Set(prev);
       modalLeftChecked.forEach((n) => next.add(n));
-      return Array.from(next);
+      return sortSubjectNames(Array.from(next));
     });
     setModalLeftChecked([]);
   };
@@ -322,11 +379,11 @@ export const ProfileTipsSection = () => {
   };
 
   const removeFromModalRight = (subjectName) => {
-    setModalRightList((prev) => prev.filter((s) => s !== subjectName));
+    setModalRightList((prev) => sortSubjectNames(prev.filter((s) => s !== subjectName)));
   };
 
   const saveSubjectsFromModal = () => {
-    setSelectedSubjects(modalRightList);
+    setSelectedSubjects(sortSubjectNames(modalRightList));
     setIsSubjectsModalOpen(false);
     setModalLeftChecked([]);
   };
@@ -565,11 +622,19 @@ const handleCVFile = async (file) => {
           <input
             type="text"
             id="dob"
+            inputMode="numeric"
+            maxLength={10}
             value={dateOfBirthText}
             onChange={(e) => {
-              const next = e.target.value;
-              setDateOfBirthText(next);
-              const parsed = parseMmDdYyyyToIso(next);
+              const formatted = formatMmDdYyyyInput(e.target.value);
+              setDateOfBirthText(formatted);
+              if (formatted.length < 10) {
+                setDateOfBirthIso("");
+                setDateOfBirthPickerValue("");
+                setDateOfBirthError("");
+                return;
+              }
+              const parsed = parseMmDdYyyyToIso(formatted);
               setDateOfBirthIso(parsed.iso);
               setDateOfBirthPickerValue(parsed.iso);
               setDateOfBirthError(parsed.error);
@@ -623,9 +688,9 @@ const handleCVFile = async (file) => {
           
           {/* Selected Subjects Display */}
           <div className="mb-2">
-            {selectedSubjects.length > 0 && (
+            {sortedSelectedSubjects.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
-                {selectedSubjects.map((subject) => {
+                {sortedSelectedSubjects.map((subject) => {
                   const lvls = levelsByName.get(String(subject).trim().toLowerCase()) || [];
                   return (
                     <span
@@ -883,8 +948,13 @@ const handleCVFile = async (file) => {
             setSavingProfile(false);
             navigate('/interviews');
           }}
-          className="w-full h-14 rounded-xl bg-gradient-to-r from-[#5BA3D8] to-[#1B5A94] text-white text-base font-medium hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`w-full h-14 rounded-xl text-base font-medium transition-opacity shadow-sm disabled:cursor-not-allowed ${
+            isProfileComplete && !uploading.photo && !uploading.cv && !savingProfile
+              ? "bg-gradient-to-r from-[#5BA3D8] to-[#1B5A94] text-white hover:opacity-90"
+              : "bg-[#d1d5db] text-[#9ca3af]"
+          }`}
           disabled={
+            !isProfileComplete ||
             uploading.photo ||
             uploading.cv ||
             savingProfile
@@ -951,47 +1021,6 @@ const handleCVFile = async (file) => {
             <strong className="font-semibold text-[#101727]">learners</strong> have of you. A complete, professional
             profile helps you stand out and attracts more bookings.
           </p>
-        </div>
-
-        {/* Subjects Selected */}
-        <div className="bg-[#EEF1F5] rounded-2xl p-4 min-h-[240px] flex flex-col">
-          <h3 className="text-white text-sm font-medium bg-[#2E7DDB] rounded-md px-3 py-2 mb-3">
-            Subjects Selected
-          </h3>
-          <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-            {selectedSubjects.length === 0 ? (
-              <p className="text-sm text-[#6B7280] px-1">No subjects selected yet.</p>
-            ) : (
-              selectedSubjects.map((subject) => {
-                const lvls = levelsByName.get(String(subject).trim().toLowerCase()) || [];
-                return (
-                  <div
-                    key={subject}
-                    className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#D6DCE5]"
-                  >
-                    <span className="text-sm font-medium text-[#1F2937] flex-1 min-w-[120px]">{subject}</span>
-                    <div className="flex flex-wrap gap-1">
-                      {lvls.map((lvl) => (
-                        <span key={`${subject}-${lvl}`} className={gradeBadgeClass}>
-                          {lvl}
-                        </span>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeSubject(subject)}
-                      className="shrink-0 p-1 rounded text-[#64748b] hover:bg-[#F1F5F9] hover:text-[#0f172a]"
-                      aria-label={`Remove ${subject}`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
         </div>
       </div>
 
@@ -1080,16 +1109,16 @@ const handleCVFile = async (file) => {
                 <div className="px-4 py-3 border-b border-[#e5eaf2] shrink-0">
                   <div className="text-sm font-semibold text-[#1e3a8a]">Available Subjects</div>
                   <div className="text-xs text-[#64748b] mt-0.5">
-                    Showing {filteredSubjects.length} of {normalizedSubjects.length} subjects
+                    Showing {filteredAvailableSubjects.length} of {totalAvailableSubjectCount} subjects
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
                   {loadingSubjects ? (
                     <p className="px-3 py-4 text-sm text-[#6b7280]">Loading subjects…</p>
-                  ) : filteredSubjects.length === 0 ? (
+                  ) : filteredAvailableSubjects.length === 0 ? (
                     <p className="px-3 py-4 text-sm text-[#6b7280]">No subjects match your filters.</p>
                   ) : (
-                    filteredSubjects.map((subject) => {
+                    filteredAvailableSubjects.map((subject) => {
                       const isChecked = modalLeftChecked.includes(subject.name);
                       return (
                         <label

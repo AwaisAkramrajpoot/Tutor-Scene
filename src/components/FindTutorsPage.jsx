@@ -513,6 +513,11 @@ const FindTutorsPage = () => {
                   <div className="flex justify-center">
                     <Link
                       to={profileTo}
+                      state={{
+                        returnTo: profileQs.toString()
+                          ? `/find-tutors?${profileQs.toString()}`
+                          : '/find-tutors',
+                      }}
                       className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                     >
                       View Profile

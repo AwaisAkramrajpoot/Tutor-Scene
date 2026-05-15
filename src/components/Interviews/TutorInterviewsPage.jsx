@@ -67,6 +67,41 @@ function saveAndContinueValidationToast(topics, payload) {
 }
 
 const MAX_INTERVIEW_VIDEO_BYTES = 50 * 1024 * 1024;
+const MAX_INTERVIEW_VIDEO_DURATION_SEC = 120;
+
+function getVideoFileDurationSeconds(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute('src');
+      video.load();
+    };
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+      cleanup();
+      if (!Number.isFinite(duration) || duration <= 0) {
+        reject(new Error('invalid duration'));
+        return;
+      }
+      resolve(duration);
+    };
+    video.onerror = () => {
+      cleanup();
+      reject(new Error('metadata load failed'));
+    };
+    video.src = url;
+  });
+}
+
+function formatVideoDuration(seconds) {
+  const total = Math.max(0, Math.round(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 const TutorInterviewsPage = ({ embedded = false }) => {
   const navigate = useNavigate();
@@ -161,6 +196,22 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     if (file.size > MAX_INTERVIEW_VIDEO_BYTES) {
       const msg =
         'File size is too big. Each interview video must be 50MB or less. Please use a shorter recording or compress your file.';
+      setMessage(msg);
+      showSnackbar(msg, 'error');
+      return;
+    }
+    let durationSec;
+    try {
+      durationSec = await getVideoFileDurationSeconds(file);
+    } catch {
+      const msg =
+        'Could not verify video length. Please use MP4 or MOV and try again.';
+      setMessage(msg);
+      showSnackbar(msg, 'error');
+      return;
+    }
+    if (durationSec > MAX_INTERVIEW_VIDEO_DURATION_SEC) {
+      const msg = `Video is too long (${formatVideoDuration(durationSec)}). Each interview video must be 2 minutes or less.`;
       setMessage(msg);
       showSnackbar(msg, 'error');
       return;
@@ -404,7 +455,7 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                             <p className="text-sm text-[#374151] leading-relaxed">{q.body}</p>
                           </div>
                         </label>
-                        <div className="flex flex-col min-h-[260px]">
+                        <div className="flex min-h-[260px] min-w-0 flex-col overflow-hidden">
                           <div
                             role={isSelected && !uploading ? 'button' : undefined}
                             tabIndex={isSelected && !uploading ? 0 : undefined}
@@ -445,10 +496,9 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                           >
                             <VideoCameraIcon className="mb-4 h-12 w-12 shrink-0 text-[#2563eb]" />
                             <p className="text-lg font-semibold tracking-tight text-[#1e3a8a]">Upload Video</p>
-                            <p className="mt-2 max-w-[240px] text-sm leading-snug text-[#64748b]">
-                              Drag and drop or select a file to upload
+                            <p className="mt-2 max-w-[280px] text-sm leading-snug text-[#64748b]">
+                              Drag and drop or select a file to upload. Maximum length is 2 minutes and 50MB per video.
                             </p>
-                            <p className="mt-3 text-xs font-medium text-[#94a3b8]">Max 2 minutes</p>
                             <input
                               id={fileInputId}
                               type="file"
@@ -478,7 +528,15 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                               Clear
                             </button>
                           </div>
-                          <p className="mt-2 min-h-[18px] text-center text-xs text-[#64748b]">
+                          <p
+                            className="mt-2 min-h-[18px] w-full min-w-0 max-w-full px-1 text-center text-xs text-[#64748b] break-all line-clamp-2"
+                            title={
+                              uploading
+                                ? undefined
+                                : draft?.name ||
+                                  (savedUrl ? 'Video saved' : isSelected ? 'No file selected' : 'Select question first')
+                            }
+                          >
                             {uploading
                               ? 'Uploading…'
                               : draft?.name ||

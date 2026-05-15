@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import BookSession from './BookSession';
 import MessageRequestButton from './Messaging/MessageRequestButton';
 import { apiRequest, resolveApiAssetUrl } from '../utils/api';
@@ -44,9 +44,20 @@ const tutorData = {
 const TutorProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const filterSubject = searchParams.get('subject') || '';
   const filterLevel = searchParams.get('level') || '';
+
+  const defaultFindTutorsReturn = useMemo(() => {
+    const qs = new URLSearchParams();
+    if (filterSubject) qs.set('subject', filterSubject);
+    if (filterLevel) qs.set('level', filterLevel);
+    const q = qs.toString();
+    return q ? `/find-tutors?${q}` : '/find-tutors';
+  }, [filterSubject, filterLevel]);
+
+  const returnTo = location.state?.returnTo || defaultFindTutorsReturn;
 
   const [showBooking, setShowBooking] = useState(null);
   const [tutorDetails, setTutorDetails] = useState(null);
@@ -55,6 +66,14 @@ const TutorProfile = () => {
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [error, setError] = useState(null);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      navigate(returnTo, { replace: true });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate, returnTo]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -202,11 +221,7 @@ const TutorProfile = () => {
 
   const displayFirst = tutorFirstName(mergedTutorData.name);
   const backToSearch = () => {
-    const qs = new URLSearchParams();
-    if (filterSubject) qs.set('subject', filterSubject);
-    if (filterLevel) qs.set('level', filterLevel);
-    const q = qs.toString();
-    navigate(q ? `/find-tutors?${q}` : '/find-tutors');
+    navigate(returnTo);
   };
 
   const introSrc = tutorDetails?.introVideo;

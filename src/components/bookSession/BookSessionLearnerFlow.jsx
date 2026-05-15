@@ -52,6 +52,7 @@ const BookSessionLearnerFlow = ({ embedded = false }) => {
           refreshKey={refreshKey}
           onEditAssessment={openAssessment}
           onAfterRemove={bump}
+          profileReturnPath={embedded ? '/dashboard' : '/book-session'}
         />
       </div>
       <LearnerAssessmentModal
