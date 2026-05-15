@@ -6,14 +6,21 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets } from 'typeorm';
+import { Repository, Brackets, IsNull } from 'typeorm';
 import { Prospect } from '@/database/entities/prospect.entity';
 import { User } from '@/database/entities/user.entity';
 import { AvailabilitySlot } from '@/database/entities/availability-slot.entity';
+import { Conversation } from '@/database/entities/conversation.entity';
+import { Message } from '@/database/entities/message.entity';
+import {
+  buildSubjectPillsFromProspect,
+  computeFeeRangeFromBaseFee,
+} from '../tutor-learner-meta.util';
 import { OnboardingDto } from '../dto/onboarding.dto';
 import { FileType } from '../dto/file-upload.dto';
 import { ProspectStatus, UserRole } from '@/database/entities/enums';
 import * as path from 'path';
+import * as fs from 'fs';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
@@ -24,6 +31,7 @@ export class OnboardingService {
   private s3Client: S3Client;
   private bucketName: string;
   private stripe: Stripe;
+  private readonly uploadsDir = path.join(process.cwd(), 'uploads', 'onboarding');
 
   constructor(
     @InjectRepository(Prospect)
@@ -32,6 +40,10 @@ export class OnboardingService {
     private userRepository: Repository<User>,
     @InjectRepository(AvailabilitySlot)
     private availabilityRepository: Repository<AvailabilitySlot>,
+    @InjectRepository(Conversation)
+    private conversationRepository: Repository<Conversation>,
+    @InjectRepository(Message)
+    private messageRepository: Repository<Message>,
     private configService: ConfigService,
   ) {
     // Initialize S3 client
@@ -71,6 +83,10 @@ export class OnboardingService {
     // Generate unique file name to avoid conflicts
     const uniqueFileName = this.generateUniqueFileName(fileName);
 
+    if (this.configService.get<string>('USE_LOCAL_FILE_STORAGE') === 'true') {
+      return this.storeFileLocally(fileBuffer, uniqueFileName);
+    }
+
     // Determine folder based on file type
     let folder = this.configService.get<string>('AWS_S3_DOCUMENTS_FOLDER', 'Documents');
     const ext = path.extname(fileName).toLowerCase();
@@ -82,8 +98,18 @@ export class OnboardingService {
     }
 
     const key = `${folder}/${uniqueFileName}`;
+    const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
+    const shouldUseLocalFallback =
+      !accessKeyId ||
+      !secretAccessKey ||
+      accessKeyId.includes('your_aws_access_key_id') ||
+      secretAccessKey.includes('your_aws_secret_access_key');
 
     try {
+      if (shouldUseLocalFallback) {
+        return this.storeFileLocally(fileBuffer, uniqueFileName);
+      }
       // Upload to S3
       const command = new PutObjectCommand({
         Bucket: this.bucketName,
@@ -107,8 +133,19 @@ export class OnboardingService {
       return presignedUrl;
     } catch (error) {
       console.error('S3 upload error:', error);
-      throw new InternalServerErrorException('Failed to upload file to S3');
+      // Dev-safe fallback: if S3 fails, persist file locally.
+      return this.storeFileLocally(fileBuffer, uniqueFileName);
     }
+  }
+
+  private storeFileLocally(fileBuffer: Buffer, fileName: string): string {
+    const fullDir = this.uploadsDir;
+    if (!fs.existsSync(fullDir)) {
+      fs.mkdirSync(fullDir, { recursive: true });
+    }
+    const diskPath = path.join(fullDir, fileName);
+    fs.writeFileSync(diskPath, fileBuffer);
+    return `/uploads/onboarding/${fileName}`;
   }
 
   /**
@@ -275,20 +312,50 @@ export class OnboardingService {
    */
   async processTutorOnboarding(onboardingDto: OnboardingDto): Promise<Prospect> {
     try {
-      // Generate 5-digit numeric prospect ID
-      const prospectId = await this.generateProspectId();
-
-      const prospect = this.prospectRepository.create({
-        prospectId: prospectId,
-        ...onboardingDto,
-        status: ProspectStatus.PENDING, // Set status as pending automatically
+      const existing = await this.prospectRepository.findOne({
+        where: { userId: onboardingDto.userId },
       });
-      return await this.prospectRepository.save(prospect);
+
+      let saved: Prospect;
+      if (existing) {
+        Object.assign(existing, onboardingDto, {
+          status: ProspectStatus.PENDING,
+        });
+        saved = await this.prospectRepository.save(existing);
+      } else {
+        const prospectId = await this.generateProspectId();
+
+        const prospect = this.prospectRepository.create({
+          prospectId: prospectId,
+          ...onboardingDto,
+          status: ProspectStatus.PENDING,
+        });
+        saved = await this.prospectRepository.save(prospect);
+      }
+
+      const user = await this.userRepository.findOne({
+        where: { id: onboardingDto.userId },
+      });
+      if (user) {
+        const trimmed = String(onboardingDto.fullName || '').trim();
+        const parts = trimmed.split(/\s+/).filter(Boolean);
+        if (parts.length > 0) {
+          user.firstName = parts[0];
+          user.lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
+          await this.userRepository.save(user);
+        }
+      }
+
+      return saved;
     } catch (error) {
       throw new InternalServerErrorException(
         'Failed to save prospect information',
       );
     }
+  }
+
+  async getProspectByUserId(userId: number): Promise<Prospect | null> {
+    return this.prospectRepository.findOne({ where: { userId } });
   }
 
   private async generateProspectId(): Promise<string> {
@@ -325,7 +392,9 @@ export class OnboardingService {
     });
 
     if (!prospect) {
-      throw new NotFoundException(`User not found in prospects`);
+      // New tutor users can exist before their onboarding row is created.
+      // Return a safe default instead of 404 to keep onboarding flow working.
+      return { status: 'not_started' };
     }
 
     return { status: prospect.status };
@@ -399,24 +468,74 @@ export class OnboardingService {
     availability?: string,
     searchString?: string,
     level?: string,
+    minFee?: string,
+    maxFee?: string,
   ): Promise<Prospect[]> {
     try {
       const queryBuilder = this.prospectRepository
         .createQueryBuilder('prospect')
         .where('prospect.status = :status', { status: ProspectStatus.ACTIVE });
 
-      // Filter by subject if provided
-      if (subject) {
-        queryBuilder.andWhere('LOWER(prospect.subjects) LIKE LOWER(:subject)', {
-          subject: `%${subject}%`,
-        });
+      if (subject && String(subject).trim()) {
+        const trimmed = String(subject).trim();
+        const baseName = trimmed.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        queryBuilder.andWhere(
+          new Brackets((qb) => {
+            qb.where('LOWER(prospect.subjects) LIKE LOWER(:subjectFull)', {
+              subjectFull: `%${trimmed}%`,
+            });
+            if (baseName && baseName.toLowerCase() !== trimmed.toLowerCase()) {
+              qb.orWhere('LOWER(prospect.subjects) LIKE LOWER(:subjectBase)', {
+                subjectBase: `%${baseName}%`,
+              });
+            }
+          }),
+        );
       }
 
-      // Filter by grade level if provided (exact match)
-      if (level) {
-        queryBuilder.andWhere('LOWER(prospect.gradeLevels) LIKE LOWER(:level)', {
-          level: `%${level}%`,
-        });
+      if (level && String(level).trim()) {
+        const lev = String(level).trim();
+        const firstTok = lev.split(/\s+/)[0] || lev;
+        queryBuilder.andWhere(
+          new Brackets((qb) => {
+            qb.where("TRIM(COALESCE(prospect.gradeLevels, '')) = ''").orWhere(
+              new Brackets((qb2) => {
+                qb2
+                  .where('LOWER(prospect.gradeLevels) LIKE LOWER(:lvFull)', {
+                    lvFull: `%${lev}%`,
+                  })
+                  .orWhere('LOWER(prospect.gradeLevels) LIKE LOWER(:lvFirst)', {
+                    lvFirst: `%${firstTok}%`,
+                  });
+              }),
+            );
+          }),
+        );
+      }
+
+      if (minFee !== undefined && minFee !== null && minFee !== '') {
+        const n = Number(minFee);
+        if (!Number.isNaN(n)) {
+          queryBuilder.andWhere(
+            new Brackets((qb) => {
+              qb.where('prospect.fee IS NULL').orWhere('prospect.fee >= :minFee', {
+                minFee: n,
+              });
+            }),
+          );
+        }
+      }
+      if (maxFee !== undefined && maxFee !== null && maxFee !== '') {
+        const n = Number(maxFee);
+        if (!Number.isNaN(n)) {
+          queryBuilder.andWhere(
+            new Brackets((qb) => {
+              qb.where('prospect.fee IS NULL').orWhere('prospect.fee <= :maxFee', {
+                maxFee: n,
+              });
+            }),
+          );
+        }
       }
 
       // Filter by search string (searches in fullName and subjects)
@@ -468,6 +587,8 @@ export class OnboardingService {
 
       // Secondary sort by creation date
       queryBuilder.addOrderBy('prospect.createdAt', 'DESC');
+
+      queryBuilder.take(150);
 
       const tutors = await queryBuilder.getMany();
 
@@ -623,5 +744,63 @@ export class OnboardingService {
       fullName: p.fullName,
       status: p.status,
     }));
+  }
+
+  async getAverageTutorResponseHours(tutorUserId: number): Promise<number | null> {
+    if (!tutorUserId) return null;
+    const convs = await this.conversationRepository.find({
+      where: { tutorId: tutorUserId, deletedAt: IsNull() },
+      select: ['id', 'studentId', 'tutorId'],
+    });
+    if (!convs.length) return null;
+    const deltasHours: number[] = [];
+    for (const c of convs) {
+      const msgs = await this.messageRepository.find({
+        where: { conversationId: c.id },
+        order: { createdAt: 'ASC' },
+        select: ['senderId', 'createdAt'],
+      });
+      let anchor: Date | null = null;
+      for (const m of msgs) {
+        if (m.senderId === c.studentId) {
+          if (!anchor) anchor = m.createdAt;
+        } else if (m.senderId === c.tutorId && anchor) {
+          if (m.createdAt > anchor) {
+            deltasHours.push(
+              (m.createdAt.getTime() - anchor.getTime()) / 3600000,
+            );
+            anchor = null;
+            break;
+          }
+        }
+      }
+    }
+    if (!deltasHours.length) return null;
+    const avg =
+      deltasHours.reduce((a, b) => a + b, 0) / deltasHours.length;
+    return Math.round(avg * 10) / 10;
+  }
+
+  async getLearnerMetaForProspect(prospect: Prospect): Promise<{
+    subjectPills: ReturnType<typeof buildSubjectPillsFromProspect>;
+    feeRangeMin: number;
+    feeRangeMax: number;
+    averageResponseHours: number | null;
+  }> {
+    const feeNum =
+      prospect.fee != null ? Number(prospect.fee) : NaN;
+    const { feeRangeMin, feeRangeMax } = computeFeeRangeFromBaseFee(
+      Number.isFinite(feeNum) ? feeNum : undefined,
+    );
+    const subjectPills = buildSubjectPillsFromProspect(prospect.subjects || '');
+    const averageResponseHours = await this.getAverageTutorResponseHours(
+      prospect.userId,
+    );
+    return {
+      subjectPills,
+      feeRangeMin,
+      feeRangeMax,
+      averageResponseHours,
+    };
   }
 }

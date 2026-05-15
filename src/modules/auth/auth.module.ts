@@ -11,6 +11,8 @@ import { RolesGuard } from './guards/roles.guard';
 import { User } from '@/database/entities/user.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
 import { MailService } from './services/mail.service';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 
 @Module({
   imports: [
@@ -28,7 +30,15 @@ import { MailService } from './services/mail.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard, MailService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtAuthGuard,
+    RolesGuard,
+    MailService,
+    GoogleStrategy,
+    GoogleOAuthGuard,
+  ],
   exports: [AuthService, JwtAuthGuard, RolesGuard, MailService, JwtModule],
 })
 export class AuthModule {}

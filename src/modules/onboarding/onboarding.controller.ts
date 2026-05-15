@@ -14,6 +14,9 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/auth.decorator';
+import { User } from '@/database/entities/user.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { OnboardingService } from './services/onboarding.service';
@@ -138,13 +141,12 @@ export class OnboardingController {
       properties: {
         status: { 
           type: 'string', 
-          enum: ['pending', 'active', 'suspended'],
-          example: 'pending' 
+          enum: ['not_started', 'pending', 'awaiting_interview', 'active', 'suspended'],
+          example: 'not_started' 
         }
       }
     }
   })
-  @ApiResponse({ status: 404, description: 'User not found in prospects' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async getProspectStatus(
     @Param('userId', ParseIntPipe) userId: number,
@@ -231,6 +233,8 @@ export class OnboardingController {
     @Query('availability') availability?: string,
     @Query('searchString') searchString?: string,
     @Query('level') level?: string,
+    @Query('minFee') minFee?: string,
+    @Query('maxFee') maxFee?: string,
   ): Promise<{ tutors: Prospect[]; count: number }> {
     try {
       const tutors = await this.onboardingService.searchTutors(
@@ -239,6 +243,8 @@ export class OnboardingController {
         availability,
         searchString,
         level,
+        minFee,
+        maxFee,
       );
       return {
         tutors,
@@ -348,6 +354,16 @@ export class OnboardingController {
     }
   }
 
+  @Get('tutor/me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user tutor prospect profile' })
+  @ApiResponse({ status: 200, description: 'Prospect profile or null' })
+  async getMyTutorProspect(@CurrentUser() user: User) {
+    const prospect = await this.onboardingService.getProspectByUserId(user.id);
+    return { prospect };
+  }
+
   @Get('tutor/:id')
   @ApiOperation({ summary: 'Get tutor/prospect by ID' })
   @ApiResponse({ 
@@ -357,11 +373,11 @@ export class OnboardingController {
   })
   @ApiResponse({ status: 404, description: 'Tutor not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getTutorById(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<Prospect> {
+  async getTutorById(@Param('id', ParseIntPipe) id: number) {
     try {
-      return await this.onboardingService.getTutorById(id);
+      const prospect = await this.onboardingService.getTutorById(id);
+      const meta = await this.onboardingService.getLearnerMetaForProspect(prospect);
+      return { ...(prospect as any), ...meta };
     } catch (error) {
       this.logger.error(`Failed to get tutor with ID ${id}`, error.stack);
       if (error instanceof NotFoundException) {

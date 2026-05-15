@@ -1,5 +1,7 @@
-import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Query, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import { Response } from 'express';
 import { AuthService } from './services/auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -7,6 +9,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public, CurrentUser } from './decorators/auth.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 import { User } from '@/database/entities/user.entity';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -87,6 +90,14 @@ export class AuthController {
     return this.authService.resetPassword(resetPasswordDto, token);
   }
 
+  @Public()
+  @Get('verify-email')
+  @ApiOperation({ summary: 'Verify email and return auth tokens' })
+  @ApiResponse({ status: 200, description: 'Email verified successfully', type: AuthResponseDto })
+  async verifyEmail(@Query('token') token: string): Promise<AuthResponseDto> {
+    return this.authService.verifyEmail(token);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiBearerAuth()
@@ -111,4 +122,30 @@ export class AuthController {
       updatedAt: user.updatedAt,
     };
   }
+
+  // ─── NEW: Google OAuth Endpoints ──────────────────────────────────────────
+
+  @Public()
+  @Get('google')
+  @UseGuards(GoogleOAuthGuard)
+  @ApiOperation({ summary: 'Initiate Google OAuth login' })
+  async googleAuth() {}
+
+  @Public()
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleCallback(@CurrentUser() user: any, @Res() res: Response) {
+    const tokens = await this.authService.googleLogin(user);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    
+    // Also pass role so frontend can route to correct dashboard
+    res.redirect(
+      `${frontendUrl}/auth/google/success` +
+      `?accessToken=${tokens.accessToken}` +
+      `&refreshToken=${tokens.refreshToken}` +
+      `&role=${tokens.user.role}`,
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
 }

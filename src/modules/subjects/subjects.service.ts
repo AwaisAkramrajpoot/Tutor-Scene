@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Subject } from '@/database/entities/subject.entity';
 import { CreateSubjectDto } from './dto/create-subject.dto';
 import { UpdateSubjectDto } from './dto/update-subject.dto';
+import { CatalogSubject, DEFAULT_SUBJECT_CATALOG } from './default-subject-catalog';
 
 @Injectable()
 export class SubjectsService {
@@ -13,12 +14,85 @@ export class SubjectsService {
   ) {}
 
   async create(createSubjectDto: CreateSubjectDto): Promise<Subject> {
-    const subject = this.subjectRepository.create(createSubjectDto);
+    const subject = this.subjectRepository.create({
+      name: createSubjectDto.name,
+      description: createSubjectDto.description ?? null,
+      category: createSubjectDto.category ?? null,
+      gradeLevels:
+        Array.isArray(createSubjectDto.gradeLevels) && createSubjectDto.gradeLevels.length > 0
+          ? createSubjectDto.gradeLevels
+          : [],
+    });
     return this.subjectRepository.save(subject);
   }
 
-  async findAll(): Promise<Subject[]> {
+  async findAllFromDatabase(): Promise<Subject[]> {
     return this.subjectRepository.find({ order: { name: 'ASC' } });
+  }
+
+  private normalizeSubject(
+    subject: Subject | CatalogSubject,
+  ): CatalogSubject {
+    let gradeLevels: string[] = [];
+    if ('gradeLevels' in subject && Array.isArray(subject.gradeLevels)) {
+      gradeLevels = subject.gradeLevels;
+    }
+
+    return {
+      id: subject.id,
+      name: subject.name,
+      category: subject.category || 'General',
+      gradeLevels,
+    };
+  }
+
+  async findAll(filters?: {
+    category?: string;
+    keyword?: string;
+    gradeLevel?: string;
+    databaseOnly?: boolean;
+  }): Promise<CatalogSubject[]> {
+    const dbRows = await this.subjectRepository.find({ order: { name: 'ASC' } });
+    let source: CatalogSubject[];
+    if (filters?.databaseOnly) {
+      source = dbRows.map((s) => this.normalizeSubject(s));
+    } else {
+      const mergedByName = new Map<string, CatalogSubject>();
+      for (const item of DEFAULT_SUBJECT_CATALOG) {
+        mergedByName.set(item.name.toLowerCase(), item);
+      }
+      for (const db of dbRows.map((s) => this.normalizeSubject(s))) {
+        mergedByName.set(db.name.toLowerCase(), db);
+      }
+      source = Array.from(mergedByName.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+    }
+
+    const category = (filters?.category || '').trim().toLowerCase();
+    const keyword = (filters?.keyword || '').trim().toLowerCase();
+    const gradeLevel = (filters?.gradeLevel || '').trim().toLowerCase();
+
+    return source.filter((subject) => {
+      if (category && category !== 'all' && subject.category.toLowerCase() !== category) {
+        return false;
+      }
+      if (
+        gradeLevel &&
+        gradeLevel !== 'all' &&
+        !subject.gradeLevels.some((gl) => gl.toLowerCase() === gradeLevel)
+      ) {
+        return false;
+      }
+      if (
+        keyword &&
+        !subject.name.toLowerCase().includes(keyword) &&
+        !subject.category.toLowerCase().includes(keyword)
+      ) {
+        return false;
+      }
+      return true;
+    });
   }
 
   async findOne(id: number): Promise<Subject> {
@@ -40,7 +114,7 @@ export class SubjectsService {
     await this.subjectRepository.remove(subject);
   }
 
-  async findByCategory(category: string): Promise<Subject[]> {
-    return this.subjectRepository.find({ where: { category }, order: { name: 'ASC' } });
+  async findByCategory(category: string): Promise<CatalogSubject[]> {
+    return this.findAll({ category });
   }
 }

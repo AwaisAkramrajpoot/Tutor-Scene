@@ -39,4 +39,9 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   gender?: string;
+
+  @ApiProperty({ example: 'WELCOME10', required: false })
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
 }

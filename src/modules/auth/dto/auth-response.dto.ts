@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AuthResponseDto {
+  @ApiPropertyOptional({
+    description:
+      'True when this user had a prior recorded sign-in (e.g. another device or session). Multiple sessions are allowed.',
+  })
+  additionalLoginNotice?: boolean;
+
   @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
   accessToken: string;
 

@@ -20,6 +20,10 @@ import { MessageRequest } from '../database/entities/message-request.entity';
 import { Conversation } from '../database/entities/conversation.entity';
 import { GradeLevel } from '../database/entities/grade-level.entity';
 import { Testimonial } from '../database/entities/testimonial.entity';
+import { VirtualInterviewResponse } from '../database/entities/virtual-interview-response.entity';
+import { InterviewTopic } from '../database/entities/interview-topic.entity';
+import { InterviewQuestion } from '../database/entities/interview-question.entity';
+import { LearnerAssessmentResponse } from '../database/entities/learner-assessment-response.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -60,7 +64,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
       port: this.configService.get<number>('DATABASE_PORT', 5432),
       username: this.configService.get<string>('DATABASE_USERNAME', 'postgres'),
       password: this.configService.get<string>('DATABASE_PASSWORD', 'password'),
-      database: this.configService.get<string>('DATABASE_NAME', 'nest'),
+      database: this.configService.get<string>('DATABASE_NAME', 'tutor_scene_db'),
       entities: [
         User,
         Prospect,
@@ -81,6 +85,10 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         Conversation,
         GradeLevel,
         Testimonial,
+        VirtualInterviewResponse,
+        InterviewTopic,
+        InterviewQuestion,
+        LearnerAssessmentResponse,
       ],
       synchronize: false, // Auto-create tables from entities
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),

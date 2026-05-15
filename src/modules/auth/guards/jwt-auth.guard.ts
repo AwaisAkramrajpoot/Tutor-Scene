@@ -25,11 +25,16 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest(err: any, user: any, info: any, context: any) {
     if (err || !user) {
-      console.error('JWT Auth Error:', {
-        error: err,
-        info: info,
-        hasUser: !!user,
-      });
+      const infoMessage = info?.message || '';
+      // Missing token is expected for unauthenticated/public browsing.
+      // Keep logs concise and avoid noisy stack traces in this common case.
+      if (infoMessage && infoMessage !== 'No auth token') {
+        console.error('JWT Auth Error:', {
+          error: err?.message || err || null,
+          info: infoMessage,
+          hasUser: !!user,
+        });
+      }
       throw err || new UnauthorizedException('Authentication required');
     }
     return user;

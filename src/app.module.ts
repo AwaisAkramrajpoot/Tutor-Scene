@@ -28,6 +28,7 @@ import { InterviewsModule } from './modules/interviews/interviews.module';
 import { GradeLevelsModule } from './modules/grade-levels/grade-levels.module';
 import { HealthModule } from './modules/health/health.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
+import { LearnerAssessmentModule } from './modules/learner-assessment/learner-assessment.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { TestimonialsModule } from './modules/testimonials/testimonials.module';
     GradeLevelsModule,
     HealthModule,
     TestimonialsModule,
+    LearnerAssessmentModule,
   ],
   controllers: [],
   providers: [

@@ -11,6 +11,9 @@ export class Testimonial {
   @Column({ type: 'varchar', length: 255, name: 'testimonial_by' })
   testimonialBy: string;
 
+  @Column({ type: 'int', nullable: true })
+  rating: number | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

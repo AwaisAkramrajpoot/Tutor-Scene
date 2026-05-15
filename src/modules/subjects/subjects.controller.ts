@@ -24,11 +24,23 @@ export class SubjectsController {
   @Get()
   @ApiOperation({ summary: 'Get all subjects' })
   @ApiResponse({ status: 200, description: 'List of all subjects' })
-  findAll(@Query('category') category?: string) {
-    if (category) {
-      return this.subjectsService.findByCategory(category);
-    }
-    return this.subjectsService.findAll();
+  findAll(
+    @Query('category') category?: string,
+    @Query('keyword') keyword?: string,
+    @Query('gradeLevel') gradeLevel?: string,
+    @Query('databaseOnly') databaseOnly?: string,
+  ) {
+    const dbOnly = databaseOnly === 'true' || databaseOnly === '1';
+    return this.subjectsService.findAll({ category, keyword, gradeLevel, databaseOnly: dbOnly });
+  }
+
+  @Get('admin')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List subjects stored in database (admin)' })
+  @ApiResponse({ status: 200, description: 'Database subjects only' })
+  findAllForAdmin() {
+    return this.subjectsService.findAllFromDatabase();
   }
 
   @Public()

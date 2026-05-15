@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   Param,
   ParseIntPipe,
@@ -22,13 +23,17 @@ import {
 import { InterviewsService } from './interviews.service';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { CurrentUser } from '../auth/decorators/auth.decorator';
+import { CurrentUser, Public } from '../auth/decorators/auth.decorator';
 import { UserRole } from '@/database/entities/enums';
 import { User } from '@/database/entities/user.entity';
 import { ScheduleInterviewDto } from './dto/schedule-interview.dto';
 import { UpdateInterviewStatusDto } from './dto/update-interview-status.dto';
 import { InterviewResponseDto } from './dto/interview-response.dto';
 import { GetInterviewsQueryDto } from './dto/get-interviews-query.dto';
+import { CreateInterviewTopicDto } from './dto/create-interview-topic.dto';
+import { UpdateInterviewTopicDto } from './dto/update-interview-topic.dto';
+import { CreateInterviewQuestionDto } from './dto/create-interview-question.dto';
+import { UpdateInterviewQuestionDto } from './dto/update-interview-question.dto';
 
 @ApiTags('Interviews')
 @ApiBearerAuth()
@@ -261,7 +266,7 @@ export class InterviewsController {
   })
   async getMyInterview(
     @CurrentUser() user: User,
-  ): Promise<InterviewResponseDto> {
+  ): Promise<InterviewResponseDto | null> {
     return this.interviewsService.getMyInterview(user.id);
   }
 
@@ -585,6 +590,94 @@ export class InterviewsController {
     return this.interviewsService.updateInterviewStatus(
       id,
       updateInterviewStatusDto.status,
+    );
+  }
+
+  @Public()
+  @Get('virtual/questionnaire')
+  @ApiOperation({ summary: 'Virtual interview topics and questions (catalog)' })
+  async getVirtualQuestionnaire() {
+    return this.interviewsService.getVirtualQuestionnaireForTutor();
+  }
+
+  @Get('virtual/questionnaire/admin')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Virtual interview catalog (admin, includes inactive)' })
+  async getVirtualQuestionnaireAdmin() {
+    return this.interviewsService.getVirtualQuestionnaireAdmin();
+  }
+
+  @Post('virtual/topics')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create interview topic' })
+  async createInterviewTopic(@Body() dto: CreateInterviewTopicDto) {
+    return this.interviewsService.createInterviewTopic(dto);
+  }
+
+  @Patch('virtual/topics/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update interview topic' })
+  async updateInterviewTopic(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateInterviewTopicDto,
+  ) {
+    return this.interviewsService.updateInterviewTopic(id, dto);
+  }
+
+  @Delete('virtual/topics/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Delete interview topic and its questions' })
+  async deleteInterviewTopic(@Param('id', ParseIntPipe) id: number) {
+    return this.interviewsService.deleteInterviewTopic(id);
+  }
+
+  @Post('virtual/topics/:topicId/questions')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create interview question under topic' })
+  async createInterviewQuestion(
+    @Param('topicId', ParseIntPipe) topicId: number,
+    @Body() dto: CreateInterviewQuestionDto,
+  ) {
+    return this.interviewsService.createInterviewQuestion(topicId, dto);
+  }
+
+  @Patch('virtual/questions/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update interview question' })
+  async updateInterviewQuestion(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateInterviewQuestionDto,
+  ) {
+    return this.interviewsService.updateInterviewQuestion(id, dto);
+  }
+
+  @Delete('virtual/questions/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Delete interview question' })
+  async deleteInterviewQuestion(@Param('id', ParseIntPipe) id: number) {
+    return this.interviewsService.deleteInterviewQuestion(id);
+  }
+
+  @Get('virtual/me')
+  @ApiOperation({ summary: 'Get current tutor virtual interview questionnaire progress' })
+  async getMyVirtualInterview(@CurrentUser() user: User) {
+    return this.interviewsService.getVirtualInterviewByUserId(user.id);
+  }
+
+  @Post('virtual/me')
+  @ApiOperation({ summary: 'Save current tutor virtual interview questionnaire progress' })
+  async saveMyVirtualInterview(
+    @CurrentUser() user: User,
+    @Body()
+    body: {
+      responses: Record<string, unknown>;
+      completed?: boolean;
+    },
+  ) {
+    return this.interviewsService.saveVirtualInterview(
+      user.id,
+      body.responses || {},
+      !!body.completed,
     );
   }
 }

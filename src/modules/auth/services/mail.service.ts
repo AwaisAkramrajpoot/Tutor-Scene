@@ -5,9 +5,39 @@ import * as nodemailer from 'nodemailer';
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
+  private fromAddress: string;
 
   constructor(private readonly configService: ConfigService) {
-    // Configure SMTP transporter with Gmail-specific settings
+    const sendgridKey = (this.configService.get<string>('SENDGRID_API_KEY') || '').trim();
+    const sendgridSender = (this.configService.get<string>('SENDGRID_SENDER_EMAIL') || '').trim();
+    const fromName = this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene');
+
+    // Prefer SendGrid sender email when present (so emails come from verify@rankk.app).
+    const fromEmail =
+      sendgridSender || (this.configService.get<string>('SMTP_FROM_EMAIL') || '').trim();
+
+    this.fromAddress = fromEmail
+      ? `"${fromName}" <${fromEmail}>`
+      : `"${fromName}" <no-reply@tutorscene.com>`;
+
+    // Use SendGrid SMTP when SENDGRID_API_KEY exists, otherwise fallback to Gmail SMTP.
+    if (sendgridKey) {
+      this.transporter = nodemailer.createTransport({
+        host: 'smtp.sendgrid.net',
+        port: 587,
+        secure: false,
+        auth: {
+          user: 'apikey',
+          pass: sendgridKey,
+        },
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 10,
+      });
+      console.log(`📧 [Email] SendGrid SMTP configured. From: ${this.fromAddress}`);
+      return;
+    }
+
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -18,14 +48,15 @@ export class MailService {
       maxConnections: 5,
       maxMessages: 10,
     });
+    console.log(`📧 [Email] Gmail SMTP configured. From: ${this.fromAddress}`);
   }
 
   async sendResetPasswordEmail(to: string, resetToken: string): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://tutorscene.com');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Password Reset Request',
       html: `
@@ -60,6 +91,41 @@ export class MailService {
     }
   }
 
+  async sendEmailVerificationEmail(to: string, verificationToken: string): Promise<void> {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    const verifyUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
+
+    const mailOptions = {
+      from: this.fromAddress,
+      to,
+      subject: 'Verify Your Email - Tutor Scene',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Welcome to Tutor Scene!</h2>
+          <p>Thanks for creating your account. Please verify your email address to continue:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verifyUrl}" 
+               style="background-color: #007bff; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 5px; display: inline-block;">
+              Verify Email
+            </a>
+          </div>
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p>${verifyUrl}</p>
+          <p>This link will expire in 24 hours.</p>
+        </div>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Email verification sent to ${to}`);
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+      throw new InternalServerErrorException('Failed to send verification email');
+    }
+  }
+
   async sendBookingPaymentEmail(
     to: string,
     studentName: string,
@@ -68,7 +134,7 @@ export class MailService {
     classStartTime: Date,
     paymentIntentId: string,
   ): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://tutorscene.com');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const paymentUrl = `${frontendUrl}/payments?bookingId=${bookingId}&paymentIntentId=${paymentIntentId}&amount=${amount}`;
 
     // Format the class start time
@@ -85,7 +151,7 @@ export class MailService {
     });
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Complete Your Booking Payment - Tutor Scene',
       html: `
@@ -164,7 +230,7 @@ export class MailService {
     });
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Booking Cancellation Notice - Tutor Scene',
       html: `
@@ -240,7 +306,7 @@ export class MailService {
     });
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Student Cancelled Booking - Tutor Scene',
       html: `
@@ -315,7 +381,7 @@ export class MailService {
     });
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject: 'Your Interview Has Been Scheduled - Tutor Scene',
       html: `
@@ -443,7 +509,7 @@ export class MailService {
     }
 
     const mailOptions = {
-      from: `"${this.configService.get<string>('SMTP_FROM_NAME', 'Tutor Scene')}" <${this.configService.get<string>('SMTP_FROM_EMAIL')}>`,
+      from: this.fromAddress,
       to,
       subject,
       html: `

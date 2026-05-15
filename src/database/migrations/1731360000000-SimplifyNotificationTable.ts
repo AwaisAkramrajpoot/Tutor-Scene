@@ -4,19 +4,29 @@ export class SimplifyNotificationTable1731360000000 implements MigrationInterfac
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Add new notification column as nullable first
     await queryRunner.query(`ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS "notification" TEXT`);
-    
-    // Migrate existing data: combine title and message into notification field
-    await queryRunner.query(`
-      UPDATE "notification" 
-      SET "notification" = COALESCE("title", '') || ': ' || COALESCE("message", '')
-      WHERE "notification" IS NULL
+
+    // Only migrate data if title column exists (safe for fresh DBs)
+    const titleExists = await queryRunner.query(`
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'notification' AND column_name = 'title'
     `);
-    
+
+    if (titleExists.length > 0) {
+      await queryRunner.query(`
+        UPDATE "notification" 
+        SET "notification" = COALESCE("title", '') || ': ' || COALESCE("message", '')
+        WHERE "notification" IS NULL
+      `);
+    }
+
+    // Ensure no nulls remain before setting NOT NULL
+    await queryRunner.query(`UPDATE "notification" SET "notification" = '' WHERE "notification" IS NULL`);
+
     // Now make it NOT NULL with a default
     await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "notification" SET NOT NULL`);
     await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "notification" SET DEFAULT ''`);
-    
-    // Drop old columns
+
+    // Drop old columns (IF EXISTS makes these safe on fresh DBs)
     await queryRunner.query(`ALTER TABLE "notification" DROP COLUMN IF EXISTS "type"`);
     await queryRunner.query(`ALTER TABLE "notification" DROP COLUMN IF EXISTS "title"`);
     await queryRunner.query(`ALTER TABLE "notification" DROP COLUMN IF EXISTS "message"`);
@@ -37,7 +47,7 @@ export class SimplifyNotificationTable1731360000000 implements MigrationInterfac
     await queryRunner.query(`ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS "is_sent" BOOLEAN DEFAULT false`);
     await queryRunner.query(`ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS "channel" VARCHAR(50)`);
     await queryRunner.query(`ALTER TABLE "notification" ADD COLUMN IF NOT EXISTS "action_url" TEXT`);
-    
+
     // Drop notification column
     await queryRunner.query(`ALTER TABLE "notification" DROP COLUMN IF EXISTS "notification"`);
   }
