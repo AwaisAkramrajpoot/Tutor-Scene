@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminInterviewsPage from './AdminInterviewsPage';
-import TutorInterviewsPage from './TutorInterviewsPage';
+import { CreateProfilePage } from '../TutorProfile/index';
 
 const InterviewsPage = () => {
   const [userRole, setUserRole] = useState(null);
@@ -35,7 +35,7 @@ const InterviewsPage = () => {
   }
 
   if (userRole === 'tutor') {
-    return <TutorInterviewsPage />;
+    return <CreateProfilePage step="interview" />;
   }
 
   return (

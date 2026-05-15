@@ -2,14 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import { getConversations } from '../services/messagingService';
+import { getNotifications } from '../services/notificationsService';
 
 // Icons
-const SearchIcon = (props) => (
-  <svg {...props} className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-
 const ChevronDownIcon = (props) => (
   <svg {...props} className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -25,9 +20,16 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifBadgeCount, setNotifBadgeCount] = useState(0);
+  const isStudent = user?.role === 'student';
+  const isVerifyIdentityRoute = location.pathname.startsWith('/verify-identity');
+  const isTutorOnboardingPage =
+    ['/create-profile', '/ready-to-teach', '/interviews'].includes(location.pathname) ||
+    isVerifyIdentityRoute;
+  const isTutorApproved = user?.role === 'tutor' && user?.prospectStatus === 'active';
 
+  // Check if user is logged in
   useEffect(() => {
-    // Check if user is logged in
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const userData = JSON.parse(userStr);
@@ -39,7 +41,6 @@ const Navbar = () => {
   useEffect(() => {
     const fetchUnreadCount = async () => {
       if (!user) return;
-
       try {
         const conversations = await getConversations();
         const totalUnread = conversations.reduce(
@@ -58,7 +59,23 @@ const Navbar = () => {
     const interval = setInterval(fetchUnreadCount, 30000);
 
     return () => clearInterval(interval);
-  }, [user?.id]); // Only depend on user ID, not the entire user object
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!isStudent || !user?.id) return;
+    const loadNotifs = async () => {
+      try {
+        const res = await getNotifications(user.id);
+        const list = Array.isArray(res) ? res : res?.data || [];
+        setNotifBadgeCount(Math.min(list.length, 99));
+      } catch {
+        setNotifBadgeCount(0);
+      }
+    };
+    loadNotifs();
+    const t = setInterval(loadNotifs, 60000);
+    return () => clearInterval(t);
+  }, [isStudent, user?.id]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -91,10 +108,11 @@ const Navbar = () => {
   };
 
   const handleLogoutConfirm = () => {
-    // Clear localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('tutorBgCheckTermsAccepted');
+    sessionStorage.removeItem('tutorVerificationSubmitted');
     
     // Close dialog
     setLogoutDialogOpen(false);
@@ -111,141 +129,226 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white border-b-2 border-brand-light-blue shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link 
-              to={user ? (
-                user.role === 'student' ? '/dashboard' :
-                user.role === 'tutor' ? '/tutor-dashboard' :
-                user.role === 'admin' ? '/admin-dashboard' : '/'
-              ) : '/'}
-              className="flex items-center cursor-pointer"
-            >
-              <div className="flex items-center">
-                {/* Logo Image */}
-                <img 
-                  src="/images/logo.png.png" 
-                  alt="Tutor Scene Logo" 
-                  className="h-10 w-auto"
-                  onError={(e) => {
-                    // Fallback to graduation cap icon if logo image doesn't exist
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-                {/* Fallback Graduation Cap Icon */}
-                <div className="hidden items-center">
-                  <div className="w-8 h-8 bg-brand-dark-blue rounded-full flex items-center justify-center mr-2 border-2 border-brand-gold">
-                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
-                    </svg>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xl font-bold text-brand-dark-blue leading-none">TUTOR</span>
-                    <span className="text-xl font-bold text-brand-medium-blue leading-none">SCENE</span>
-                  </div>
+    <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto relative min-h-[4rem] md:min-h-[4.25rem] flex items-center justify-end px-4 sm:px-6 lg:px-8 py-2 w-full">
+          <Link 
+            to={user ? (
+              user.role === 'student' ? '/dashboard' :
+              user.role === 'tutor' ? '/tutor-dashboard' :
+              user.role === 'admin' ? '/admin-dashboard' : '/'
+            ) : '/'}
+            className={`absolute left-4 sm:left-6 lg:left-8 z-20 flex cursor-pointer items-center ${
+              isVerifyIdentityRoute
+                ? 'top-1/2 -translate-y-1/2'
+                : 'bottom-0 translate-y-[42%] items-end'
+            }`}
+          >
+            {isVerifyIdentityRoute ? (
+              <span className="text-lg font-bold tracking-tight text-brand-dark-blue sm:text-xl">
+                Tutor Scene
+              </span>
+            ) : (
+            <div className="flex items-end">
+              <img 
+                src="/images/logo.png.png" 
+                alt="Tutor Scene Logo" 
+                className="h-[3.25rem] sm:h-[4rem] md:h-[7.4rem] w-auto object-contain object-bottom drop-shadow-md"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              <div className="hidden items-center gap-2 pb-0.5">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-dark-blue rounded-full flex items-center justify-center border-2 border-brand-gold flex-shrink-0">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+                  </svg>
+                </div>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-lg md:text-xl font-bold text-brand-dark-blue">TUTOR</span>
+                  <span className="text-lg md:text-xl font-bold text-brand-medium-blue">SCENE</span>
                 </div>
               </div>
-            </Link>
-          </div>
-
-          {/* Search Bar */}
-          <div className="flex-1 max-w-lg mx-8">
-            <form onSubmit={handleSearchSubmit} className="flex">
-              {/* <div className="relative flex-1">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <SearchIcon className="text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Want to learn?"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-l-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand-medium-blue focus:border-brand-medium-blue sm:text-sm"
-                />
-              </div> */}
-              {/* <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsExploreOpen(!isExploreOpen)}
-                  className="inline-flex items-center px-4 py-2 border border-l-0 border-gray-300 rounded-r-md bg-brand-light-blue text-brand-dark-blue text-sm font-medium hover:bg-brand-medium-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-brand-medium-blue focus:border-brand-medium-blue transition-colors"
-                >
-                  Explore
-                  <ChevronDownIcon className="ml-1" />
-                </button> */}
-                
-                {/* Dropdown Menu */}
-                {/* {isExploreOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
-                    <div className="py-1">
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mathematics</a>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Science</a>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Languages</a>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Programming</a>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Music</a>
-                    </div>
-                  </div>
-                )} */}
-              {/* </div> */}
-            </form>
-          </div>
-
-          {/* Navigation Links */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-center gap-2">
+            </div>
+            )}
+          </Link>
+        <div className={`flex flex-1 min-h-[2.75rem] items-center justify-end gap-2 md:gap-3 ${
+          isVerifyIdentityRoute
+            ? 'pl-28 sm:pl-32 md:pl-36'
+            : 'pl-[6.5rem] sm:pl-[8.5rem] md:pl-[10.5rem] lg:pl-[11rem]'
+        }`}>
               {/* Show Home only when user is not authenticated */}
+          <div className="hidden md:flex items-center gap-1 lg:gap-2 flex-shrink-0">
+              {isTutorOnboardingPage && (
+                <>
+                  <Link
+                    to="/"
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname === '/'
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    Home
+                  </Link>
+                  <Link
+                    to="/about"
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname === '/about'
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    About
+                  </Link>
+                  <Link
+                    to="/become-tutor"
+                    className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  >
+                    Become a Tutor
+                  </Link>
+                  <Link
+                    to="/create-profile"
+                    className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-1 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
+              {isStudent && (
+                <>
+                  <Link
+                    to="/"
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname === '/'
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    Home
+                  </Link>
+                  <Link
+                    to="/dashboard"
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname === '/dashboard'
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    to="/find-tutors"
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname === '/find-tutors'
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    Find Tutors
+                  </Link>
+                  {/* <Link
+                    to="/messages"
+                    className={`relative px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname.startsWith('/messages')
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    Messages
+                    {unreadCount > 0 && (
+                      <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </Link> */}
+                  {/* <Link
+                    to="/become-tutor"
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname === '/become-tutor'
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    Become a Tutor
+                  </Link> */}
+                  <Link
+                    to="/about"
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname === '/about'
+                        ? 'text-brand-medium-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    About
+                  </Link>
+                </>
+              )}
               {!user && (
                 <Link
                   to="/"
-                  className="text-brand-medium-blue hover:text-brand-dark-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                    location.pathname === '/'
+                      ? 'text-brand-medium-blue font-semibold'
+                      : 'text-gray-700 hover:text-brand-medium-blue'
+                  }`}
                 >
                   Home
                 </Link>
               )}
-              {/* Show Dashboard for authenticated students, tutors (active), and admins */}
-              {user && (user.role === 'student' || user.role === 'admin' || (user.role === 'tutor' && user.prospectStatus === 'active')) && (
+              {!user && (
                 <Link
-                  to={
-                    user.role === 'student' 
-                      ? '/dashboard' 
-                      : user.role === 'tutor' 
-                      ? '/tutor-dashboard' 
-                      : '/admin-dashboard'
-                  }
+                  to="/about"
                   className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                    (location.pathname === '/dashboard' && user.role === 'student') ||
-                    (location.pathname === '/tutor-dashboard' && user.role === 'tutor') ||
-                    (location.pathname === '/admin-dashboard' && user.role === 'admin')
-                      ? 'text-brand-medium-blue hover:text-brand-dark-blue font-semibold'
+                    location.pathname === '/about'
+                      ? 'text-brand-medium-blue font-semibold'
                       : 'text-gray-700 hover:text-brand-medium-blue'
                   }`}
                 >
-                  Dashboard
+                  About
                 </Link>
               )}
-              {/* Show Find Tutors only if user is logged in and role is student */}
-              {user && user.role === 'student' && (
+              {!user && (
                 <Link
-                  to="/find-tutors"
-                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  to="/signin"
+                  className={`px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                    location.pathname === '/signin'
+                      ? 'text-brand-medium-blue font-semibold'
+                      : 'text-gray-700 hover:text-brand-medium-blue'
+                  }`}
                 >
-                  Find Tutors
+                  Sign In
                 </Link>
               )}
+              {user &&
+                user.role !== 'student' &&
+                (user.role === 'admin'
+                  //  ||
+                  // (user.role === 'tutor' && user.prospectStatus === 'active')
+                ) && (
+                  <Link
+                    to={user.role === 'tutor' ? '/tutor-dashboard' : '/admin-dashboard'}
+                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      (location.pathname === '/tutor-dashboard' && user.role === 'tutor') ||
+                      (location.pathname === '/admin-dashboard' && user.role === 'admin')
+                        ? 'text-brand-medium-blue hover:text-brand-dark-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                )}
               {/* Show Availability only for authenticated tutors with active status */}
-              {user && user.role === 'tutor' && user.prospectStatus === 'active' && (
+              {/* {user && user.role === 'tutor' && user.prospectStatus === 'active' && (
                 <Link
                   to="/tutor/availability"
                   className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
                 >
                   Availability
                 </Link>
-              )}
+              )} */}
               {/* Show Interviews link for authenticated tutors and admins */}
-              {user && (user.role === 'tutor' || user.role === 'admin') && (
+              {/* {user && (user.role === 'tutor' || user.role === 'admin') && !isTutorOnboardingPage && (
                 <Link
                   to="/interviews"
                   className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
@@ -256,27 +359,29 @@ const Navbar = () => {
                 >
                   Interviews
                 </Link>
-              )}
-              {/* Show Messages link for authenticated users (students always, tutors only if active) */}
-              {user && (user.role === 'student' || user.role === 'admin' || (user.role === 'tutor' && user.prospectStatus === 'active')) && (
-                <Link
-                  to="/messages"
-                  className={`relative px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                    location.pathname.startsWith('/messages')
-                      ? 'text-brand-medium-blue hover:text-brand-dark-blue font-semibold'
-                      : 'text-gray-700 hover:text-brand-medium-blue'
-                  }`}
-                >
-                  Messages
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </Link>
-              )}
-              {/* Hide "Become a Tutor" if user is already a tutor (active or pending) */}
-              {(!user || user.role !== 'tutor') && (
+              )} */}
+              {user &&
+                user.role !== 'student' &&
+                (user.role === 'admin'  
+                  // (user.role === 'tutor' && user.prospectStatus === 'active')
+                ) && (
+                  <Link
+                    to="/messages"
+                    className={`relative px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                      location.pathname.startsWith('/messages')
+                        ? 'text-brand-medium-blue hover:text-brand-dark-blue font-semibold'
+                        : 'text-gray-700 hover:text-brand-medium-blue'
+                    }`}
+                  >
+                    Messages
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
+              {(!user || user.role !== 'tutor') && !(user && user.role === 'student') && (
                 <Link
                   to="/become-tutor"
                   className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
@@ -284,67 +389,113 @@ const Navbar = () => {
                   Become a Tutor
                 </Link>
               )}
-              {/* Show About only when user is not authenticated */}
               {!user && (
                 <Link
-                  to="/about"
-                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  to="/signup"
+                  className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-1 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold"
                 >
-                  About
+                  Get Started
                 </Link>
               )}
-            </div>
           </div>
 
-          {/* Auth Buttons / User Menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
             {user ? (
-              // Show user menu when logged in
               <>
-                <button
-                  onClick={handleMenuOpen}
-                  className="flex items-center space-x-2 text-brand-dark-blue hover:text-brand-medium-blue px-3 py-2 text-sm font-semibold transition-colors"
-                >
-                  <span>{`${user.firstName.toUpperCase()} ${user.lastName.toUpperCase()}`}</span>
-                  <ChevronDownIcon />
-                </button>
-                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl)}
-                  onClose={handleMenuClose}
-                  anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'right',
-                  }}
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                >
-                  <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>
-                </Menu>
+                {user.role === 'tutor' && !isTutorApproved ? (
+                  <button
+                    onClick={handleLogoutClick}
+                    className="px-4 py-1.5 text-sm font-medium text-gray-700 border border-gray-400 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    Log Out
+                  </button>
+                ) : (
+                  <>
+                    {/* ── STUDENT ONLY: Bell + Envelope icon symbols ── */}
+                    {user.role === 'student' && (
+                      <>
+                        {/* Bell Icon - Notifications */}
+                        <Link
+                          to="/notifications"
+                          className="relative text-yellow-500 hover:text-yellow-600 transition-colors"
+                          title="Notifications"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                          </svg>
+                          {notifBadgeCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center">
+                              {notifBadgeCount > 9 ? '9+' : notifBadgeCount}
+                            </span>
+                          )}
+                        </Link>
+
+                        <Link
+                          to="/messages"
+                          className={`relative transition-colors ${
+                            location.pathname.startsWith('/messages')
+                              ? 'text-brand-medium-blue'
+                              : 'text-brand-medium-blue hover:text-brand-dark-blue'
+                          }`}
+                          title="Messages"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                              {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                          )}
+                        </Link>
+                      </>
+                    )}
+
+                    <button
+                      onClick={handleMenuOpen}
+                      className="flex items-center space-x-2 text-brand-dark-blue hover:text-brand-medium-blue px-3 py-2 text-sm font-semibold transition-colors"
+                    >
+                      <span>{user.firstName || 'Account'}</span>
+                      <ChevronDownIcon />
+                    </button>
+                    <Menu
+                      anchorEl={anchorEl}
+                      open={Boolean(anchorEl)}
+                      onClose={handleMenuClose}
+                      anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'right',
+                      }}
+                      transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                      }}
+                    >
+                      {/* ── STUDENT ONLY: updated dropdown menu items ── */}
+                      {user.role === 'student' ? (
+                        <>
+                          <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>Profile</MenuItem>
+                          <MenuItem onClick={() => { handleMenuClose(); navigate('/account-settings'); }}>Account Settings</MenuItem>
+                          <MenuItem onClick={() => { handleMenuClose(); navigate('/my-sessions'); }}>Session History</MenuItem>
+                          <MenuItem onClick={() => { handleMenuClose(); navigate('/credits-referrals'); }}>Credits &amp; Referrals</MenuItem>
+                          <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Log Out</MenuItem>
+                        </>
+                      ) : (
+                        // Tutor & Admin: original menu items UNCHANGED
+                        <>
+                          <MenuItem onClick={handleDashboardClick}>Dashboard</MenuItem>
+                          <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>
+                        </>
+                      )}
+                    </Menu>
+                  </>
+                )}
               </>
-            ) : (
-              // Show auth buttons when not logged in
-              <>
-                <Link
-                  to="/signin"
-                  className="text-brand-medium-blue hover:text-brand-dark-blue px-3 py-2 text-sm font-medium transition-colors"
-                >
-                  Sign in
-                </Link>
-                <Link
-                  to="/signup"
-                  className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-2 rounded-md text-sm font-semibold transition-all shadow-lg hover:shadow-xl border-2 border-transparent hover:border-brand-gold"
-                >
-                  Create free account
-                </Link>
-              </>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
-
+      <div className="w-full shrink-0 border-b-4 border-brand-gold" />
       {/* Logout Confirmation Dialog */}
       <Dialog
         open={logoutDialogOpen}

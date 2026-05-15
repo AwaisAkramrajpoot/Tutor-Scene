@@ -18,10 +18,9 @@ const RoleProtectedRoute = ({ children, allowedRoles = [] }) => {
   const hasAccess = allowedRoles.some(role => role.toLowerCase() === userRole);
 
   if (!hasAccess) {
-    // Redirect to appropriate dashboard based on user's role
     switch (userRole) {
       case 'student':
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to="/find-tutors" replace />;
       case 'tutor':
         return <Navigate to="/tutor-dashboard" replace />;
       case 'admin':

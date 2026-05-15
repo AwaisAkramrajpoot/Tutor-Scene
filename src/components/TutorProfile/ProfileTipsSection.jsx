@@ -1,154 +1,398 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadOnboardingFile, apiRequest } from "../../utils/api";
+import {
+  uploadOnboardingFile,
+  apiRequest,
+  getCurrentUser,
+  submitTutorOnboarding,
+  resolveApiAssetUrl,
+  fetchMyTutorProspect,
+} from "../../utils/api";
 import { getTutorOnboarding, setTutorOnboarding } from "../../utils/onboarding";
 
 export const ProfileTipsSection = () => {
+  const tutorLsUserKey = (() => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (!raw) return "";
+      const u = JSON.parse(raw);
+      return String(u.userId || u.id || "");
+    } catch {
+      return "";
+    }
+  })();
+
+  const SUBJECT_CATEGORIES = [
+    "Biology",
+    "Business & Economics",
+    "Chemistry",
+    "Computer Science & Technology",
+    "Mathematics",
+    "Physics",
+    "Study Skills & Executive Function",
+    "Test Prep",
+    "Writing & Humanities",
+  ];
+  const SUBJECT_GRADE_LEVELS = ["Elementary", "Middle", "High", "College", "Adult Learners"];
+
   const navigate = useNavigate();
   const [aboutMe, setAboutMe] = useState("");
   const [subjects, setSubjects] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [availableSubjects, setAvailableSubjects] = useState([]);
-  const [isSubjectsDropdownOpen, setIsSubjectsDropdownOpen] = useState(false);
+  const [isSubjectsModalOpen, setIsSubjectsModalOpen] = useState(false);
+  const [subjectKeyword, setSubjectKeyword] = useState("");
+  const [subjectCategory, setSubjectCategory] = useState("all");
+  const [subjectGradeLevel, setSubjectGradeLevel] = useState("all");
+  const [modalLeftChecked, setModalLeftChecked] = useState([]);
+  const [modalRightList, setModalRightList] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
-  const subjectsDropdownRef = useRef(null);
-  const [gradeLevels, setGradeLevels] = useState("");
-  const [selectedGradeLevels, setSelectedGradeLevels] = useState([]);
-  const [availableGradeLevels, setAvailableGradeLevels] = useState([]);
-  const [isGradeLevelsDropdownOpen, setIsGradeLevelsDropdownOpen] = useState(false);
-  const [loadingGradeLevels, setLoadingGradeLevels] = useState(false);
-  const gradeLevelsDropdownRef = useRef(null);
   const [yearsOfExperience, setYearsOfExperience] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
-  const [interviewTime, setInterviewTime] = useState("");
-  const [hourlyRate, setHourlyRate] = useState("");
+  const [legalFirstName, setLegalFirstName] = useState("");
+  const [legalLastName, setLegalLastName] = useState("");
+  const [dateOfBirthText, setDateOfBirthText] = useState("");
+  const [dateOfBirthIso, setDateOfBirthIso] = useState("");
+  const [dateOfBirthError, setDateOfBirthError] = useState("");
+  const [profilePhotoError, setProfilePhotoError] = useState("");
+  const [subjectsFieldError, setSubjectsFieldError] = useState("");
+  const [yearsOfExperienceError, setYearsOfExperienceError] = useState("");
+  const [cvFieldError, setCvFieldError] = useState("");
+  const [dateOfBirthPickerValue, setDateOfBirthPickerValue] = useState("");
   const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
-  const [isDraggingVideo, setIsDraggingVideo] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [selectedVideo, setSelectedVideo] = useState(null);
   const [selectedCV, setSelectedCV] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [isDraggingCV, setIsDraggingCV] = useState(false);
-  const [uploading, setUploading] = useState({ photo: false, video: false, cv: false });
-  const [uploadedUrls, setUploadedUrls] = useState({ profilePic: "", introVideo: "", cv: "" });
+  const [uploading, setUploading] = useState({ photo: false, cv: false });
+  const [uploadedUrls, setUploadedUrls] = useState({ profilePic: "", cv: "" });
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const formatMmDdYyyyInput = (value) => {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  };
+
+  const parseMmDdYyyyToIso = (value) => {
+    const v = String(value || "").trim();
+    const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return { iso: "", error: "Use MM/DD/YYYY format." };
+    const mm = Number(m[1]);
+    const dd = Number(m[2]);
+    const yyyy = Number(m[3]);
+    if (mm < 1 || mm > 12) return { iso: "", error: "Month must be 01-12." };
+    if (dd < 1 || dd > 31) return { iso: "", error: "Day must be 01-31." };
+    if (yyyy < 1900 || yyyy > new Date().getFullYear()) return { iso: "", error: "Enter a valid year." };
+
+    const iso = `${String(yyyy).padStart(4, "0")}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    const d = new Date(`${iso}T00:00:00`);
+    // Validate real date (e.g. 02/30 invalid)
+    const isReal =
+      d.getFullYear() === yyyy &&
+      d.getMonth() + 1 === mm &&
+      d.getDate() === dd;
+    if (!isReal) return { iso: "", error: "Enter a real calendar date." };
+
+    return { iso, error: "" };
+  };
+
+  const formatIsoToMmDdYyyy = (iso) => {
+    const v = String(iso || "").trim();
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return "";
+    return `${m[2]}/${m[3]}/${m[1]}`;
+  };
+
+  const sortSubjectNames = (names) =>
+    [...names].sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, { sensitivity: "base" }),
+    );
 
   useEffect(() => {
-    const fetchSubjects = async () => {
+    let cancelled = false;
+
+    const cvNameFromUrl = (url) => {
+      const s = String(url || "");
+      try {
+        const p = new URL(s).pathname;
+        return p.split("/").filter(Boolean).pop() || "Uploaded CV";
+      } catch {
+        return s.split("/").filter(Boolean).pop() || "Uploaded CV";
+      }
+    };
+
+    const hydrate = async () => {
       try {
         setLoadingSubjects(true);
-        const response = await apiRequest('/api/v1/subjects');
+        const [response, prospectWrap] = await Promise.all([
+          apiRequest("/api/v1/subjects?databaseOnly=true"),
+          fetchMyTutorProspect().catch(() => ({ prospect: null })),
+        ]);
         const subjectsList = response.subjects || response.data || response || [];
+        if (cancelled) return;
         setAvailableSubjects(subjectsList);
+
+        const prospect = prospectWrap?.prospect ?? null;
+        const local = getTutorOnboarding();
+        const merged = { ...local, ownerUserId: local.ownerUserId };
+        if (prospect && typeof prospect === "object") {
+          if (prospect.fullName) merged.fullName = prospect.fullName;
+          if (prospect.subjects != null && prospect.subjects !== "") merged.subjects = prospect.subjects;
+          if (prospect.teachingPhilosophy != null && prospect.teachingPhilosophy !== "")
+            merged.teachingPhilosophy = prospect.teachingPhilosophy;
+          if (prospect.yearsOfExperience != null && !Number.isNaN(Number(prospect.yearsOfExperience)))
+            merged.yearsOfExperience = prospect.yearsOfExperience;
+          if (prospect.profilePic) merged.profilePic = prospect.profilePic;
+          if (prospect.cv) merged.cv = prospect.cv;
+          const dobRaw = prospect.dateOfBirth;
+          const dobIso =
+            typeof dobRaw === "string"
+              ? dobRaw.slice(0, 10)
+              : dobRaw && typeof dobRaw === "object" && dobRaw.toISOString
+                ? dobRaw.toISOString().slice(0, 10)
+                : "";
+          if (dobIso && /^\d{4}-\d{2}-\d{2}$/.test(dobIso)) {
+            merged.dateOfBirth = dobIso;
+            merged.dateOfBirthDisplay = formatIsoToMmDdYyyy(dobIso);
+          }
+          const fnParts = String(prospect.fullName || "")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+          if (fnParts.length && !merged.legalFirstName) merged.legalFirstName = fnParts[0];
+          if (fnParts.length > 1 && !merged.legalLastName)
+            merged.legalLastName = fnParts.slice(1).join(" ");
+        }
+        setTutorOnboarding(merged);
+
+        setAboutMe(merged.teachingPhilosophy || "");
+        if (merged.subjects) {
+          setSubjects(merged.subjects);
+          setSelectedSubjects(
+            sortSubjectNames(merged.subjects.split(",").map((s) => s.trim()).filter(Boolean)),
+          );
+        } else {
+          setSubjects("");
+          setSelectedSubjects([]);
+        }
+        setYearsOfExperience(
+          merged.yearsOfExperience !== undefined && merged.yearsOfExperience !== null && merged.yearsOfExperience !== ""
+            ? String(merged.yearsOfExperience)
+            : "",
+        );
+        setLegalFirstName(merged.legalFirstName || "");
+        setLegalLastName(merged.legalLastName || "");
+        if (!merged.legalFirstName || !merged.legalLastName) {
+          if (merged.fullName) {
+            const parts = String(merged.fullName).trim().split(/\s+/);
+            if (parts.length > 0 && !merged.legalFirstName) setLegalFirstName(parts[0]);
+            if (parts.length > 1 && !merged.legalLastName) setLegalLastName(parts.slice(1).join(" "));
+          }
+        }
+        const dobFromSaved =
+          merged.dateOfBirthDisplay ||
+          (merged.dateOfBirth ? formatIsoToMmDdYyyy(String(merged.dateOfBirth).slice(0, 10)) : "");
+        if (dobFromSaved) {
+          setDateOfBirthText(dobFromSaved);
+          const parsed = parseMmDdYyyyToIso(dobFromSaved);
+          setDateOfBirthIso(parsed.iso);
+          setDateOfBirthPickerValue(parsed.iso);
+          setDateOfBirthError(parsed.error);
+        } else {
+          setDateOfBirthText("");
+          setDateOfBirthIso("");
+          setDateOfBirthPickerValue("");
+          setDateOfBirthError("");
+        }
+        setSelectedPhoto(null);
+        setSelectedCV(null);
+        setUploadedUrls({ profilePic: "", cv: "" });
+        setPhotoPreview(null);
+        if (merged.profilePic) {
+          const picUrl = resolveApiAssetUrl(merged.profilePic);
+          setUploadedUrls((u) => ({ ...u, profilePic: picUrl }));
+          setPhotoPreview(picUrl);
+          setProfilePhotoError("");
+        }
+        if (merged.cv) {
+          const cvUrl = resolveApiAssetUrl(merged.cv);
+          setUploadedUrls((u) => ({ ...u, cv: cvUrl }));
+          setSelectedCV({ name: cvNameFromUrl(merged.cv), size: 0, fromServer: true });
+          setCvFieldError("");
+        }
+
+        try {
+          const rawUser = localStorage.getItem("user");
+          if (rawUser) {
+            const u = JSON.parse(rawUser);
+            if (!merged.legalFirstName && !merged.fullName && u?.firstName) setLegalFirstName(u.firstName);
+            if (!merged.legalLastName && !merged.fullName && u?.lastName) setLegalLastName(u.lastName);
+          }
+        } catch {}
       } catch (error) {
-        console.error('Failed to fetch subjects:', error);
+        console.error("Failed to fetch subjects:", error);
       } finally {
-        setLoadingSubjects(false);
+        if (!cancelled) setLoadingSubjects(false);
       }
     };
 
-    const fetchGradeLevels = async () => {
-      try {
-        setLoadingGradeLevels(true);
-        const response = await apiRequest('/api/v1/grade-levels');
-        const gradeLevelsList = response.gradeLevels || response.data || response || [];
-        setAvailableGradeLevels(gradeLevelsList);
-      } catch (error) {
-        console.error('Failed to fetch grade levels:', error);
-      } finally {
-        setLoadingGradeLevels(false);
-      }
+    hydrate();
+    return () => {
+      cancelled = true;
     };
-
-    fetchSubjects();
-    fetchGradeLevels();
-
-    const saved = getTutorOnboarding();
-    if (saved.teachingPhilosophy) setAboutMe(saved.teachingPhilosophy);
-    if (saved.subjects) {
-      setSubjects(saved.subjects);
-      // Parse saved subjects and match with available subjects
-      const savedSubjectNames = saved.subjects.split(',').map(s => s.trim());
-      setSelectedSubjects(savedSubjectNames);
-    }
-    if (saved.gradeLevels) {
-      setGradeLevels(saved.gradeLevels);
-      const savedGradeLevelNames = saved.gradeLevels.split(',').map(s => s.trim());
-      setSelectedGradeLevels(savedGradeLevelNames);
-    }
-    if (saved.yearsOfExperience) setYearsOfExperience(String(saved.yearsOfExperience));
-    if (saved.fullName) setFullName(saved.fullName);
-    if (saved.dateOfBirth) setDateOfBirth(saved.dateOfBirth);
-    if (saved.interviewTime) setInterviewTime(saved.interviewTime);
-    if (saved.hourlyRate) setHourlyRate(String(saved.hourlyRate));
-    if (saved.profilePic) { setUploadedUrls((u)=>({ ...u, profilePic: saved.profilePic })); setPhotoPreview(saved.profilePic); }
-    if (saved.cv) setUploadedUrls((u)=>({ ...u, cv: saved.cv }));
-    if (saved.introVideo) setUploadedUrls((u)=>({ ...u, introVideo: saved.introVideo }));
-  }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (subjectsDropdownRef.current && !subjectsDropdownRef.current.contains(event.target)) {
-        setIsSubjectsDropdownOpen(false);
-      }
-      if (gradeLevelsDropdownRef.current && !gradeLevelsDropdownRef.current.contains(event.target)) {
-        setIsGradeLevelsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [tutorLsUserKey]);
 
   // Update subjects string when selectedSubjects changes
   useEffect(() => {
     const subjectsString = selectedSubjects.join(', ');
     setSubjects(subjectsString);
+    if (selectedSubjects.length > 0) setSubjectsFieldError("");
   }, [selectedSubjects]);
 
-  // Update grade levels string when selectedGradeLevels changes
-  useEffect(() => {
-    const gradeLevelsString = selectedGradeLevels.join(', ');
-    setGradeLevels(gradeLevelsString);
-  }, [selectedGradeLevels]);
 
   const maxAboutMeLength = 250;
 
-  const toggleSubject = (subjectName) => {
-    setSelectedSubjects(prev => {
-      if (prev.includes(subjectName)) {
-        return prev.filter(s => s !== subjectName);
-      } else {
-        return [...prev, subjectName];
-      }
-    });
-  };
-
   const removeSubject = (subjectName) => {
-    setSelectedSubjects(prev => prev.filter(s => s !== subjectName));
+    setSelectedSubjects((prev) => sortSubjectNames(prev.filter((s) => s !== subjectName)));
   };
 
-  const toggleGradeLevel = (gradeLevelName) => {
-    setSelectedGradeLevels(prev => {
-      if (prev.includes(gradeLevelName)) {
-        return prev.filter(g => g !== gradeLevelName);
-      } else {
-        return [...prev, gradeLevelName];
-      }
+  const normalizedSubjects = useMemo(
+    () =>
+      availableSubjects.map((subject, idx) => {
+        const gradeLevelsFromName = (() => {
+          const n = String(subject?.name || subject || "");
+          const match = n.match(/\(([^)]+)\)/);
+          return match ? match[1].split(",").map((v) => v.trim()) : [];
+        })();
+        const rawGl = subject?.gradeLevels ?? subject?.grade_levels;
+        const gl = Array.isArray(rawGl) ? rawGl.filter(Boolean) : [];
+        return {
+          id: subject?.id || idx + 1,
+          name: subject?.name || String(subject || ""),
+          category: subject?.category || "General",
+          gradeLevels: gl.length > 0 ? gl : gradeLevelsFromName,
+        };
+      }),
+    [availableSubjects],
+  );
+
+  const levelsByName = useMemo(() => {
+    const m = new Map();
+    normalizedSubjects.forEach((s) => {
+      m.set(String(s.name).trim().toLowerCase(), s.gradeLevels || []);
     });
+    return m;
+  }, [normalizedSubjects]);
+
+  const sortedSelectedSubjects = useMemo(
+    () => sortSubjectNames(selectedSubjects),
+    [selectedSubjects],
+  );
+
+  const modalCategoryOptions = useMemo(() => {
+    const fromDb = new Set(normalizedSubjects.map((s) => s.category).filter(Boolean));
+    SUBJECT_CATEGORIES.forEach((c) => fromDb.add(c));
+    return Array.from(fromDb).sort((a, b) => a.localeCompare(b));
+  }, [normalizedSubjects]);
+
+  const filteredSubjects = useMemo(() => {
+    const keyword = subjectKeyword.trim().toLowerCase();
+    return normalizedSubjects.filter((subject) => {
+      const matchesKeyword =
+        !keyword ||
+        subject.name.toLowerCase().includes(keyword) ||
+        subject.category.toLowerCase().includes(keyword);
+      const matchesCategory = subjectCategory === "all" || subject.category === subjectCategory;
+      const matchesGrade =
+        subjectGradeLevel === "all" ||
+        subject.gradeLevels.some((grade) => grade === subjectGradeLevel);
+
+      return matchesKeyword && matchesCategory && matchesGrade;
+    });
+  }, [normalizedSubjects, subjectKeyword, subjectCategory, subjectGradeLevel]);
+
+  const filteredAvailableSubjects = useMemo(() => {
+    const selectedSet = new Set(
+      modalRightList.map((name) => String(name).trim().toLowerCase()),
+    );
+    return filteredSubjects.filter(
+      (subject) => !selectedSet.has(String(subject.name).trim().toLowerCase()),
+    );
+  }, [filteredSubjects, modalRightList]);
+
+  const totalAvailableSubjectCount = useMemo(() => {
+    const selectedSet = new Set(
+      modalRightList.map((name) => String(name).trim().toLowerCase()),
+    );
+    return normalizedSubjects.filter(
+      (subject) => !selectedSet.has(String(subject.name).trim().toLowerCase()),
+    ).length;
+  }, [normalizedSubjects, modalRightList]);
+
+  const isProfileComplete = useMemo(() => {
+    if (!String(uploadedUrls.profilePic || "").trim()) return false;
+    if (!dateOfBirthIso) return false;
+    if (selectedSubjects.length === 0) return false;
+    const yoeStr = String(yearsOfExperience ?? "").trim();
+    if (!yoeStr) return false;
+    const yoeNum = Number(yearsOfExperience);
+    if (Number.isNaN(yoeNum) || yoeNum < 0) return false;
+    if (!String(uploadedUrls.cv || "").trim()) return false;
+    return true;
+  }, [
+    uploadedUrls.profilePic,
+    uploadedUrls.cv,
+    dateOfBirthIso,
+    selectedSubjects.length,
+    yearsOfExperience,
+  ]);
+
+  const openSubjectsModal = () => {
+    setModalRightList(sortSubjectNames([...selectedSubjects]));
+    setModalLeftChecked([]);
+    setIsSubjectsModalOpen(true);
   };
 
-  const removeGradeLevel = (gradeLevelName) => {
-    setSelectedGradeLevels(prev => prev.filter(g => g !== gradeLevelName));
+  const closeSubjectsModal = () => {
+    setIsSubjectsModalOpen(false);
+    setModalLeftChecked([]);
   };
+
+  const toggleModalLeftCheck = (subjectName) => {
+    setModalLeftChecked((prev) =>
+      prev.includes(subjectName) ? prev.filter((s) => s !== subjectName) : [...prev, subjectName],
+    );
+  };
+
+  const addCheckedSubjectsToRight = () => {
+    setModalRightList((prev) => {
+      const next = new Set(prev);
+      modalLeftChecked.forEach((n) => next.add(n));
+      return sortSubjectNames(Array.from(next));
+    });
+    setModalLeftChecked([]);
+  };
+
+  const deselectAllLeft = () => {
+    setModalLeftChecked([]);
+  };
+
+  const removeFromModalRight = (subjectName) => {
+    setModalRightList((prev) => sortSubjectNames(prev.filter((s) => s !== subjectName)));
+  };
+
+  const saveSubjectsFromModal = () => {
+    setSelectedSubjects(sortSubjectNames(modalRightList));
+    setIsSubjectsModalOpen(false);
+    setModalLeftChecked([]);
+  };
+
+  const gradeBadgeClass =
+    "inline-flex items-center rounded-full bg-[#E8F0FE] text-[#1a56b5] border border-[#c5daf7] px-2 py-0.5 text-xs font-medium";
 
   const handlePhotoClick = () => {
     document.getElementById('profile-photo').click();
-  };
-
-  const handleVideoClick = () => {
-    document.getElementById('intro-video').click();
   };
 
   const handlePhotoDragOver = (e) => {
@@ -181,10 +425,12 @@ const handlePhotoFile = async (file) => {
   try {
     setUploading((u) => ({ ...u, photo: true }));
     const res = await uploadOnboardingFile(file);
-    const url = res.url || res.Location || res.fileUrl || res.data?.url;
-    if (!url) throw new Error('No URL returned from upload');
+    const rawUrl = res.url || res.Location || res.fileUrl || res.data?.url;
+    if (!rawUrl) throw new Error('No URL returned from upload');
+    const url = resolveApiAssetUrl(rawUrl);
     setUploadedUrls((u) => ({ ...u, profilePic: url }));
     setTutorOnboarding({ profilePic: url });
+    setProfilePhotoError("");
   } catch (e) {
     console.error(e);
     alert('Failed to upload profile photo.');
@@ -193,40 +439,6 @@ const handlePhotoFile = async (file) => {
   }
 };
 
-  const handleVideoDragOver = (e) => {
-    e.preventDefault();
-    setIsDraggingVideo(true);
-  };
-
-  const handleVideoDragLeave = () => {
-    setIsDraggingVideo(false);
-  };
-
-  const handleVideoDrop = (e) => {
-    e.preventDefault();
-    setIsDraggingVideo(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleVideoFile(files[0]);
-    }
-  };
-
-const handleVideoFile = async (file) => {
-  setSelectedVideo(file);
-  try {
-    setUploading((u) => ({ ...u, video: true }));
-    const res = await uploadOnboardingFile(file);
-    const url = res.url || res.Location || res.fileUrl || res.data?.url;
-    if (!url) throw new Error('No URL returned from upload');
-    setUploadedUrls((u) => ({ ...u, introVideo: url }));
-    setTutorOnboarding({ introVideo: url });
-  } catch (e) {
-    console.error(e);
-    alert('Failed to upload video.');
-  } finally {
-    setUploading((u) => ({ ...u, video: false }));
-  }
-};
 
   const handleCVClick = () => {
     document.getElementById('cv-upload').click();
@@ -255,10 +467,12 @@ const handleCVFile = async (file) => {
   try {
     setUploading((u) => ({ ...u, cv: true }));
     const res = await uploadOnboardingFile(file);
-    const url = res.url || res.Location || res.fileUrl || res.data?.url;
-    if (!url) throw new Error('No URL returned from upload');
+    const rawUrl = res.url || res.Location || res.fileUrl || res.data?.url;
+    if (!rawUrl) throw new Error('No URL returned from upload');
+    const url = resolveApiAssetUrl(rawUrl);
     setUploadedUrls((u) => ({ ...u, cv: url }));
     setTutorOnboarding({ cv: url });
+    setCvFieldError("");
   } catch (e) {
     console.error(e);
     alert('Failed to upload CV.');
@@ -269,9 +483,7 @@ const handleCVFile = async (file) => {
 
   const profileTips = [
     "Use a professional, friendly photo where your face is clearly visible",
-    "Highlight your qualifications, experience, and teaching philosophy",
-    "Intro videos increase booking rates by 60% — show your personality!",
-    "Research competitive rates for your subject and experience level",
+    "Highlight your qualifications, experience, teaching philosophy, and tutoring style", 
   ];
 
   return (
@@ -279,28 +491,31 @@ const handleCVFile = async (file) => {
       {/* Left Column - Form */}
       <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
         {/* Title */}
-        <h2 className="text-2xl font-normal text-[#101727] mb-8">
+        <h2 className="text-2xl font-normal text-[#101727] mb-8 text-center">
           Your Profile Information
         </h2>
 
         {/* Profile Photo */}
-        <div className="mb-6">
+        <div className="mb-6 relative">
           <label htmlFor="profile-photo" className="block text-base text-[#101727] mb-3 font-normal">
-            Profile Photo
+            Profile Photo <span className="text-red-500">*</span>
           </label>
           <div
-            className={`relative w-64 h-64 mx-auto rounded-xl border-2 ${selectedPhoto
-              ? 'border-solid border-green-500 bg-green-50'
-              : isDraggingPhoto
-                ? 'border-dashed border-brand-medium-blue bg-brand-light-blue'
-                : 'border-dashed border-[#d0d5db] bg-white'
-              } hover:border-brand-medium-blue transition-colors cursor-pointer overflow-hidden`}
+            className={`relative w-64 h-64 mx-auto rounded-xl border-2 ${
+              selectedPhoto
+                ? "border-solid border-green-500 bg-green-50"
+                : photoPreview
+                  ? "border-solid border-[#5b8fd4] bg-[#f0f7ff]"
+                  : isDraggingPhoto
+                    ? "border-dashed border-brand-medium-blue bg-brand-light-blue"
+                    : "border-dashed border-[#d0d5db] bg-white"
+            } hover:border-brand-medium-blue transition-colors cursor-pointer overflow-hidden`}
             onClick={handlePhotoClick}
             onDragOver={handlePhotoDragOver}
             onDragLeave={handlePhotoDragLeave}
             onDrop={handlePhotoDrop}
           >
-            {selectedPhoto && photoPreview ? (
+            {photoPreview ? (
               <div className="absolute inset-0 w-full h-full">
                 <img
                   src={photoPreview}
@@ -309,9 +524,11 @@ const handleCVFile = async (file) => {
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
                   <div className="text-white text-center">
-                    <p className="text-lg font-medium mb-2">{uploading.photo ? 'Uploading...' : 'Photo Selected'}</p>
-                    <p className="text-sm">{selectedPhoto?.name || 'Profile Picture'}</p>
-                    <p className="text-xs mt-1">{uploadedUrls.profilePic ? 'Uploaded ✅' : 'Click to change'}</p>
+                    <p className="text-lg font-medium mb-2">
+                      {uploading.photo ? "Uploading..." : selectedPhoto ? "Photo Selected" : "Saved profile photo"}
+                    </p>
+                    <p className="text-sm">{selectedPhoto?.name || "Profile Picture"}</p>
+                    <p className="text-xs mt-1">{uploadedUrls.profilePic ? "Uploaded ✅" : "Click to change"}</p>
                   </div>
                 </div>
               </div>
@@ -341,6 +558,9 @@ const handleCVFile = async (file) => {
               }}
             />
           </div>
+          {profilePhotoError ? (
+            <p className="text-sm text-red-600 mt-2 text-center">{profilePhotoError}</p>
+          ) : null}
         </div>
 
         {/* About Me */}
@@ -352,7 +572,7 @@ const handleCVFile = async (file) => {
             id="about-me"
             value={aboutMe}
             onChange={(e) => setAboutMe(e.target.value.slice(0, maxAboutMeLength))}
-            placeholder="Tell students about your teaching experience, approach, and what makes you a great tutor..."
+            placeholder="Tell learners about your teaching experience, approach, and what makes you a great tutor..."
             className="w-full h-32 px-4 py-3 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base resize-none focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
             maxLength={maxAboutMeLength}
             aria-describedby="about-me-count"
@@ -362,19 +582,36 @@ const handleCVFile = async (file) => {
           </div>
         </div>
 
-        {/* Full Name */}
-        <div className="mb-6">
-          <label htmlFor="full-name" className="block text-base text-[#101727] mb-3 font-normal">
-            Full Name
-          </label>
-          <input
-            type="text"
-            id="full-name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="e.g., John Smith"
-            className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
-          />
+        {/* Legal Name */}
+        <div className="mb-6"> 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="legal-first-name" className="block text-sm text-[#495565] mb-2 font-normal">
+                Legal First Name
+              </label>
+              <input
+                type="text"
+                id="legal-first-name"
+                value={legalFirstName}
+                onChange={(e) => setLegalFirstName(e.target.value)}
+                placeholder="e.g., John"
+                className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
+              />
+            </div>
+            <div>
+              <label htmlFor="legal-last-name" className="block text-sm text-[#495565] mb-2 font-normal">
+                Legal Last Name
+              </label>
+              <input
+                type="text"
+                id="legal-last-name"
+                value={legalLastName}
+                onChange={(e) => setLegalLastName(e.target.value)}
+                placeholder="e.g., Smith"
+                className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Date of Birth */}
@@ -383,372 +620,178 @@ const handleCVFile = async (file) => {
             Date of Birth <span className="text-red-500">*</span>
           </label>
           <input
-            type="date"
+            type="text"
             id="dob"
-            value={dateOfBirth}
-            onChange={(e) => setDateOfBirth(e.target.value)}
+            inputMode="numeric"
+            maxLength={10}
+            value={dateOfBirthText}
+            onChange={(e) => {
+              const formatted = formatMmDdYyyyInput(e.target.value);
+              setDateOfBirthText(formatted);
+              if (formatted.length < 10) {
+                setDateOfBirthIso("");
+                setDateOfBirthPickerValue("");
+                setDateOfBirthError("");
+                return;
+              }
+              const parsed = parseMmDdYyyyToIso(formatted);
+              setDateOfBirthIso(parsed.iso);
+              setDateOfBirthPickerValue(parsed.iso);
+              setDateOfBirthError(parsed.error);
+            }}
             required
-            className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
+            placeholder="MM/DD/YYYY"
+            className="w-full h-12 pl-4 pr-12 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
           />
+          <input
+            type="date"
+            value={dateOfBirthPickerValue}
+            onChange={(e) => {
+              const iso = e.target.value;
+              const mmddyyyy = formatIsoToMmDdYyyy(iso);
+              const parsed = parseMmDdYyyyToIso(mmddyyyy);
+              setDateOfBirthPickerValue(iso);
+              setDateOfBirthText(mmddyyyy);
+              setDateOfBirthIso(parsed.iso);
+              setDateOfBirthError(parsed.error);
+            }}
+            className="absolute opacity-0 pointer-events-none"
+            tabIndex={-1}
+            aria-hidden="true"
+            id="dob-picker-hidden"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const picker = document.getElementById('dob-picker-hidden');
+              if (picker && typeof picker.showPicker === 'function') {
+                picker.showPicker();
+              } else if (picker) {
+                picker.focus();
+              }
+            }}
+            className="absolute right-3 top-[42px] -translate-y-1/2 text-[#697282] hover:text-[#4A8FCC]"
+            aria-label="Open date picker"
+          >
+            📅
+          </button>
+          {dateOfBirthError && (
+            <p className="text-sm text-red-600 mt-2">{dateOfBirthError}</p>
+          )}
         </div>
 
-        {/* Subjects You Teach */}
-        <div className="mb-6" ref={subjectsDropdownRef}>
+        {/* Subjects You Tutor */}
+        <div className="mb-6">
           <label htmlFor="subjects" className="block text-base text-[#101727] mb-3 font-normal">
-            Subjects You Teach
+            Subjects You Tutor <span className="text-red-500">*</span>
           </label>
           
           {/* Selected Subjects Display */}
           <div className="mb-2">
-            {selectedSubjects.length > 0 && (
+            {sortedSelectedSubjects.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
-                {selectedSubjects.map((subject, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-brand-light-blue text-brand-dark-blue rounded-full text-sm font-medium border border-brand-gold"
-                  >
-                    {subject}
-                    <button
-                      type="button"
-                      onClick={() => removeSubject(subject)}
-                      className="ml-1 hover:text-brand-dark-blue focus:outline-none"
-                      aria-label={`Remove ${subject}`}
+                {sortedSelectedSubjects.map((subject) => {
+                  const lvls = levelsByName.get(String(subject).trim().toLowerCase()) || [];
+                  return (
+                    <span
+                      key={subject}
+                      className="inline-flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#D6DCE5] text-sm text-[#1F2937]"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Dropdown Button */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsSubjectsDropdownOpen(!isSubjectsDropdownOpen)}
-              className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-left text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors flex items-center justify-between"
-              aria-describedby="subjects-help"
-            >
-              <span className={selectedSubjects.length === 0 ? 'text-[#717182]' : 'text-[#101727]'}>
-                {selectedSubjects.length === 0 
-                  ? 'Select subjects...' 
-                  : `${selectedSubjects.length} subject${selectedSubjects.length > 1 ? 's' : ''} selected`}
-              </span>
-              <svg 
-                className={`w-5 h-5 transition-transform ${isSubjectsDropdownOpen ? 'rotate-180' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* Dropdown Menu */}
-            {isSubjectsDropdownOpen && (
-              <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                {loadingSubjects ? (
-                  <div className="px-4 py-3 text-center text-[#697282]">
-                    Loading subjects...
-                  </div>
-                ) : availableSubjects.length === 0 ? (
-                  <div className="px-4 py-3 text-center text-[#697282]">
-                    No subjects available
-                  </div>
-                ) : (
-                  availableSubjects.map((subject) => {
-                    const subjectName = subject.name || subject;
-                    const isSelected = selectedSubjects.includes(subjectName);
-                    
-                    return (
-                      <button
-                        key={subject.id || subjectName}
-                        type="button"
-                        onClick={() => toggleSubject(subjectName)}
-                        className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center justify-between ${
-                          isSelected ? 'bg-brand-light-blue border-l-4 border-brand-gold' : ''
-                        }`}
-                      >
-                        <span className={`text-base ${isSelected ? 'text-[#4A8FCC] font-medium' : 'text-[#101727]'}`}>
-                          {subjectName}
+                      <span className="font-medium">{subject}</span>
+                      {lvls.map((lvl) => (
+                        <span key={`${subject}-${lvl}`} className={gradeBadgeClass}>
+                          {lvl}
                         </span>
-                        {isSelected && (
-                          <svg className="w-5 h-5 text-[#4A8FCC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => removeSubject(subject)}
+                        className="ml-1 p-0.5 rounded hover:bg-[#EEF2F7] text-[#64748b] hover:text-[#1e293b] focus:outline-none"
+                        aria-label={`Remove ${subject}`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                       </button>
-                    );
-                  })
-                )}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          <p id="subjects-help" className="text-sm text-[#697282] mt-2">
-            Select one or more subjects you teach
-          </p>
+          <button
+            type="button"
+            onClick={openSubjectsModal}
+            className="w-full h-12 px-4 rounded-xl bg-[#B38A1B] text-white text-sm font-medium hover:opacity-95 transition-opacity"
+          >
+            Select Subjects
+          </button>
+          {subjectsFieldError ? (
+            <p className="text-sm text-red-600 mt-2">{subjectsFieldError}</p>
+          ) : null}
         </div>
 
-        {/* Grade Levels */}
-        <div className="mb-6" ref={gradeLevelsDropdownRef}>
-          <label htmlFor="grade-levels" className="block text-base text-[#101727] mb-3 font-normal">
-            Grade Levels
-          </label>
-          
-          {/* Selected Grade Levels Display */}
-          <div className="mb-2">
-            {selectedGradeLevels.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2">
-                {selectedGradeLevels.map((gradeLevel, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
-                  >
-                    {gradeLevel}
-                    <button
-                      type="button"
-                      onClick={() => removeGradeLevel(gradeLevel)}
-                      className="ml-1 hover:text-purple-900 focus:outline-none"
-                      aria-label={`Remove ${gradeLevel}`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Dropdown Button */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsGradeLevelsDropdownOpen(!isGradeLevelsDropdownOpen)}
-              className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-left text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors flex items-center justify-between"
-              aria-describedby="grade-levels-help"
-            >
-              <span className={selectedGradeLevels.length === 0 ? 'text-[#717182]' : 'text-[#101727]'}>
-                {selectedGradeLevels.length === 0 
-                  ? 'Select grade levels...' 
-                  : `${selectedGradeLevels.length} grade level${selectedGradeLevels.length > 1 ? 's' : ''} selected`}
-              </span>
-              <svg 
-                className={`w-5 h-5 transition-transform ${isGradeLevelsDropdownOpen ? 'rotate-180' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* Dropdown Menu */}
-            {isGradeLevelsDropdownOpen && (
-              <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                {loadingGradeLevels ? (
-                  <div className="px-4 py-3 text-center text-[#697282]">
-                    Loading grade levels...
-                  </div>
-                ) : availableGradeLevels.length === 0 ? (
-                  <div className="px-4 py-3 text-center text-[#697282]">
-                    No grade levels available
-                  </div>
-                ) : (
-                  availableGradeLevels.map((gradeLevel) => {
-                    const gradeLevelName = gradeLevel.name || gradeLevel;
-                    const isSelected = selectedGradeLevels.includes(gradeLevelName);
-                    
-                    return (
-                      <button
-                        key={gradeLevel.id || gradeLevelName}
-                        type="button"
-                        onClick={() => toggleGradeLevel(gradeLevelName)}
-                        className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center justify-between ${
-                          isSelected ? 'bg-purple-50' : ''
-                        }`}
-                      >
-                        <span className={`text-base ${isSelected ? 'text-[#6a3de8] font-medium' : 'text-[#101727]'}`}>
-                          {gradeLevelName}
-                        </span>
-                        {isSelected && (
-                          <svg className="w-5 h-5 text-[#6a3de8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </div>
-
-          <p id="grade-levels-help" className="text-sm text-[#697282] mt-2">
-            Select one or more grade levels you teach
-          </p>
-        </div>
 
         {/* Years of Experience */}
         <div className="mb-6">
           <label htmlFor="yoe" className="block text-base text-[#101727] mb-3 font-normal">
-            Years of Experience
+            Years of Experience <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
             id="yoe"
             value={yearsOfExperience}
-            onChange={(e) => setYearsOfExperience(e.target.value)}
+            onChange={(e) => {
+              setYearsOfExperience(e.target.value);
+              setYearsOfExperienceError("");
+            }}
             min="0"
             className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
           />
+          {yearsOfExperienceError ? (
+            <p className="text-sm text-red-600 mt-2">{yearsOfExperienceError}</p>
+          ) : null}
         </div>
 
-        {/* Interview Time */}
-        <div className="mb-6">
-          <label htmlFor="interview" className="block text-base text-[#101727] mb-3 font-normal">
-            Preferred Interview Time (UTC)
-          </label>
-          <input
-            type="datetime-local"
-            id="interview"
-            value={interviewTime}
-            onChange={(e) => setInterviewTime(e.target.value)}
-            className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
-          />
-        </div>
-
-        {/* Hourly Rate */}
-        <div className="mb-6">
-          <label htmlFor="hourly-rate" className="block text-base text-[#101727] mb-3 font-normal">
-            Desired Hourly Rate (USD) <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-base font-medium pointer-events-none">
-              $
-            </span>
-            <input
-              type="number"
-              id="hourly-rate"
-              value={hourlyRate}
-              onChange={(e) => setHourlyRate(e.target.value)}
-              placeholder="Enter your hourly rate"
-              className="w-full h-12 pl-10 pr-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
-              min="1"
-              step="1"
-              required
-              aria-describedby="rate-help"
-            />
-          </div>
-          <p id="rate-help" className="text-sm text-[#697282] mt-2">
-            Average rate: $40-80/hour
-          </p>
-        </div>
-
-        {/* Upload Intro Video */}
-        <div className="mb-6">
-          <label htmlFor="intro-video" className="block text-base text-[#101727] mb-3 font-normal">
-            Upload Intro Video (Optional)
-          </label>
-          <div
-            className={`relative w-full h-56 rounded-xl border-2 ${selectedVideo
-              ? 'border-solid border-green-500 bg-green-50'
-              : isDraggingVideo
-                ? 'border-dashed border-brand-medium-blue bg-brand-light-blue'
-                : 'border-dashed border-[#d0d5db] bg-white'
-              } hover:border-brand-medium-blue transition-colors cursor-pointer`}
-            onClick={handleVideoClick}
-            onDragOver={handleVideoDragOver}
-            onDragLeave={handleVideoDragLeave}
-            onDrop={handleVideoDrop}
-          >
-            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center pointer-events-none">
-              {selectedVideo ? (
-                <>
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-3">
-                    <span className="text-4xl">✓</span>
-                  </div>
-                  <p className="text-base text-green-700 font-medium mb-1">
-                    {uploading.video ? 'Uploading...' : 'Video Selected'}
-                  </p>
-                  <p className="text-sm text-[#495565] mb-2 px-4 text-center">
-                    {selectedVideo.name}
-                  </p>
-                  <p className="text-xs text-[#697282]">
-                    {(selectedVideo.size / (1024 * 1024)).toFixed(2)} MB
-                  </p>
-                  <p className="text-xs text-[#697282] mt-2">
-                    {uploadedUrls.introVideo ? 'Uploaded ✅' : 'Click to change video'}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="w-16 h-16 flex items-center justify-center mb-3">
-                    <span className="text-5xl">📤</span>
-                  </div>
-                  <p className="text-base text-[#495565] mb-1">
-                    Upload a 1-minute intro video
-                  </p>
-                  <p className="text-sm text-[#697282]">
-                    MP4, MOV up to 100MB
-                  </p>
-                </>
-              )}
-            </div>
-            <input
-              type="file"
-              id="intro-video"
-              className="hidden"
-              accept="video/mp4,video/quicktime"
-              aria-label="Upload intro video"
-              onChange={(e) => {
-                if (e.target.files.length > 0) {
-                  handleVideoFile(e.target.files[0]);
-                }
-              }}
-            />
-          </div>
-        </div>
 
         {/* Upload CV */}
         <div className="mb-6">
           <label htmlFor="cv-upload" className="block text-base text-[#101727] mb-3 font-normal">
-            Upload CV (Optional)
+            Upload Resume/CV <span className="text-red-500">*</span>
           </label>
           <div
-            className={`relative w-full h-48 rounded-xl border-2 ${selectedCV
-              ? 'border-solid border-green-500 bg-green-50'
-              : isDraggingCV
-                ? 'border-dashed border-brand-medium-blue bg-brand-light-blue'
-                : 'border-dashed border-[#d0d5db] bg-white'
-              } hover:border-brand-medium-blue transition-colors cursor-pointer`}
+            className={`relative w-full h-48 rounded-xl border-2 ${
+              selectedCV && !selectedCV.fromServer
+                ? "border-solid border-green-500 bg-green-50"
+                : uploadedUrls.cv
+                  ? "border-solid border-[#5b8fd4] bg-[#f0f7ff]"
+                  : isDraggingCV
+                    ? "border-dashed border-brand-medium-blue bg-brand-light-blue"
+                    : "border-dashed border-[#d0d5db] bg-white"
+            } hover:border-brand-medium-blue transition-colors cursor-pointer`}
             onClick={handleCVClick}
             onDragOver={handleCVDragOver}
             onDragLeave={handleCVDragLeave}
             onDrop={handleCVDrop}
           >
             <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center pointer-events-none">
-              {selectedCV ? (
+              {selectedCV || uploadedUrls.cv ? (
                 <>
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-3">
                     <span className="text-4xl">✓</span>
                   </div>
                   <p className="text-base text-green-700 font-medium mb-1">
-                    {uploading.cv ? 'Uploading...' : 'CV Selected'}
+                    {uploading.cv ? "Uploading..." : selectedCV?.fromServer ? "Resume/CV on file" : "Resume/CV Selected"}
                   </p>
                   <p className="text-sm text-[#495565] mb-2 px-4 text-center">
-                    {selectedCV.name}
+                    {selectedCV?.name || "Uploaded document"}
                   </p>
-                  <p className="text-xs text-[#697282]">
-                    {(selectedCV.size / 1024).toFixed(2)} KB
-                  </p>
+                  {selectedCV && selectedCV.size > 0 ? (
+                    <p className="text-xs text-[#697282]">{(selectedCV.size / 1024).toFixed(2)} KB</p>
+                  ) : null}
                   <p className="text-xs text-[#697282] mt-2">
-                    {uploadedUrls.cv ? 'Uploaded ✅' : 'Click to change CV'}
+                    {uploadedUrls.cv ? "Uploaded ✅" : "Click to change Resume/CV"}
                   </p>
                 </>
               ) : (
@@ -757,10 +800,10 @@ const handleCVFile = async (file) => {
                     <span className="text-5xl">📄</span>
                   </div>
                   <p className="text-base text-[#495565] mb-1">
-                    Upload your CV/Resume
+                    Upload your Resume/CV
                   </p>
                   <p className="text-sm text-[#697282]">
-                    PDF up to 10MB
+                    PDF, JPG, PNG up to 10MB
                   </p>
                 </>
               )}
@@ -769,8 +812,8 @@ const handleCVFile = async (file) => {
               type="file"
               id="cv-upload"
               className="hidden"
-              accept="application/pdf"
-              aria-label="Upload CV"
+              accept="application/pdf,image/jpeg,image/jpg,image/png"
+              aria-label="Upload Resume/CV"
               onChange={(e) => {
                 if (e.target.files.length > 0) {
                   handleCVFile(e.target.files[0]);
@@ -778,31 +821,146 @@ const handleCVFile = async (file) => {
               }}
             />
           </div>
+          {cvFieldError ? <p className="text-sm text-red-600 mt-2">{cvFieldError}</p> : null}
         </div>
+
+        <p className="text-sm text-[#495565] mb-4">
+          🔒 All documents are encrypted and stored securely. We never share your personal information.
+        </p>
 
         {/* Submit Button */}
         <button
           type="button"
-          onClick={() => {
-            setTutorOnboarding({
-              fullName,
-              dateOfBirth,
+          onClick={async () => {
+            setProfilePhotoError("");
+            setSubjectsFieldError("");
+            setYearsOfExperienceError("");
+            setCvFieldError("");
+            if (!String(uploadedUrls.profilePic || "").trim()) {
+              setProfilePhotoError("Profile photo is required.");
+              return;
+            }
+            if (!dateOfBirthText.trim()) {
+              setDateOfBirthError("Date of Birth is required in MM/DD/YYYY format.");
+              return;
+            }
+            const parsedDob = parseMmDdYyyyToIso(dateOfBirthText);
+            if (parsedDob.error) {
+              setDateOfBirthError(parsedDob.error);
+              return;
+            }
+            setDateOfBirthError("");
+            if (selectedSubjects.length === 0) {
+              setSubjectsFieldError("Select at least one subject you tutor.");
+              return;
+            }
+            const yoeStr = String(yearsOfExperience ?? "").trim();
+            if (!yoeStr) {
+              setYearsOfExperienceError("Years of experience is required.");
+              return;
+            }
+            const yoeNum = Number(yearsOfExperience);
+            if (Number.isNaN(yoeNum) || yoeNum < 0) {
+              setYearsOfExperienceError("Enter a valid number of years (0 or greater).");
+              return;
+            }
+            if (!String(uploadedUrls.cv || "").trim()) {
+              setCvFieldError("Resume/CV upload is required.");
+              return;
+            }
+            const combinedFullName = `${String(legalFirstName || "").trim()} ${String(legalLastName || "").trim()}`.trim();
+            const onboardingPayload = {
+              legalFirstName: String(legalFirstName || "").trim(),
+              legalLastName: String(legalLastName || "").trim(),
+              fullName: combinedFullName,
+              dateOfBirth: parsedDob.iso,
+              dateOfBirthDisplay: dateOfBirthText,
               subjects,
-              gradeLevels,
-              yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
+              gradeLevels: "",
+              yearsOfExperience: yoeNum,
               teachingPhilosophy: aboutMe,
-              interviewTime,
-              fee: hourlyRate ? Number(hourlyRate) : undefined,
               profilePic: uploadedUrls.profilePic || undefined,
               cv: uploadedUrls.cv || undefined,
-              introVideo: uploadedUrls.introVideo || undefined,
-            });
-            navigate('/verify-identity');
+            };
+            setTutorOnboarding(onboardingPayload);
+            try {
+              setSavingProfile(true);
+              const user = getCurrentUser();
+              const userId = user?.id || user?._id || user?.userId;
+              if (!userId) throw new Error("User session missing. Please sign in again.");
+              const submitResponse = await submitTutorOnboarding({
+                userId,
+                fullName: onboardingPayload.fullName,
+                dateOfBirth: onboardingPayload.dateOfBirth,
+                subjects: onboardingPayload.subjects || "",
+                gradeLevels: "",
+                yearsOfExperience: onboardingPayload.yearsOfExperience || 0,
+                teachingPhilosophy: onboardingPayload.teachingPhilosophy || "",
+                profilePic: onboardingPayload.profilePic,
+                cv: onboardingPayload.cv,
+              });
+              const prospect = submitResponse?.prospect;
+              const persistedPic = prospect?.profilePic || onboardingPayload.profilePic;
+              const persistedCv = prospect?.cv || onboardingPayload.cv;
+              setTutorOnboarding({
+                ...onboardingPayload,
+                profilePic: persistedPic,
+                cv: persistedCv,
+              });
+              if (persistedPic) {
+                const picUrl = resolveApiAssetUrl(persistedPic);
+                setUploadedUrls((u) => ({ ...u, profilePic: picUrl }));
+                setPhotoPreview(picUrl);
+              }
+              if (persistedCv) {
+                const cvUrl = resolveApiAssetUrl(persistedCv);
+                setUploadedUrls((u) => ({ ...u, cv: cvUrl }));
+                const cvLabel = (() => {
+                  try {
+                    return new URL(cvUrl).pathname.split("/").filter(Boolean).pop() || "Uploaded CV";
+                  } catch {
+                    return String(persistedCv).split("/").filter(Boolean).pop() || "Uploaded CV";
+                  }
+                })();
+                setSelectedCV({ name: cvLabel, size: 0, fromServer: true });
+              }
+              if (prospect?.status != null) {
+                const sessionUser = getCurrentUser();
+                if (sessionUser) {
+                  const next = {
+                    ...sessionUser,
+                    prospectStatus: String(prospect.status),
+                    firstName: String(onboardingPayload.legalFirstName || "").trim() || sessionUser.firstName,
+                    lastName: String(onboardingPayload.legalLastName || "").trim() || sessionUser.lastName,
+                    fullName: onboardingPayload.fullName || sessionUser.fullName,
+                  };
+                  if (prospect.prospectId != null && prospect.prospectId !== "") {
+                    next.prospectId = String(prospect.prospectId);
+                  }
+                  localStorage.setItem("user", JSON.stringify(next));
+                }
+              }
+            } catch (err) {
+              alert(err?.message || "Failed to save profile information.");
+              setSavingProfile(false);
+              return;
+            }
+            setSavingProfile(false);
+            navigate('/interviews');
           }}
-          className="w-full h-14 rounded-xl bg-gradient-to-r from-[#5BA3D8] to-[#1B5A94] text-white text-base font-medium hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={uploading.photo || uploading.video || uploading.cv || !hourlyRate || Number(hourlyRate) < 1 || !dateOfBirth}
+          className={`w-full h-14 rounded-xl text-base font-medium transition-opacity shadow-sm disabled:cursor-not-allowed ${
+            isProfileComplete && !uploading.photo && !uploading.cv && !savingProfile
+              ? "bg-gradient-to-r from-[#5BA3D8] to-[#1B5A94] text-white hover:opacity-90"
+              : "bg-[#d1d5db] text-[#9ca3af]"
+          }`}
+          disabled={
+            !isProfileComplete ||
+            uploading.photo ||
+            uploading.cv ||
+            savingProfile
+          }
         >
-          Save and Continue
+          {savingProfile ? "Saving..." : "Save and Continue"}
         </button>
       </div>
 
@@ -836,21 +994,243 @@ const handleCVFile = async (file) => {
           </ul>
         </div>
 
-        {/* Why This Matters */}
-        <div className="bg-white border-2 border-[#E5B44C] rounded-2xl p-8">
+        <div className="rounded-2xl border border-[#E8D5A0] bg-white p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <span className="text-3xl">📖</span>
-            </div>
-            <h3 className="text-[#101727] text-xl font-normal">
-              Why This Matters
-            </h3>
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#E8F0FE]" aria-hidden>
+              <svg width="28" height="22" viewBox="0 0 28 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M4 3h9c1.1 0 2 .9 2 2v14c0-1.1-.9-2-2-2H4V3z"
+                  fill="#ffffff"
+                  stroke="#4A8FCC"
+                  strokeWidth="1.2"
+                />
+                <path
+                  d="M15 3h9c1.1 0 2 .9 2 2v14c0-1.1-.9-2-2-2h-9V3z"
+                  fill="#4A8FCC"
+                  fillOpacity="0.15"
+                  stroke="#4A8FCC"
+                  strokeWidth="1.2"
+                />
+                <path d="M14 3v16" stroke="#4A8FCC" strokeWidth="1.2" />
+              </svg>
+            </span>
+            <h3 className="text-lg font-medium text-[#374151]">Why This Matters</h3>
           </div>
-          <p className="text-[#495565] text-base leading-relaxed">
-            Your profile is the first impression students have of you. A complete, professional profile helps you stand out and attracts more bookings.
+          <p className="text-sm leading-relaxed text-[#495565]">
+            Your profile is the first impression{" "}
+            <strong className="font-semibold text-[#101727]">learners</strong> have of you. A complete, professional
+            profile helps you stand out and attracts more bookings.
           </p>
         </div>
       </div>
+
+      {isSubjectsModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div
+            className="bg-white w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border border-gray-200 overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="subjects-modal-title"
+          >
+            <div className="relative px-6 pt-8 pb-5 border-b border-gray-200 shrink-0">
+              <button
+                type="button"
+                onClick={closeSubjectsModal}
+                className="absolute right-4 top-4 text-[#6b7280] hover:text-[#111827] text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100"
+                aria-label="Close subjects modal"
+              >
+                ×
+              </button>
+              <h3
+                id="subjects-modal-title"
+                className="text-center text-2xl sm:text-3xl font-semibold text-[#1e4fa3] tracking-tight pr-8"
+              >
+                Subjects You Tutor
+              </h3>
+              <p className="text-center text-sm text-[#5c6570] mt-3 max-w-2xl mx-auto leading-relaxed px-2">
+                Search by keyword, filter by category or grade level, and select multiple subjects at once.
+              </p>
+            </div>
+
+            <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap gap-3 items-center shrink-0 bg-[#fafbfc]">
+              <div className="flex-1 min-w-[220px] relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none" aria-hidden>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  value={subjectKeyword}
+                  onChange={(e) => setSubjectKeyword(e.target.value)}
+                  placeholder="Search subjects, topics, or keywords"
+                  className="w-full h-10 pl-9 pr-3 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30 focus:border-[#2563eb]"
+                />
+              </div>
+              <select
+                value={subjectCategory}
+                onChange={(e) => setSubjectCategory(e.target.value)}
+                className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white min-w-[160px]"
+              >
+                <option value="all">All Categories</option>
+                {modalCategoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={subjectGradeLevel}
+                onChange={(e) => setSubjectGradeLevel(e.target.value)}
+                className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white min-w-[160px]"
+              >
+                <option value="all">All Grade Levels</option>
+                {SUBJECT_GRADE_LEVELS.map((grade) => (
+                  <option key={grade} value={grade}>
+                    {grade}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubjectKeyword("");
+                  setSubjectCategory("all");
+                  setSubjectGradeLevel("all");
+                }}
+                className="h-10 px-3 rounded-lg text-sm font-medium text-[#2563eb] hover:bg-blue-50 whitespace-nowrap"
+              >
+                Clear Filters
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 min-h-0 flex-1 overflow-hidden">
+              <div className="border border-[#d9e0ea] rounded-xl flex flex-col min-h-[280px] max-h-[52vh] bg-white">
+                <div className="px-4 py-3 border-b border-[#e5eaf2] shrink-0">
+                  <div className="text-sm font-semibold text-[#1e3a8a]">Available Subjects</div>
+                  <div className="text-xs text-[#64748b] mt-0.5">
+                    Showing {filteredAvailableSubjects.length} of {totalAvailableSubjectCount} subjects
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
+                  {loadingSubjects ? (
+                    <p className="px-3 py-4 text-sm text-[#6b7280]">Loading subjects…</p>
+                  ) : filteredAvailableSubjects.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-[#6b7280]">No subjects match your filters.</p>
+                  ) : (
+                    filteredAvailableSubjects.map((subject) => {
+                      const isChecked = modalLeftChecked.includes(subject.name);
+                      return (
+                        <label
+                          key={`${subject.id}-${subject.name}`}
+                          className={`flex items-start gap-3 px-3 py-2.5 rounded-lg cursor-pointer border border-transparent ${
+                            isChecked ? "bg-[#eef5ff] border-[#c5daf7]" : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleModalLeftCheck(subject.name)}
+                            className="mt-1.5 shrink-0 rounded border-gray-300 text-[#2563eb] focus:ring-[#2563eb]"
+                          />
+                          <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="text-sm text-[#0f172a] font-medium leading-snug">{subject.name}</span>
+                            <span className="flex flex-wrap gap-1">
+                              {(subject.gradeLevels || []).map((lvl) => (
+                                <span key={`${subject.name}-${lvl}`} className={gradeBadgeClass}>
+                                  {lvl}
+                                </span>
+                              ))}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+                <div className="px-4 py-3 border-t border-[#e5eaf2] flex flex-wrap gap-2 shrink-0 bg-[#fafbfc]">
+                  <button
+                    type="button"
+                    onClick={addCheckedSubjectsToRight}
+                    disabled={modalLeftChecked.length === 0}
+                    className="h-10 px-4 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Add Selected Subjects
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deselectAllLeft}
+                    disabled={modalLeftChecked.length === 0}
+                    className="h-10 px-4 rounded-lg border border-gray-300 text-sm text-[#374151] bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-[#d9e0ea] rounded-xl flex flex-col min-h-[280px] max-h-[52vh] bg-white">
+                <div className="px-4 py-3 border-b border-[#e5eaf2] shrink-0">
+                  <div className="text-sm font-semibold text-[#1e3a8a]">Selected Subjects</div>
+                  <div className="text-xs text-[#64748b] mt-0.5">{modalRightList.length} Subjects Selected</div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
+                  {modalRightList.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-[#6b7280]">No subjects selected yet.</p>
+                  ) : (
+                    modalRightList.map((name) => {
+                      const lvls = levelsByName.get(String(name).trim().toLowerCase()) || [];
+                      return (
+                        <div
+                          key={name}
+                          className="flex flex-wrap items-center gap-2 px-3 py-2.5 rounded-lg bg-[#f8fbff] border border-[#d9e0ea] mb-2"
+                        >
+                          <span className="text-sm font-medium text-[#0f172a] flex-1 min-w-[140px]">{name}</span>
+                          <div className="flex flex-wrap gap-1">
+                            {lvls.map((lvl) => (
+                              <span key={`${name}-${lvl}`} className={gradeBadgeClass}>
+                                {lvl}
+                              </span>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFromModalRight(name)}
+                            className="shrink-0 p-1 rounded text-[#64748b] hover:bg-white hover:text-[#0f172a] border border-transparent hover:border-[#cbd5e1]"
+                            aria-label={`Remove ${name}`}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <div className="px-4 py-3 border-t border-[#e5eaf2] flex justify-end shrink-0 bg-[#fafbfc]">
+                  <button
+                    type="button"
+                    onClick={saveSubjectsFromModal}
+                    className="h-10 px-6 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:opacity-95"
+                  >
+                    Save Subjects
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* <div className="px-6 py-4 border-t border-gray-200 flex justify-end shrink-0 bg-white">
+              <button
+                type="button"
+                onClick={closeSubjectsModal}
+                className="h-10 px-5 rounded-lg border border-gray-300 text-sm text-[#374151] hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div> */}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

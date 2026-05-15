@@ -22,6 +22,7 @@ export const HeroSection = () => {
               src="/images/AboutPage.jpg"
             />
           </div>
+
         </div>
       </div>
     </section>

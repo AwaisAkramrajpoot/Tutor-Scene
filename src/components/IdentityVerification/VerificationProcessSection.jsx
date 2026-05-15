@@ -1,306 +1,219 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, submitTutorOnboarding, uploadOnboardingFile } from "../../utils/api";
-import { getTutorOnboarding, setTutorOnboarding, clearTutorOnboarding } from "../../utils/onboarding";
+import { markVerificationStarted, runTutorVerificationSubmit } from "../../utils/tutorVerificationSubmit";
+import { VerificationPageFooter } from "./VerificationPageFooter";
+
+const identityVerificationUrl =
+  process.env.REACT_APP_IDENTITY_VERIFICATION_URL || "https://withpersona.com";
+
+const TERMS_SESSION_KEY = "tutorBgCheckTermsAccepted";
 
 export const VerificationProcessSection = () => {
   const navigate = useNavigate();
-  const [uploadedFile, setUploadedFile] = useState(null);
-  const [govIdUrl, setGovIdUrl] = useState("");
-  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [ackChecked, setAckChecked] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setUploadedFile(file.name);
-    setUploading(true);
+  useEffect(() => {
+    if (sessionStorage.getItem(TERMS_SESSION_KEY) === "1") {
+      setTermsAccepted(true);
+    }
+  }, []);
+
+  const verificationReasons = [
+    "Build trust with learners who rely on our platform.",
+    "Maintain the highest safety standards in online education.",
+  ];
+
+  const handleStartBackgroundCheck = async () => {
+    if (!termsAccepted) return;
     try {
-      const res = await uploadOnboardingFile(file);
-      const url = res.url || res.Location || res.fileUrl || res.data?.url;
-      if (!url) throw new Error('No URL returned');
-      setGovIdUrl(url);
-      setTutorOnboarding({ govId: url });
+      setSubmitting(true);
+      await runTutorVerificationSubmit();
+      navigate("/verify-identity/status");
     } catch (err) {
       console.error(err);
-      alert('Failed to upload ID.');
+      alert(err.message || "Failed to start background check");
     } finally {
-      setUploading(false);
+      setSubmitting(false);
     }
   };
 
-  const verificationReasons = [
-    "Build trust with students and parents who rely on our platform",
-    "Maintain the highest safety standards in online education",
-    "Protect the integrity of the Tutor Scene community",
-    "Stand out with a verified badge on your profile",
-  ];
-
-  const nextSteps = [
-    {
-      number: "1",
-      title: "Document Review",
-      description: "Our team securely reviews your ID (usually within 2 hours)",
-      bgColor: "bg-[#0F3E78]",
-    },
-    {
-      number: "2",
-      title: "Background Screening",
-      description: "Automated security check runs in the background",
-      bgColor: "bg-[#2A66B8]",
-    },
-    {
-      number: "3",
-      title: "Verification Complete",
-      description: "You'll receive an email when you're approved to teach!",
-      bgColor: "bg-[#C89E45]",
-    },
-  ];
-
   return (
-    <div className="grid grid-cols-2 gap-8 w-full">
-      {/* Left Column - Verification Form */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-10 shadow-sm">
-        {/* Header with Icon */}
-        <div className="flex items-center gap-5 mb-8">
-          <div className="w-14 h-14 flex items-center justify-center text-4xl text-blue-600">
-            🛡️
+    <>
+      <div className="relative grid w-full grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+          <div className="mb-6 flex items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center text-2xl text-blue-600">🛡️</div>
+            <h2 className="text-4xl font-normal text-[#101727]">Identity Verification</h2>
           </div>
-          <h2 className="text-3xl font-normal text-[#101727]">
-            Identity Verification
-          </h2>
+
+          <p className="mb-4 text-base leading-relaxed text-[#495565]">
+            To maintain a safe and trusted platform, all tutors must complete identity verification. This
+            process is quick, secure, and confidential.
+          </p>
+          <p className="mb-8 text-base leading-relaxed text-[#495565]">
+            Tutor Scene uses a secure third-party to conduct this service.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => {
+              markVerificationStarted();
+              window.open(identityVerificationUrl, "_blank", "noopener,noreferrer");
+            }}
+            className="mb-8 h-14 w-full rounded-xl bg-[#C99700] text-2xl font-normal text-white shadow transition-opacity hover:opacity-95"
+          >
+            Get Verified
+          </button>
+
+          <div className="border-t border-gray-200 pt-6">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="text-2xl">🔒</span>
+              <h3 className="text-3xl font-normal text-[#353E4C]">Background Check</h3>
+            </div>
+            <p className="mb-3 text-sm leading-relaxed text-[#495565]">
+              All tutors are required to undergo a comprehensive background check, performed by a trusted
+              third-party service that specializes in background screenings.
+            </p>
+            <p className="mb-2 text-sm text-[#495565]">
+              Please take a moment to review and accept the{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setAckChecked(false);
+                  setTermsOpen(true);
+                }}
+                className="text-[#1F57A2] underline"
+              >
+                Background Check Requirement & Refund Credit Terms
+              </button>
+              .
+            </p>
+            <p className="mb-6 text-xs text-[#697282]">
+              NOTE: There is a small fee associated with this service.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleStartBackgroundCheck}
+              disabled={!termsAccepted || submitting}
+              className={`h-14 w-full rounded-xl text-2xl font-normal shadow-sm transition-opacity ${
+                termsAccepted && !submitting
+                  ? "bg-[#C99700] text-white hover:opacity-95"
+                  : "cursor-not-allowed bg-[#e8eaed] text-[#9a7b1a]"
+              }`}
+            >
+              {submitting ? "Starting…" : "Start Background Check"}
+            </button>
+          </div>
         </div>
 
-        {/* Description */}
-        <p className="text-[#495565] text-lg leading-relaxed mb-10">
-          To maintain a safe and trusted platform, all tutors must complete identity verification. This process is quick, secure, and confidential.
-        </p>
-
-        {/* Upload Section */}
-        <div className="mb-8">
-          <h3 className="text-xl font-normal text-[#101727] mb-6">
-            Upload Government-Issued ID <span className="text-red-500">*</span>
-          </h3>
-
-          <div className="relative w-full h-72 rounded-xl border-2 border-dashed border-[#d0d5db] bg-white hover:border-[#4A8FCC] transition-colors">
-            <label
-              htmlFor="id-upload"
-              className="absolute inset-0 w-full h-full cursor-pointer flex flex-col items-center justify-center"
-            >
-              <div className="w-20 h-20 flex items-center justify-center mb-4">
-                <span className="text-6xl text-gray-400">📎</span>
-              </div>
-              <p className="text-lg text-[#495565] mb-2">
-                Upload Passport or Driver's License
-              </p>
-              <p className="text-base text-[#697282]">
-                PNG, JPG, or PDF up to 10MB
-              </p>
-              {uploadedFile && (
-                <p className="text-sm text-green-600 mt-2">
-                  ✓ {uploadedFile}
-                </p>
-              )}
-            </label>
-            <input
-              type="file"
-              id="id-upload"
-              className="sr-only"
-              accept="image/png,image/jpeg,application/pdf"
-              onChange={handleFileUpload}
-              aria-label="Upload government ID"
-              required
+        <div className="flex flex-col gap-6">
+          <div className="h-96 w-full overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 shadow-md">
+            <img
+              src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=800&h=600&fit=crop"
+              alt="Professional tutor"
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                e.target.style.display = "none";
+                e.target.parentElement.innerHTML =
+                  '<div class="w-full h-full flex items-center justify-center text-6xl text-gray-400">👨‍🏫</div>';
+              }}
             />
           </div>
 
-          {/* Security Note */}
-          <div className="flex items-start gap-3 mt-6">
-            <div className="w-6 h-6 flex items-center justify-center flex-shrink-0 mt-1">
-              <span className="text-gray-500">🔒</span>
-            </div>
-            <p className="text-[#697282] text-base leading-relaxed">
-              All documents are encrypted and stored securely. We never share your personal information.
-            </p>
+          <div className="rounded-2xl bg-gradient-to-b from-[#A8C7F0] to-[#2A66B8] p-8">
+            <h3 className="mb-6 text-2xl font-normal text-white">Why We Verify Tutors</h3>
+            <ul className="m-0 list-none space-y-5 p-0">
+              {verificationReasons.map((reason, index) => (
+                <li key={index} className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white">
+                    <span className="text-lg font-medium text-[#2A66B8]">✓</span>
+                  </div>
+                  <p className="pt-2 text-base leading-relaxed text-white/90">{reason}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
+      </div>
 
-        {/* Background Check Status */}
-        <div className="mb-8">
-          <h3 className="text-xl font-normal text-[#101727] mb-6">
-            Background Check Status
-          </h3>
+      <VerificationPageFooter />
 
-          <div className="space-y-5">
-            {/* Step 1 - Active */}
-            <div className="flex items-center gap-5 p-6 bg-gray-50 rounded-xl">
-              <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
-                <span className="text-green-600 text-2xl">✓</span>
-              </div>
-              <div className="flex-1">
-                <h4 className="text-lg font-normal text-[#101727] mb-1">
-                  Identity Verification
-                </h4>
-                <p className="text-base text-[#697282]">
-                  Upload government ID
-                </p>
-              </div>
-              <span className="text-base text-[#697282]">
-                Pending
-              </span>
+      {termsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-3xl rounded-xl border border-gray-300 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
+              <h3 className="text-xl font-semibold text-[#364152]">
+                Background Check Requirement & Refund Credit Terms.
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setTermsOpen(false);
+                  setAckChecked(false);
+                }}
+                className="text-2xl leading-none text-gray-500 hover:text-gray-800"
+              >
+                ×
+              </button>
             </div>
+            <div className="px-6 py-5">
+              <p className="mb-8 text-base leading-relaxed text-[#353E4C]">
+                I acknowledge that a background check is mandatory to tutor on the platform and that I am
+                responsible for paying the background check fee upfront. I understand that the platform may,
+                in its discretion, issue a refund equivalent as an account credit to my available balance
+                only if I (i) complete five (5) or more tutoring hours (verified by the platform) within
+                thirty (30) days of becoming an active member, and (ii) remain in good standing and fully
+                compliant with all platform policies and requirements. I understand that the credit is not
+                cash, is non-transferable, and may be withheld or reversed if hours are found to be invalid,
+                disputed, or obtained in violation of platform rules.
+              </p>
 
-            {/* Step 2 - Inactive */}
-            <div className="flex items-center gap-5 p-6 bg-gray-50 rounded-xl opacity-50">
-              <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
-                <span className="text-gray-400 text-2xl">⏳</span>
-              </div>
-              <div className="flex-1">
-                <h4 className="text-lg font-normal text-[#101727] mb-1">
-                  Background Check
-                </h4>
-                <p className="text-base text-[#697282]">
-                  Automated security screening
-                </p>
-              </div>
-              <span className="text-base text-[#697282]">
-                Waiting
-              </span>
-            </div>
+              <label className="mb-6 flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={ackChecked}
+                  onChange={(e) => setAckChecked(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-[#2563eb]"
+                />
+                <span className="text-lg font-semibold text-[#353E4C]">
+                  I acknowledge and accept the Background Check Requirement & Refund Credit Terms.
+                </span>
+              </label>
 
-            {/* Step 3 - Inactive */}
-            <div className="flex items-center gap-5 p-6 bg-gray-50 rounded-xl opacity-50">
-              <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
-                <span className="text-gray-400 text-2xl">👁️</span>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTermsOpen(false);
+                    setAckChecked(false);
+                  }}
+                  className="h-10 rounded-md border-2 border-[#e57373] bg-white px-6 text-[#c62828]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!ackChecked}
+                  onClick={() => {
+                    setTermsAccepted(true);
+                    sessionStorage.setItem(TERMS_SESSION_KEY, "1");
+                    setTermsOpen(false);
+                  }}
+                  className={`h-10 rounded-md px-8 text-white ${
+                    ackChecked ? "bg-[#2A66B8] hover:opacity-95" : "cursor-not-allowed bg-gray-300 text-gray-500"
+                  }`}
+                >
+                  Accept
+                </button>
               </div>
-              <div className="flex-1">
-                <h4 className="text-lg font-normal text-[#101727] mb-1">
-                  Final Review
-                </h4>
-                <p className="text-base text-[#697282]">
-                  Team verification (24-48 hours)
-                </p>
-              </div>
-              <span className="text-base text-[#697282]">
-                Waiting
-              </span>
             </div>
           </div>
         </div>
-
-        {/* Info Box */}
-        <div className="bg-blue-50 border-2 border-[#2A66B8] rounded-xl p-6 mb-8">
-          <p className="text-[#354152] text-base leading-relaxed">
-            <strong className="font-bold">Note:</strong> All verifications are processed securely through our trusted partner platform. Most verifications are completed within 24-48 hours.
-          </p>
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="button"
-          onClick={async () => {
-            try {
-              setSubmitting(true);
-              const user = getCurrentUser();
-              const userId = user?.id || user?._id || user?.userId;
-              if (!userId) throw new Error('User not found in local storage');
-              const ob = getTutorOnboarding();
-              const payload = {
-                userId,
-                fullName: ob.fullName,
-                dateOfBirth: ob.dateOfBirth,
-                subjects: ob.subjects,
-                gradeLevels: ob.gradeLevels,
-                yearsOfExperience: ob.yearsOfExperience,
-                teachingPhilosophy: ob.teachingPhilosophy,
-                fee: ob.fee,
-                cv: ob.cv,
-                introVideo: ob.introVideo,
-                interviewTime: ob.interviewTime ? new Date(ob.interviewTime).toISOString() : undefined,
-                govId: ob.govId || govIdUrl,
-                profilePic: ob.profilePic,
-              };
-              await submitTutorOnboarding(payload);
-              clearTutorOnboarding();
-              
-              // Update user object in localStorage with prospectStatus
-              const updatedUser = { ...user, prospectStatus: 'pending' };
-              localStorage.setItem('user', JSON.stringify(updatedUser));
-              
-              navigate('/profile-under-review');
-            } catch (err) {
-              console.error(err);
-              alert(err.message || 'Failed to submit onboarding');
-            } finally {
-              setSubmitting(false);
-            }
-          }}
-          className="w-full h-14 rounded-xl bg-gradient-to-b from-[#2A66B8] to-[#0F3E78] text-white text-base font-normal hover:opacity-90 transition-opacity shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-          disabled={uploading || submitting || !govIdUrl}
-        >
-          {submitting ? 'Submitting...' : 'Submit Verification'}
-        </button>
-      </div>
-
-      {/* Right Column - Image and Info */}
-      <div className="flex flex-col gap-6">
-        {/* Hero Image */}
-        <div className="w-full h-96 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl overflow-hidden shadow-md">
-          <img
-            src="https://images.unsplash.com/photo-1588072432836-e10032774350?w=800&h=600&fit=crop"
-            alt="Excited female teacher waving"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-6xl text-gray-400">👩‍🏫</div>';
-            }}
-          />
-        </div>
-
-        {/* Why We Verify Tutors */}
-        <div className="bg-gradient-to-b from-[#A8C7F0] to-[#2A66B8] rounded-2xl p-8">
-          <h3 className="text-white text-2xl font-normal mb-6">
-            Why We Verify Tutors
-          </h3>
-          <ul className="space-y-5 list-none p-0 m-0">
-            {verificationReasons.map((reason, index) => (
-              <li key={index} className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#2A66B8] text-xl font-medium">✓</span>
-                </div>
-                <p className="text-white/90 text-base leading-relaxed pt-3">
-                  {reason}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* What Happens Next */}
-        <div className="bg-white rounded-2xl p-8 border border-gray-200">
-          <h3 className="text-[#101727] text-2xl font-normal mb-6">
-            What Happens Next?
-          </h3>
-          <ol className="space-y-5 list-none p-0 m-0">
-            {nextSteps.map((step, index) => (
-              <li key={step.number} className="flex items-start gap-5">
-                <div className={`w-12 h-12 ${step.bgColor} rounded-full flex items-center justify-center flex-shrink-0`}>
-                  <span className="text-white text-lg font-normal">
-                    {step.number}
-                  </span>
-                </div>
-                <div className="flex-1 pt-1">
-                  <h4 className="text-[#101727] text-lg font-normal mb-1">
-                    {step.title}
-                  </h4>
-                  <p className="text-[#495565] text-base leading-relaxed">
-                    {step.description}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 };

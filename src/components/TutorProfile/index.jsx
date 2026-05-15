@@ -1,65 +1,56 @@
 import React from "react";
+import TutorInterviewsPage from "../Interviews/TutorInterviewsPage";
 import { ProfileTipsSection } from "./ProfileTipsSection";
+import { TutorOnboardingStepper } from "./TutorOnboardingStepper";
+import { useTutorOnboardingNavigation } from "../../hooks/useTutorOnboardingNavigation";
 
-export const CreateProfilePage = () => {
+export const CreateProfilePage = ({ step = "create-profile" }) => {
+  const isInterviewStep = step === "interview";
+  const { onStepClick } = useTutorOnboardingNavigation(step);
+
   return (
     <div className="w-full min-h-screen bg-[#f5f7fa] flex flex-col">
-      {/* Header Section */}
-      <div className="w-full bg-gradient-to-r from-[#6BA3D8] to-[#4A8FCC] pt-12 pb-16">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center">
-          {/* Badge */}
-          <div className="bg-white rounded-full px-4 py-1.5 mb-6">
-            <span className="text-[#4A8FCC] text-sm font-medium">TUTOR SCENE</span>
-          </div>
-          
-          {/* Main Heading */}
-          <h1 className="text-white text-5xl font-normal mb-4 text-center">
-            Build Your Tutor Profile.
-          </h1>
-          
-          {/* Subtitle */}
-          <p className="text-white text-lg mb-8 text-center max-w-2xl">
-            Share your experience, subjects, and a short intro video so students can get to know you.
-          </p>
-          
-          {/* Stepper */}
-          <div className="flex items-center gap-3">
-            {/* Step 1 - Active */}
-            <div className="flex items-center gap-2 bg-white rounded-full px-4 py-2">
-              <div className="w-6 h-6 rounded-full bg-[#4A8FCC] text-white flex items-center justify-center text-sm font-medium">
-                1
+      <div className="w-full bg-gradient-to-b from-[#6BA3D8] to-[#3D78BF] pt-10 pb-10">
+        <div className="max-w-9xl mx-auto px-6 flex flex-col items-center">
+          {isInterviewStep ? (
+            <>
+              <h1 className="text-white text-4xl sm:text-5xl font-normal mb-6 text-center">
+                Tutor Virtual Interview
+              </h1>
+              <div className="mx-auto mb-8 max-w-3xl space-y-4 text-center text-base leading-relaxed text-white sm:text-[14px]">
+                <p>
+                  Thank you for your interest in joining Tutor Scene. We are excited to get to know you through our
+                  virtual interview process.
+                </p>
+                <p>
+                  Pick one question for each of the 5 topics below, record your
+                  answer on video, and upload it. Feel free to save your
+                  progress and complete the interview later. You are in control.
+                  Once complete, select Save and Continue to submit your
+                  responses.
+                </p>
+                <p>We look forward to learning more about you.</p>
               </div>
-              <span className="text-[#101727] text-sm font-medium">Create Profile</span>
-            </div>
-            
-            {/* Arrow */}
-            <div className="text-white text-sm">→</div>
-            
-            {/* Step 2 - Inactive */}
-            <div className="flex items-center gap-2 bg-white/20 rounded-full px-4 py-2">
-              <div className="w-6 h-6 rounded-full bg-white/40 text-white flex items-center justify-center text-sm">
-                2
-              </div>
-              <span className="text-white/80 text-sm">Get Verified</span>
-            </div>
-            
-            {/* Arrow */}
-            <div className="text-white text-sm">→</div>
-            
-            {/* Step 3 - Inactive */}
-            <div className="flex items-center gap-2 bg-white/20 rounded-full px-4 py-2">
-              <div className="w-6 h-6 rounded-full bg-white/40 text-white flex items-center justify-center text-sm">
-                3
-              </div>
-              <span className="text-white/80 text-sm">Start Teaching</span>
-            </div>
-          </div>
+            </>
+          ) : (
+            <>
+              <h1 className="text-white text-5xl font-normal mb-4 text-center">Build Your Tutor Profile</h1>
+              <p className="mb-8 max-w-2xl text-center text-lg text-white">
+                Share your experience and subjects you tutor
+              </p>
+            </>
+          )}
+
+          <TutorOnboardingStepper activeKey={step} onStepClick={onStepClick} />
         </div>
       </div>
-      
-      {/* Main Content */}
-      <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-12">
-        <ProfileTipsSection />
+
+      <div className="mx-auto w-full max-w-7xl flex-1 px-6 py-12">
+        {isInterviewStep ? (
+          <TutorInterviewsPage embedded />
+        ) : (
+          <ProfileTipsSection />
+        )}
       </div>
     </div>
   );
