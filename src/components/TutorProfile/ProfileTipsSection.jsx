@@ -9,6 +9,7 @@ import {
   fetchMyTutorProspect,
 } from "../../utils/api";
 import { getTutorOnboarding, setTutorOnboarding } from "../../utils/onboarding";
+import { mergeOnboardingSubmitIntoUser } from "../../utils/tutorProspectStatus";
 
 export const ProfileTipsSection = () => {
   const tutorLsUserKey = (() => {
@@ -934,21 +935,15 @@ const handleCVFile = async (file) => {
                 })();
                 setSelectedCV({ name: cvLabel, size: 0, fromServer: true });
               }
-              if (prospect?.status != null) {
-                const sessionUser = getCurrentUser();
-                if (sessionUser) {
-                  const next = {
-                    ...sessionUser,
-                    prospectStatus: String(prospect.status),
-                    firstName: String(onboardingPayload.legalFirstName || "").trim() || sessionUser.firstName,
-                    lastName: String(onboardingPayload.legalLastName || "").trim() || sessionUser.lastName,
-                    fullName: onboardingPayload.fullName || sessionUser.fullName,
-                  };
-                  if (prospect.prospectId != null && prospect.prospectId !== "") {
-                    next.prospectId = String(prospect.prospectId);
-                  }
-                  localStorage.setItem("user", JSON.stringify(next));
-                }
+              const sessionUser = getCurrentUser();
+              if (sessionUser) {
+                const next = mergeOnboardingSubmitIntoUser(sessionUser, submitResponse);
+                next.firstName =
+                  String(onboardingPayload.legalFirstName || "").trim() || sessionUser.firstName;
+                next.lastName =
+                  String(onboardingPayload.legalLastName || "").trim() || sessionUser.lastName;
+                next.fullName = onboardingPayload.fullName || sessionUser.fullName;
+                localStorage.setItem("user", JSON.stringify(next));
               }
             } catch (err) {
               alert(err?.message || "Failed to save profile information.");

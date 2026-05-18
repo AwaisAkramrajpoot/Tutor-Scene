@@ -26,7 +26,9 @@ const Navbar = () => {
   const isTutorOnboardingPage =
     ['/create-profile', '/ready-to-teach', '/interviews'].includes(location.pathname) ||
     isVerifyIdentityRoute;
-  const isTutorApproved = user?.role === 'tutor' && user?.prospectStatus === 'active';
+  const isTutorApproved =
+    user?.role === 'tutor' &&
+    (user?.prospectStatus === 'active' || user?.publishedStatus === 'active');
 
   // Check if user is logged in
   useEffect(() => {

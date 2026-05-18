@@ -6,6 +6,7 @@ import {
   applyTutorOnboardingStorageForAuthenticatedUser,
   migrateUnscopedTutorOnboardingForCurrentUser,
 } from "../utils/onboarding";
+import { mergeProspectStatusIntoUser } from "../utils/tutorProspectStatus";
 //signin
 const EyeIcon = (props) => (
   <svg
@@ -171,21 +172,29 @@ const SignIn = () => {
 
             if (statusResponse.ok) {
               const status = statusData.status || statusData.data?.status;
+              const publishedStatus =
+                statusData.publishedStatus || statusData.data?.publishedStatus;
+              const hasPendingProfileUpdate = Boolean(
+                statusData.hasPendingProfileUpdate ??
+                  statusData.data?.hasPendingProfileUpdate,
+              );
 
-              // Update localStorage with the latest prospectStatus
-              const updatedUser = {
-                ...data.user,
-                prospectStatus: status,
-              };
+              const updatedUser = mergeProspectStatusIntoUser(
+                { ...data.user, paymentOnBoarded: data.user.paymentOnBoarded },
+                statusData,
+              );
               localStorage.setItem("user", JSON.stringify(updatedUser));
 
-              // Get paymentOnBoarded from login response user object
               const paymentOnBoarded = data.user.paymentOnBoarded;
+              const isApprovedTutor =
+                status === "active" ||
+                publishedStatus === "active" ||
+                hasPendingProfileUpdate;
 
               console.log("Status:", status);
               console.log("PaymentOnBoarded:", paymentOnBoarded);
 
-              if (status === "active") {
+              if (isApprovedTutor) {
                 // Check if payment onboarding is complete
                 if (paymentOnBoarded === false) {
                   console.log("Redirecting to payment setup");

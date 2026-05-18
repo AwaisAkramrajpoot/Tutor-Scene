@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { isTutorApproved, mergeProspectStatusIntoUser } from "../utils/tutorProspectStatus";
 
 const OnboardingStatusGuard = ({ children }) => {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ const OnboardingStatusGuard = ({ children }) => {
         return;
       }
 
-      if (user.prospectStatus === "active") {
+      if (isTutorApproved(user)) {
         try {
           const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:3000";
           const paymentResponse = await fetch(
@@ -146,8 +147,11 @@ const OnboardingStatusGuard = ({ children }) => {
         if (response.ok) {
           const data = await response.json();
           const status = data.result || data.status || data.data?.status;
+          const hasPendingProfileUpdate = Boolean(
+            data.hasPendingProfileUpdate ?? data.data?.hasPendingProfileUpdate,
+          );
 
-          const updatedUser = { ...user, prospectStatus: status };
+          const updatedUser = mergeProspectStatusIntoUser(user, data);
           localStorage.setItem("user", JSON.stringify(updatedUser));
 
           const paymentOnBoarded = user.paymentOnBoarded;
@@ -159,6 +163,12 @@ const OnboardingStatusGuard = ({ children }) => {
             "/ready-to-teach",
           ];
           const isOnboardingRoute = onboardingRoutes.includes(location.pathname);
+
+          if (hasPendingProfileUpdate) {
+            setIsAllowed(true);
+            setIsChecking(false);
+            return;
+          }
 
           if (status === "pending") {
             try {

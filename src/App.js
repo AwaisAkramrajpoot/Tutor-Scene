@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { mergeProspectStatusIntoUser, isTutorApproved } from './utils/tutorProspectStatus';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './components/Home';
@@ -129,21 +130,11 @@ function TutorStatusChecker() {
 
         // Update user object with new prospectStatus
         if (response && response.status) {
-          const updatedUser = {
-            ...user,
-            prospectStatus: response.status
-          };
-          
-          // Save updated user back to localStorage
+          const updatedUser = mergeProspectStatusIntoUser(user, response);
           localStorage.setItem('user', JSON.stringify(updatedUser));
-          
-          console.log('TutorStatusChecker - Updated localStorage with prospectStatus:', response.status);
-          console.log('TutorStatusChecker - Updated user object:', updatedUser);
 
-          // Redirect tutors based on their status
-          // Only redirect from home page
           if (location.pathname === '/') {
-            if (response.status === 'active') {
+            if (isTutorApproved(updatedUser)) {
               navigate('/tutor-dashboard');
             } else if (response.status === 'awaiting_interview') {
               navigate('/interviews');
