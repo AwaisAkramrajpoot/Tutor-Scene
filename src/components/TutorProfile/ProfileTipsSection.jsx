@@ -415,6 +415,11 @@ export const ProfileTipsSection = () => {
 
 const handlePhotoFile = async (file) => {
   setSelectedPhoto(file);
+  const maxPhotoSize = 5 * 1024 * 1024; 
+  if (file.size > maxPhotoSize) {
+    setProfilePhotoError("Profile photo must be 5MB or less. Please upload a smaller image.");
+    return;  
+  }
   // Quick local preview
   const reader = new FileReader();
   reader.onloadend = () => {
@@ -463,6 +468,11 @@ const handlePhotoFile = async (file) => {
   };
 
 const handleCVFile = async (file) => {
+  const maxCvSize = 10 * 1024 * 1024;
+  if (file.size > maxCvSize) {
+    setCvFieldError("Resume/CV must be 10MB or less. Please upload a smaller file.");
+    return;  
+  }
   setSelectedCV(file);
   try {
     setUploading((u) => ({ ...u, cv: true }));
