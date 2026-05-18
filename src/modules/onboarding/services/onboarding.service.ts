@@ -199,12 +199,17 @@ export class OnboardingService {
     fileUrl: string,
     fileType: FileType,
   ): Promise<Prospect> {
-    const prospect = await this.prospectRepository.findOne({ where: { userId } });
-    if (!prospect) {
-      throw new NotFoundException(`Prospect not found for user ID ${userId}. Please complete onboarding first.`);
+    const normalizedUserId = this.normalizeUserId(userId);
+    const published = await this.findPublishedProspectByUserId(normalizedUserId);
+    if (!published) {
+      throw new NotFoundException(`Prospect not found for user ID ${normalizedUserId}. Please complete onboarding first.`);
     }
 
-    // Update the appropriate field based on file type
+    const prospect =
+      published.status === ProspectStatus.ACTIVE
+        ? await this.ensureProfileDraft(published, normalizedUserId)
+        : published;
+
     switch (fileType) {
       case FileType.CV:
         prospect.cv = fileUrl;
@@ -305,6 +310,246 @@ export class OnboardingService {
     return `${name}-${timestamp}-${randomString}${ext}`;
   }
 
+  private normalizeUserId(userId: number | string): number {
+    const n = Number(userId);
+    if (!Number.isFinite(n) || n <= 0) {
+      throw new BadRequestException('Invalid userId');
+    }
+    return Math.trunc(n);
+  }
+
+  private prospectStatusRank(status: ProspectStatus): number {
+    switch (status) {
+      case ProspectStatus.ACTIVE:
+        return 0;
+      case ProspectStatus.AWAITING_INTERVIEW:
+        return 1;
+      case ProspectStatus.SUSPENDED:
+        return 2;
+      default:
+        return 3;
+    }
+  }
+
+  private pickCanonicalProspect(prospects: Prospect[]): Prospect | null {
+    if (!prospects.length) {
+      return null;
+    }
+    return [...prospects].sort((a, b) => {
+      const byStatus =
+        this.prospectStatusRank(a.status) - this.prospectStatusRank(b.status);
+      if (byStatus !== 0) {
+        return byStatus;
+      }
+      return (
+        (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0)
+      );
+    })[0];
+  }
+
+  private applyOnboardingDtoToProspect(
+    prospect: Prospect,
+    onboardingDto: OnboardingDto,
+  ): void {
+    prospect.fullName = onboardingDto.fullName;
+    prospect.dateOfBirth = onboardingDto.dateOfBirth;
+    prospect.subjects = onboardingDto.subjects;
+    prospect.gradeLevels = onboardingDto.gradeLevels;
+    prospect.yearsOfExperience = onboardingDto.yearsOfExperience;
+    prospect.teachingPhilosophy = onboardingDto.teachingPhilosophy;
+    if (onboardingDto.cv !== undefined) {
+      prospect.cv = onboardingDto.cv;
+    }
+    if (onboardingDto.introVideo !== undefined) {
+      prospect.introVideo = onboardingDto.introVideo;
+    }
+    if (onboardingDto.govId !== undefined) {
+      prospect.govId = onboardingDto.govId;
+    }
+    if (onboardingDto.profilePic !== undefined) {
+      prospect.profilePic = onboardingDto.profilePic;
+    }
+    if (onboardingDto.fee !== undefined) {
+      prospect.fee = onboardingDto.fee;
+    }
+    if (onboardingDto.interviewTime !== undefined) {
+      prospect.interviewTime = onboardingDto.interviewTime;
+    }
+  }
+
+  private mergeDraftProfileIntoPublished(
+    published: Prospect,
+    draft: Prospect,
+  ): void {
+    published.fullName = draft.fullName;
+    published.dateOfBirth = draft.dateOfBirth;
+    published.subjects = draft.subjects;
+    published.gradeLevels = draft.gradeLevels;
+    published.yearsOfExperience = draft.yearsOfExperience;
+    published.teachingPhilosophy = draft.teachingPhilosophy;
+    published.cv = draft.cv;
+    published.introVideo = draft.introVideo;
+    published.govId = draft.govId;
+    published.profilePic = draft.profilePic;
+    published.fee = draft.fee;
+    published.interviewTime = draft.interviewTime;
+  }
+
+  private isPublishedLive(prospect: Prospect): boolean {
+    if (prospect.parentProspectId) {
+      return false;
+    }
+    if (prospect.status === ProspectStatus.ACTIVE) {
+      return true;
+    }
+    return Boolean(
+      prospect.paymentAccountId &&
+        prospect.status === ProspectStatus.PENDING,
+    );
+  }
+
+  private async healPublishedProspect(prospect: Prospect): Promise<Prospect> {
+    if (
+      !prospect.parentProspectId &&
+      prospect.paymentAccountId &&
+      prospect.status !== ProspectStatus.ACTIVE
+    ) {
+      prospect.status = ProspectStatus.ACTIVE;
+      return this.prospectRepository.save(prospect);
+    }
+    return prospect;
+  }
+
+  private async findPublishedProspectByUserId(
+    userId: number,
+  ): Promise<Prospect | null> {
+    const all = await this.prospectRepository.find({
+      where: { userId },
+      order: { updatedAt: 'DESC' },
+    });
+    if (!all.length) {
+      return null;
+    }
+
+    const roots = all.filter((p) => !p.parentProspectId);
+    const liveRoots = roots.filter((p) => this.isPublishedLive(p));
+    if (liveRoots.length) {
+      const best = this.pickCanonicalProspect(liveRoots) ?? liveRoots[0];
+      return this.healPublishedProspect(best);
+    }
+
+    return this.pickCanonicalProspect(roots);
+  }
+
+  private async reconcileOrphanPendingRootsForUser(
+    userId: number,
+  ): Promise<void> {
+    const published = await this.findPublishedProspectByUserId(userId);
+    if (!published || published.status !== ProspectStatus.ACTIVE) {
+      return;
+    }
+
+    const orphanPendingRoots = await this.prospectRepository.find({
+      where: {
+        userId,
+        parentProspectId: IsNull(),
+        status: ProspectStatus.PENDING,
+      },
+      order: { updatedAt: 'DESC' },
+    });
+    const orphans = orphanPendingRoots.filter((p) => p.id !== published.id);
+    if (!orphans.length) {
+      return;
+    }
+
+    let draft = await this.findDraftForPublished(published.id);
+    if (!draft) {
+      const [primary, ...extras] = orphans;
+      primary.parentProspectId = published.id;
+      await this.prospectRepository.save(primary);
+      draft = primary;
+      for (const extra of extras) {
+        await this.prospectRepository.remove(extra);
+      }
+      return;
+    }
+
+    for (const orphan of orphans) {
+      await this.prospectRepository.remove(orphan);
+    }
+  }
+
+  private async findDraftForPublished(
+    publishedId: number,
+  ): Promise<Prospect | null> {
+    return this.prospectRepository.findOne({
+      where: {
+        parentProspectId: publishedId,
+        status: ProspectStatus.PENDING,
+      },
+      order: { updatedAt: 'DESC' },
+    });
+  }
+
+  private async findCanonicalProspectByUserId(
+    userId: number,
+  ): Promise<Prospect | null> {
+    return this.findPublishedProspectByUserId(userId);
+  }
+
+  private async ensureProfileDraft(
+    published: Prospect,
+    userId: number,
+  ): Promise<Prospect> {
+    const existing = await this.findDraftForPublished(published.id);
+    if (existing) {
+      return existing;
+    }
+    const onboardingDto = {
+      userId,
+      fullName: published.fullName,
+      dateOfBirth: published.dateOfBirth,
+      subjects: published.subjects,
+      gradeLevels: published.gradeLevels,
+      yearsOfExperience: published.yearsOfExperience,
+      teachingPhilosophy: published.teachingPhilosophy,
+      cv: published.cv,
+      introVideo: published.introVideo,
+      govId: published.govId,
+      profilePic: published.profilePic,
+      fee: published.fee,
+    } as OnboardingDto;
+    return this.createProfileDraft(published, onboardingDto, userId);
+  }
+
+  private async createProfileDraft(
+    published: Prospect,
+    onboardingDto: OnboardingDto,
+    userId: number,
+  ): Promise<Prospect> {
+    const prospectId = await this.generateProspectId();
+    const draft = this.prospectRepository.create({
+      prospectId,
+      parentProspectId: published.id,
+      userId,
+      status: ProspectStatus.PENDING,
+      fullName: onboardingDto.fullName,
+      dateOfBirth: onboardingDto.dateOfBirth,
+      subjects: onboardingDto.subjects,
+      gradeLevels: onboardingDto.gradeLevels || published.gradeLevels || '',
+      yearsOfExperience: onboardingDto.yearsOfExperience,
+      teachingPhilosophy: onboardingDto.teachingPhilosophy,
+      cv: onboardingDto.cv ?? published.cv,
+      introVideo: onboardingDto.introVideo ?? published.introVideo,
+      govId: onboardingDto.govId ?? published.govId,
+      profilePic: onboardingDto.profilePic ?? published.profilePic,
+      fee: onboardingDto.fee ?? published.fee,
+      setupComplete: false,
+      paymentOnBoarded: false,
+    });
+    return this.prospectRepository.save(draft);
+  }
+
   /**
    * Process tutor onboarding
    * @param onboardingDto - Onboarding data
@@ -312,25 +557,47 @@ export class OnboardingService {
    */
   async processTutorOnboarding(onboardingDto: OnboardingDto): Promise<Prospect> {
     try {
-      const existing = await this.prospectRepository.findOne({
-        where: { userId: onboardingDto.userId },
-      });
+      const userId = this.normalizeUserId(onboardingDto.userId);
+      onboardingDto.userId = userId;
+
+      await this.reconcileOrphanPendingRootsForUser(userId);
+      const published = await this.findPublishedProspectByUserId(userId);
 
       let saved: Prospect;
-      if (existing) {
-        Object.assign(existing, onboardingDto, {
-          status: ProspectStatus.PENDING,
-        });
-        saved = await this.prospectRepository.save(existing);
-      } else {
+      if (!published) {
         const prospectId = await this.generateProspectId();
-
         const prospect = this.prospectRepository.create({
-          prospectId: prospectId,
+          prospectId,
           ...onboardingDto,
           status: ProspectStatus.PENDING,
+          parentProspectId: null,
         });
         saved = await this.prospectRepository.save(prospect);
+      } else if (this.isPublishedLive(published)) {
+        if (published.status !== ProspectStatus.ACTIVE) {
+          published.status = ProspectStatus.ACTIVE;
+          await this.prospectRepository.save(published);
+        }
+        let draft = await this.findDraftForPublished(published.id);
+        if (!draft) {
+          saved = await this.createProfileDraft(
+            published,
+            onboardingDto,
+            userId,
+          );
+        } else {
+          this.applyOnboardingDtoToProspect(draft, onboardingDto);
+          draft.status = ProspectStatus.PENDING;
+          draft.userId = userId;
+          draft.parentProspectId = published.id;
+          saved = await this.prospectRepository.save(draft);
+        }
+      } else {
+        const preservedStatus = published.status;
+        this.applyOnboardingDtoToProspect(published, onboardingDto);
+        published.status = preservedStatus;
+        published.userId = userId;
+        saved = await this.prospectRepository.save(published);
       }
 
       const user = await this.userRepository.findOne({
@@ -354,8 +621,18 @@ export class OnboardingService {
     }
   }
 
+  async getPublishedProspectByUserId(userId: number): Promise<Prospect | null> {
+    return this.findPublishedProspectByUserId(this.normalizeUserId(userId));
+  }
+
   async getProspectByUserId(userId: number): Promise<Prospect | null> {
-    return this.prospectRepository.findOne({ where: { userId } });
+    const normalizedUserId = this.normalizeUserId(userId);
+    const published = await this.findPublishedProspectByUserId(normalizedUserId);
+    if (!published) {
+      return null;
+    }
+    const draft = await this.findDraftForPublished(published.id);
+    return draft ?? published;
   }
 
   private async generateProspectId(): Promise<string> {
@@ -385,19 +662,29 @@ export class OnboardingService {
    * @param userId - User ID to search for
    * @returns Prospect status
    */
-  async getProspectStatusByUserId(userId: number): Promise<{ status: string }> {
-    const prospect = await this.prospectRepository.findOne({
-      where: { userId },
-      select: ['status']
-    });
+  async getProspectStatusByUserId(userId: number): Promise<{
+    status: string;
+    publishedStatus?: string;
+    hasPendingProfileUpdate?: boolean;
+  }> {
+    const published = await this.findPublishedProspectByUserId(
+      this.normalizeUserId(userId),
+    );
 
-    if (!prospect) {
-      // New tutor users can exist before their onboarding row is created.
-      // Return a safe default instead of 404 to keep onboarding flow working.
+    if (!published) {
       return { status: 'not_started' };
     }
 
-    return { status: prospect.status };
+    const draft = await this.findDraftForPublished(published.id);
+    if (draft && published.status === ProspectStatus.ACTIVE) {
+      return {
+        status: ProspectStatus.PENDING,
+        publishedStatus: published.status,
+        hasPendingProfileUpdate: true,
+      };
+    }
+
+    return { status: published.status };
   }
 
   /**
@@ -407,27 +694,42 @@ export class OnboardingService {
    */
   async getTutorsList(status?: string): Promise<Prospect[]> {
     try {
-      // If status is 'all', return all prospects regardless of status
-      if (status?.toLowerCase() === 'all') {
-        return await this.prospectRepository.find({
-          order: { createdAt: 'DESC' },
-        });
-      }
+      const filterStatus =
+        status?.toLowerCase() === 'all' ? null : status || ProspectStatus.ACTIVE;
 
-      // Default to 'active' if no status is provided
-      const filterStatus = status || ProspectStatus.ACTIVE;
-
-      // Validate status if provided
-      if (status && !Object.values(ProspectStatus).includes(status as ProspectStatus)) {
+      if (
+        filterStatus &&
+        !Object.values(ProspectStatus).includes(filterStatus as ProspectStatus)
+      ) {
         throw new BadRequestException(`Invalid status: ${status}. Valid values are: ${Object.values(ProspectStatus).join(', ')}, all`);
       }
 
-      const prospects = await this.prospectRepository.find({
-        where: { status: filterStatus as ProspectStatus },
+      const allProspects = await this.prospectRepository.find({
         order: { createdAt: 'DESC' },
       });
+      const roots = allProspects.filter((p) => !p.parentProspectId);
+      const draftsByParent = new Map<number, Prospect>();
+      for (const prospect of allProspects) {
+        if (prospect.parentProspectId) {
+          draftsByParent.set(prospect.parentProspectId, prospect);
+        }
+      }
 
-      return prospects;
+      const adminRows = roots.map((root) => draftsByParent.get(root.id) ?? root);
+
+      if (!filterStatus) {
+        return adminRows;
+      }
+
+      if (filterStatus === ProspectStatus.ACTIVE) {
+        return roots.filter(
+          (root) =>
+            root.status === ProspectStatus.ACTIVE &&
+            !draftsByParent.has(root.id),
+        );
+      }
+
+      return adminRows.filter((row) => row.status === filterStatus);
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
@@ -441,13 +743,17 @@ export class OnboardingService {
    * @param id - Prospect ID
    * @returns Prospect data
    */
-  async getTutorById(id: number): Promise<Prospect> {
+  async getTutorById(id: number, forAdmin = false): Promise<Prospect> {
     const prospect = await this.prospectRepository.findOne({
       where: { id },
     });
 
     if (!prospect) {
       throw new NotFoundException(`Tutor with ID ${id} not found`);
+    }
+
+    if (!forAdmin && prospect.parentProspectId) {
+      return this.getTutorById(prospect.parentProspectId, false);
     }
 
     return prospect;
@@ -474,7 +780,16 @@ export class OnboardingService {
     try {
       const queryBuilder = this.prospectRepository
         .createQueryBuilder('prospect')
-        .where('prospect.status = :status', { status: ProspectStatus.ACTIVE });
+        .where('prospect.parentProspectId IS NULL')
+        .andWhere(
+          new Brackets((qb) => {
+            qb.where('prospect.status = :active', {
+              active: ProspectStatus.ACTIVE,
+            }).orWhere(
+              '(prospect.payment_account_id IS NOT NULL AND prospect.setup_complete = true)',
+            );
+          }),
+        );
 
       if (subject && String(subject).trim()) {
         const trimmed = String(subject).trim();
@@ -592,7 +907,24 @@ export class OnboardingService {
 
       const tutors = await queryBuilder.getMany();
 
-      return tutors;
+      const healed: Prospect[] = [];
+      for (const tutor of tutors) {
+        healed.push(await this.healPublishedProspect(tutor));
+      }
+
+      const byUser = new Map<number, Prospect>();
+      const withoutUser: Prospect[] = [];
+      for (const tutor of healed) {
+        if (tutor.userId == null) {
+          withoutUser.push(tutor);
+          continue;
+        }
+        if (!byUser.has(tutor.userId)) {
+          byUser.set(tutor.userId, tutor);
+        }
+      }
+
+      return [...withoutUser, ...byUser.values()];
     } catch (error) {
       throw new InternalServerErrorException('Failed to search tutors');
     }
@@ -614,18 +946,31 @@ export class OnboardingService {
       throw new NotFoundException(`Tutor with ID ${id} not found`);
     }
 
-    // Check if already approved
-    if (prospect.status === ProspectStatus.ACTIVE) {
-      throw new BadRequestException('Tutor is already approved');
-    }
-
-    // Check if prospect has an associated user
     if (!prospect.userId) {
       throw new BadRequestException('Prospect does not have an associated user account');
     }
 
+    if (prospect.parentProspectId) {
+      const published = await this.prospectRepository.findOne({
+        where: { id: prospect.parentProspectId },
+        relations: ['user'],
+      });
+      if (!published) {
+        throw new NotFoundException('Published tutor profile not found for this update');
+      }
+      if (prospect.status !== ProspectStatus.PENDING) {
+        throw new BadRequestException('Only pending profile updates can be approved');
+      }
+      this.mergeDraftProfileIntoPublished(published, prospect);
+      await this.prospectRepository.remove(prospect);
+      return this.prospectRepository.save(published);
+    }
+
+    if (prospect.status === ProspectStatus.ACTIVE) {
+      throw new BadRequestException('Tutor is already approved');
+    }
+
     try {
-      // Create Stripe Customer
       const customer = await this.stripe.customers.create({
         name: prospect.fullName,
         email: prospect.user?.email || `tutor${id}@tutorscene.com`,
@@ -680,10 +1025,9 @@ export class OnboardingService {
    * @returns Stripe onboarding URL
    */
   async generateStripeOnboardingLink(userId: number): Promise<string> {
-    // Find prospect by user ID
-    const prospect = await this.prospectRepository.findOne({
-      where: { userId },
-    });
+    const prospect = await this.findCanonicalProspectByUserId(
+      this.normalizeUserId(userId),
+    );
 
     if (!prospect) {
       throw new NotFoundException(`Prospect not found for user ID ${userId}`);
@@ -717,10 +1061,9 @@ export class OnboardingService {
    * @returns Payment onboarding status
    */
   async getPaymentOnboardingStatus(userId: number): Promise<{ paymentOnBoarded: boolean }> {
-    const prospect = await this.prospectRepository.findOne({
-      where: { userId },
-      select: ['paymentOnBoarded'],
-    });
+    const prospect = await this.findCanonicalProspectByUserId(
+      this.normalizeUserId(userId),
+    );
 
     if (!prospect) {
       throw new NotFoundException(`Prospect not found for user ID ${userId}`);

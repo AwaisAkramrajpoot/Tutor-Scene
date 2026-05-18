@@ -9,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '@/database/entities/user.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
@@ -20,7 +20,7 @@ import { JwtPayload } from '../strategies/jwt.strategy';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { MailService } from './mail.service';
-import { UserStatus, UserRole } from '@/database/entities/enums';
+import { UserStatus, UserRole, ProspectStatus } from '@/database/entities/enums';
 
 @Injectable()
 export class AuthService {
@@ -358,17 +358,33 @@ export class AuthService {
     let paymentOnBoarded: boolean | undefined;
     let prospectId: number | undefined;
     let prospectStatus: string | undefined;
-    
+    let publishedStatus: string | undefined;
+    let hasPendingProfileUpdate: boolean | undefined;
+
     if (user.role === UserRole.TUTOR && user.status === UserStatus.ACTIVE) {
-      const prospect = await this.prospectRepository.findOne({
-        where: { userId: user.id },
+      const published = await this.prospectRepository.findOne({
+        where: { userId: user.id, parentProspectId: IsNull() },
         select: ['id', 'paymentOnBoarded', 'status'],
+        order: { updatedAt: 'DESC' },
       });
-      
-      if (prospect) {
-        paymentOnBoarded = prospect.paymentOnBoarded ?? false;
-        prospectId = prospect.id;
-        prospectStatus = prospect.status;
+
+      if (published) {
+        paymentOnBoarded = published.paymentOnBoarded ?? false;
+        prospectId = published.id;
+        publishedStatus = published.status;
+        prospectStatus = published.status;
+
+        const pendingDraft = await this.prospectRepository.findOne({
+          where: {
+            parentProspectId: published.id,
+            status: ProspectStatus.PENDING,
+          },
+          select: ['id'],
+        });
+        if (pendingDraft && published.status === ProspectStatus.ACTIVE) {
+          prospectStatus = ProspectStatus.PENDING;
+          hasPendingProfileUpdate = true;
+        }
       }
     }
 
@@ -385,6 +401,8 @@ export class AuthService {
         ...(paymentOnBoarded !== undefined && { paymentOnBoarded }),
         ...(prospectId !== undefined && { prospectId }),
         ...(prospectStatus !== undefined && { prospectStatus }),
+        ...(publishedStatus !== undefined && { publishedStatus }),
+        ...(hasPendingProfileUpdate !== undefined && { hasPendingProfileUpdate }),
       },
     };
   }

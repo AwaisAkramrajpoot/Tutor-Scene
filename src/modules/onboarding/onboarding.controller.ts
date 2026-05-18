@@ -56,10 +56,17 @@ export class OnboardingController {
     try {
       // Save prospect information
       const prospect = await this.onboardingService.processTutorOnboarding(onboardingDto);
-      
+      const published = await this.onboardingService.getPublishedProspectByUserId(
+        onboardingDto.userId,
+      );
+
       return {
         prospect,
-        message: 'Tutor onboarding initiated successfully',
+        publishedProspectId: published?.id ?? prospect.id,
+        hasPendingProfileUpdate: Boolean(prospect.parentProspectId),
+        message: prospect.parentProspectId
+          ? 'Profile updates submitted for admin review'
+          : 'Tutor onboarding initiated successfully',
       };
     } catch (error) {
       this.logger.error('Tutor onboarding failed', error.stack);
@@ -373,9 +380,15 @@ export class OnboardingController {
   })
   @ApiResponse({ status: 404, description: 'Tutor not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getTutorById(@Param('id', ParseIntPipe) id: number) {
+  async getTutorById(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('admin') admin?: string,
+  ) {
     try {
-      const prospect = await this.onboardingService.getTutorById(id);
+      const prospect = await this.onboardingService.getTutorById(
+        id,
+        admin === 'true',
+      );
       const meta = await this.onboardingService.getLearnerMetaForProspect(prospect);
       return { ...(prospect as any), ...meta };
     } catch (error) {

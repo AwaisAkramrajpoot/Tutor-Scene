@@ -21,9 +21,16 @@ export class Prospect {
   @Column({ nullable: true, name: 'user_id' })
   userId: number;
 
+  @Column({ nullable: true, name: 'parent_prospect_id' })
+  parentProspectId: number | null;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @ManyToOne(() => Prospect, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'parent_prospect_id' })
+  parentProspect: Prospect | null;
 
   @Column()
   subjects: string;
