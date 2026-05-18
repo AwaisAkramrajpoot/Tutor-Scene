@@ -23,7 +23,7 @@ const TutorDetails = () => {
     const fetchTutor = async () => {
       try {
         setLoading(true);
-        const data = await apiRequest(`/api/v1/onboarding/tutor/${id}`);
+        const data = await apiRequest(`/api/v1/onboarding/tutor/${id}?admin=true`);
         setTutor(data.tutor || data.data || data);
       } catch (err) {
         console.error('Failed to fetch tutor:', err);
@@ -58,8 +58,7 @@ const TutorDetails = () => {
       // Show success message
       setSuccessMessage('Tutor approved successfully!');
 
-      // Navigate back to dashboard immediately
-      navigate('/admin-dashboard');
+      navigate('/admin-dashboard', { state: { activeTab: 'tutors' } });
     } catch (err) {
       console.error('Failed to approve tutor:', err);
       setError(err.message || 'Failed to approve tutor');
@@ -131,13 +130,10 @@ const TutorDetails = () => {
       // Show success message
       setSuccessMessage('Tutor suspended successfully!');
       
-      // Close modal and reset form
       setShowSuspendModal(false);
       setSuspensionReason('');
 
-      // Refresh tutor data
-      const data = await apiRequest(`/api/v1/onboarding/tutor/${id}`);
-      setTutor(data.tutor || data.data || data);
+      navigate('/admin-dashboard', { state: { activeTab: 'tutors' } });
     } catch (err) {
       console.error('Failed to suspend tutor:', err);
       setError(err.message || 'Failed to suspend tutor');

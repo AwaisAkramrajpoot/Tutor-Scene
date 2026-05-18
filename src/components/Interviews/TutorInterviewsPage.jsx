@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Snackbar } from '@mui/material';
 import { apiRequest, uploadOnboardingFile, getCurrentUser, submitTutorOnboarding, resolveApiAssetUrl } from '../../utils/api';
+import { mergeOnboardingSubmitIntoUser } from '../../utils/tutorProspectStatus';
 import { getTutorOnboarding } from '../../utils/onboarding';
 
 function normalizeTopicProgress(raw) {
@@ -328,8 +329,9 @@ const TutorInterviewsPage = ({ embedded = false }) => {
         const user = getCurrentUser();
         const userId = user?.id || user?._id || user?.userId;
         const ob = getTutorOnboarding();
+        let submitResponse = null;
         if (userId && ob?.fullName && ob?.dateOfBirth) {
-          await submitTutorOnboarding({
+          submitResponse = await submitTutorOnboarding({
             userId,
             fullName: ob.fullName,
             dateOfBirth: ob.dateOfBirth,
@@ -344,12 +346,12 @@ const TutorInterviewsPage = ({ embedded = false }) => {
         }
         const latestUser = getCurrentUser();
         if (latestUser) {
+          const nextUser = mergeOnboardingSubmitIntoUser(latestUser, submitResponse);
           localStorage.setItem(
             'user',
             JSON.stringify({
-              ...latestUser,
+              ...nextUser,
               interviewCompleted: true,
-              prospectStatus: 'pending',
               verificationCompleted: false,
             }),
           );

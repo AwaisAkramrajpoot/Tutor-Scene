@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Menu,
   MenuItem,
@@ -141,7 +141,10 @@ const Table = ({ columns, data }) => (
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("students");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(
+    () => (location.state?.activeTab === "tutors" ? "tutors" : "students"),
+  );
   const [statusFilter, setStatusFilter] = useState("all");
   const [tutorStatusFilter, setTutorStatusFilter] = useState("all");
   const [menuAnchor, setMenuAnchor] = useState(null);

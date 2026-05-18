@@ -1,4 +1,5 @@
 import { getCurrentUser, submitTutorOnboarding } from "./api";
+import { mergeOnboardingSubmitIntoUser } from "./tutorProspectStatus";
 import { getTutorOnboarding, clearTutorOnboarding } from "./onboarding";
 
 export const BACKGROUND_CHECK_PROVIDER_URL =
@@ -40,13 +41,13 @@ export async function runTutorVerificationSubmit() {
     cv: ob.cv,
     profilePic: ob.profilePic,
   };
-  await submitTutorOnboarding(payload);
+  const submitResponse = await submitTutorOnboarding(payload);
   clearTutorOnboarding();
+  const nextUser = mergeOnboardingSubmitIntoUser(user, submitResponse);
   localStorage.setItem(
     "user",
     JSON.stringify({
-      ...user,
-      prospectStatus: "pending",
+      ...nextUser,
       interviewCompleted: true,
       verificationCompleted: true,
     }),
