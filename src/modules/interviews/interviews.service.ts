@@ -370,6 +370,21 @@ export class InterviewsService {
     return { deleted: true };
   }
 
+  private async assertUniqueQuestionSortOrder(
+    topicId: number,
+    sortOrder: number,
+    excludeQuestionId?: number,
+  ): Promise<void> {
+    const existing = await this.interviewQuestionRepository.findOne({
+      where: { topicId, sortOrder },
+    });
+    if (existing && existing.id !== excludeQuestionId) {
+      throw new ConflictException(
+        `Sort order ${sortOrder} is already used by another question in this topic`,
+      );
+    }
+  }
+
   async createInterviewQuestion(topicId: number, dto: CreateInterviewQuestionDto) {
     const topic = await this.interviewTopicRepository.findOne({ where: { id: topicId } });
     if (!topic) throw new NotFoundException('Topic not found');
@@ -378,11 +393,13 @@ export class InterviewsService {
       where: { topicId, optionKey: key },
     });
     if (dup) throw new ConflictException('Option key already exists for this topic');
+    const sortOrder = dto.sortOrder ?? 0;
+    await this.assertUniqueQuestionSortOrder(topicId, sortOrder);
     const row = this.interviewQuestionRepository.create({
       topicId,
       optionKey: key,
       body: dto.body.trim(),
-      sortOrder: dto.sortOrder ?? 0,
+      sortOrder,
       isActive: dto.isActive ?? true,
     });
     return this.interviewQuestionRepository.save(row);
@@ -400,7 +417,10 @@ export class InterviewsService {
       row.optionKey = key;
     }
     if (dto.body !== undefined) row.body = dto.body.trim();
-    if (dto.sortOrder !== undefined) row.sortOrder = dto.sortOrder;
+    if (dto.sortOrder !== undefined) {
+      await this.assertUniqueQuestionSortOrder(row.topicId, dto.sortOrder, row.id);
+      row.sortOrder = dto.sortOrder;
+    }
     if (dto.isActive !== undefined) row.isActive = dto.isActive;
     return this.interviewQuestionRepository.save(row);
   }
