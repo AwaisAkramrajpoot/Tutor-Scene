@@ -3,6 +3,11 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import { getConversations } from '../services/messagingService';
 import { getNotifications } from '../services/notificationsService';
+import {
+  isTutorApproved,
+  isTutorInInitialOnboarding,
+  isTutorOnboardingPath,
+} from '../utils/tutorProspectStatus';
 
 // Icons
 const ChevronDownIcon = (props) => (
@@ -24,11 +29,13 @@ const Navbar = () => {
   const isStudent = user?.role === 'student';
   const isVerifyIdentityRoute = location.pathname.startsWith('/verify-identity');
   const isTutorOnboardingPage =
-    ['/create-profile', '/ready-to-teach', '/interviews'].includes(location.pathname) ||
+    isTutorOnboardingPath(location.pathname) ||
+    location.pathname === '/ready-to-teach' ||
     isVerifyIdentityRoute;
-  const isTutorApproved =
-    user?.role === 'tutor' &&
-    (user?.prospectStatus === 'active' || user?.publishedStatus === 'active');
+  const tutorApproved = isTutorApproved(user);
+  const tutorInOnboarding = isTutorInInitialOnboarding(user);
+  const showTutorMarketingNav =
+    user?.role === 'tutor' && (isTutorOnboardingPage || tutorInOnboarding || !tutorApproved);
 
   // Check if user is logged in
   useEffect(() => {
@@ -136,7 +143,7 @@ const Navbar = () => {
           <Link 
             to={user ? (
               user.role === 'student' ? '/dashboard' :
-              user.role === 'tutor' ? '/tutor-dashboard' :
+              user.role === 'tutor' ? (tutorApproved && !tutorInOnboarding ? '/tutor-dashboard' : '/create-profile') :
               user.role === 'admin' ? '/admin-dashboard' : '/'
             ) : '/'}
             className={`absolute left-4 sm:left-6 lg:left-8 z-20 flex cursor-pointer items-center ${
@@ -181,7 +188,7 @@ const Navbar = () => {
         }`}>
               {/* Show Home only when user is not authenticated */}
           <div className="hidden md:flex items-center gap-1 lg:gap-2 flex-shrink-0">
-              {isTutorOnboardingPage && (
+              {(!user || user.role !== 'admin') && (
                 <>
                   <Link
                     to="/"
@@ -203,6 +210,10 @@ const Navbar = () => {
                   >
                     About
                   </Link>
+                </>
+              )}
+              {showTutorMarketingNav && (
+                <>
                   <Link
                     to="/become-tutor"
                     className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
@@ -219,16 +230,6 @@ const Navbar = () => {
               )}
               {isStudent && (
                 <>
-                  <Link
-                    to="/"
-                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                      location.pathname === '/'
-                        ? 'text-brand-medium-blue font-semibold'
-                        : 'text-gray-700 hover:text-brand-medium-blue'
-                    }`}
-                  >
-                    Home
-                  </Link>
                   <Link
                     to="/dashboard"
                     className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
@@ -249,66 +250,7 @@ const Navbar = () => {
                   >
                     Find Tutors
                   </Link>
-                  {/* <Link
-                    to="/messages"
-                    className={`relative px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                      location.pathname.startsWith('/messages')
-                        ? 'text-brand-medium-blue font-semibold'
-                        : 'text-gray-700 hover:text-brand-medium-blue'
-                    }`}
-                  >
-                    Messages
-                    {unreadCount > 0 && (
-                      <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
-                  </Link> */}
-                  {/* <Link
-                    to="/become-tutor"
-                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                      location.pathname === '/become-tutor'
-                        ? 'text-brand-medium-blue font-semibold'
-                        : 'text-gray-700 hover:text-brand-medium-blue'
-                    }`}
-                  >
-                    Become a Tutor
-                  </Link> */}
-                  <Link
-                    to="/about"
-                    className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                      location.pathname === '/about'
-                        ? 'text-brand-medium-blue font-semibold'
-                        : 'text-gray-700 hover:text-brand-medium-blue'
-                    }`}
-                  >
-                    About
-                  </Link>
                 </>
-              )}
-              {!user && (
-                <Link
-                  to="/"
-                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                    location.pathname === '/'
-                      ? 'text-brand-medium-blue font-semibold'
-                      : 'text-gray-700 hover:text-brand-medium-blue'
-                  }`}
-                >
-                  Home
-                </Link>
-              )}
-              {!user && (
-                <Link
-                  to="/about"
-                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                    location.pathname === '/about'
-                      ? 'text-brand-medium-blue font-semibold'
-                      : 'text-gray-700 hover:text-brand-medium-blue'
-                  }`}
-                >
-                  About
-                </Link>
               )}
               {!user && (
                 <Link
@@ -404,13 +346,39 @@ const Navbar = () => {
           <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
             {user ? (
               <>
-                {user.role === 'tutor' && !isTutorApproved ? (
+                {user.role === 'tutor' && showTutorMarketingNav && !tutorApproved ? (
                   <button
                     onClick={handleLogoutClick}
                     className="px-4 py-1.5 text-sm font-medium text-gray-700 border border-gray-400 rounded-md hover:bg-gray-50 transition-colors"
                   >
                     Log Out
                   </button>
+                ) : user.role === 'tutor' && tutorApproved ? (
+                  <>
+                    <button
+                      onClick={handleMenuOpen}
+                      className="flex items-center space-x-2 text-brand-dark-blue hover:text-brand-medium-blue px-3 py-2 text-sm font-semibold transition-colors"
+                    >
+                      <span>{user.firstName || 'Account'}</span>
+                      <ChevronDownIcon />
+                    </button>
+                    <Menu
+                      anchorEl={anchorEl}
+                      open={Boolean(anchorEl)}
+                      onClose={handleMenuClose}
+                      anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'right',
+                      }}
+                      transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                      }}
+                    >
+                      <MenuItem onClick={handleDashboardClick}>Dashboard</MenuItem>
+                      <MenuItem onClick={handleLogoutClick}>Log Out</MenuItem>
+                    </Menu>
+                  </>
                 ) : (
                   <>
                     {/* ── STUDENT ONLY: Bell + Envelope icon symbols ── */}

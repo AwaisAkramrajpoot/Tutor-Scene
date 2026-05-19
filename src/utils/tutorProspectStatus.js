@@ -1,6 +1,67 @@
+export const TUTOR_ONBOARDING_PATHS = [
+  "/create-profile",
+  "/interviews",
+  "/verify-identity",
+  "/profile-under-review",
+  "/ready-to-teach",
+  "/become-tutor",
+];
+
+export const TUTOR_PAYMENT_SETUP_PATHS = [
+  "/tutor/wallet",
+  "/tutor/onboarding/refresh",
+  "/tutor/onboarding/complete",
+];
+
+export function isTutorOnboardingPath(pathname) {
+  if (!pathname) return false;
+  return TUTOR_ONBOARDING_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+export function isTutorPaymentSetupPath(pathname) {
+  if (!pathname) return false;
+  return TUTOR_PAYMENT_SETUP_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+export function isPublicMarketingPath(pathname) {
+  if (!pathname) return false;
+  return (
+    pathname === "/" ||
+    pathname === "/about" ||
+    pathname === "/signin" ||
+    pathname === "/signup" ||
+    pathname === "/become-tutor"
+  );
+}
+
 export function isTutorApproved(user) {
   if (!user || user.role !== "tutor") return false;
+  if (user.hasPendingProfileUpdate) return true;
   return user.prospectStatus === "active" || user.publishedStatus === "active";
+}
+
+export function isTutorInInitialOnboarding(user) {
+  if (!user || user.role !== "tutor") return false;
+  if (user.hasPendingProfileUpdate) return false;
+  const status = String(user.prospectStatus || "");
+  if (!status || status === "not_started") return true;
+  return status === "pending" || status === "awaiting_interview";
+}
+
+export function shouldForcePaymentSetup(user, pathname) {
+  if (!user || user.role !== "tutor") return false;
+  if (user.hasPendingProfileUpdate) return false;
+  if (!isTutorApproved(user)) return false;
+  if (isTutorInInitialOnboarding(user)) return false;
+  if (user.paymentOnBoarded === true) return false;
+  if (isTutorOnboardingPath(pathname)) return false;
+  if (isTutorPaymentSetupPath(pathname)) return false;
+  if (isPublicMarketingPath(pathname)) return false;
+  return true;
 }
 
 export function mergeProspectStatusIntoUser(user, statusPayload) {
