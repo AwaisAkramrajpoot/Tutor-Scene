@@ -389,6 +389,23 @@ export const ProfileTipsSection = () => {
     setModalLeftChecked([]);
   };
 
+  useEffect(() => {
+    if (!isSubjectsModalOpen) return undefined;
+    const scrollY = window.scrollY;
+    const { overflow, position, top, width } = document.body.style;
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    return () => {
+      document.body.style.overflow = overflow;
+      document.body.style.position = position;
+      document.body.style.top = top;
+      document.body.style.width = width;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isSubjectsModalOpen]);
+
   const gradeBadgeClass =
     "inline-flex items-center rounded-full bg-[#E8F0FE] text-[#1a56b5] border border-[#c5daf7] px-2 py-0.5 text-xs font-medium";
 
@@ -1030,7 +1047,7 @@ const handleCVFile = async (file) => {
       </div>
 
       {isSubjectsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-hidden overscroll-none">
           <div
             className="bg-white w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border border-gray-200 overflow-hidden"
             role="dialog"
@@ -1117,7 +1134,7 @@ const handleCVFile = async (file) => {
                     Showing {filteredAvailableSubjects.length} of {totalAvailableSubjectCount} subjects
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
+                <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0 overscroll-contain">
                   {loadingSubjects ? (
                     <p className="px-3 py-4 text-sm text-[#6b7280]">Loading subjects…</p>
                   ) : filteredAvailableSubjects.length === 0 ? (
@@ -1178,7 +1195,7 @@ const handleCVFile = async (file) => {
                   <div className="text-sm font-semibold text-[#1e3a8a]">Selected Subjects</div>
                   <div className="text-xs text-[#64748b] mt-0.5">{modalRightList.length} Subjects Selected</div>
                 </div>
-                <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
+                <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0 overscroll-contain">
                   {modalRightList.length === 0 ? (
                     <p className="px-3 py-4 text-sm text-[#6b7280]">No subjects selected yet.</p>
                   ) : (
