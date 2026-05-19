@@ -43,6 +43,23 @@ const sortOrderKeyDownBlockInvalid = (e) => {
   }
 };
 
+const blockNegativeNumberKeys = (e) => {
+  if (["-", "+", "e", "E"].includes(e.key)) {
+    e.preventDefault();
+  }
+};
+
+const sanitizePositiveIntInput = (value) => String(value).replace(/\D/g, "");
+
+const sanitizePositiveDecimalInput = (value) => {
+  let cleaned = String(value).replace(/-/g, "").replace(/[^\d.]/g, "");
+  const parts = cleaned.split(".");
+  if (parts.length > 2) {
+    cleaned = `${parts[0]}.${parts.slice(1).join("")}`;
+  }
+  return cleaned;
+};
+
 const DotsVerticalIcon = (props) => (
   <svg
     {...props}
@@ -821,6 +838,41 @@ export default function AdminDashboard() {
   };
 
   const handlePromoCodeFormChange = (field, value) => {
+    if (field === "discountValue") {
+      setPromoCodeForm((prev) => {
+        let next = sanitizePositiveDecimalInput(value);
+        if (
+          prev.discountType === "percentage" &&
+          next !== "" &&
+          Number(next) > 100
+        ) {
+          next = "100";
+        }
+        return { ...prev, discountValue: next };
+      });
+      return;
+    }
+    if (field === "usageLimit") {
+      setPromoCodeForm((prev) => ({
+        ...prev,
+        usageLimit: sanitizePositiveIntInput(value),
+      }));
+      return;
+    }
+    if (field === "discountType") {
+      setPromoCodeForm((prev) => {
+        const next = { ...prev, discountType: value };
+        if (
+          value === "percentage" &&
+          next.discountValue !== "" &&
+          Number(next.discountValue) > 100
+        ) {
+          next.discountValue = "100";
+        }
+        return next;
+      });
+      return;
+    }
     setPromoCodeForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -828,6 +880,22 @@ export default function AdminDashboard() {
     if (!promoCodeForm.code || !promoCodeForm.discountValue) {
       alert("Code and Discount Value are required");
       return;
+    }
+    const discountNum = parseFloat(promoCodeForm.discountValue);
+    if (Number.isNaN(discountNum) || discountNum <= 0) {
+      alert("Discount value must be greater than 0");
+      return;
+    }
+    if (promoCodeForm.discountType === "percentage" && discountNum > 100) {
+      alert("Discount percentage cannot exceed 100");
+      return;
+    }
+    if (promoCodeForm.usageLimit !== "") {
+      const usageNum = parseInt(promoCodeForm.usageLimit, 10);
+      if (Number.isNaN(usageNum) || usageNum < 1) {
+        alert("Usage limit must be a positive whole number (at least 1)");
+        return;
+      }
     }
     setSubmittingPromoCode(true);
     try {
@@ -2502,7 +2570,13 @@ export default function AdminDashboard() {
               onChange={(e) =>
                 handlePromoCodeFormChange("discountValue", e.target.value)
               }
+              onKeyDown={blockNegativeNumberKeys}
               variant="outlined"
+              inputProps={{
+                min: 0,
+                max: promoCodeForm.discountType === "percentage" ? 100 : undefined,
+                step: promoCodeForm.discountType === "percentage" ? 1 : "0.01",
+              }}
               placeholder={
                 promoCodeForm.discountType === "percentage"
                   ? "e.g., 30"
@@ -2541,9 +2615,11 @@ export default function AdminDashboard() {
               onChange={(e) =>
                 handlePromoCodeFormChange("usageLimit", e.target.value)
               }
+              onKeyDown={blockNegativeNumberKeys}
               variant="outlined"
+              inputProps={{ min: 1, step: 1 }}
               placeholder="Leave empty for unlimited"
-              helperText="Maximum number of times this code can be used"
+              helperText="Maximum number of times this code can be used (minimum 1)"
             />
           </div>
         </DialogContent>
