@@ -277,9 +277,12 @@ const BookSessionMatchFlow = ({
                       </label>
                     </td>
                     <td className="py-3 pr-4">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
+                      <span
+                        className="inline-flex items-center text-green-700"
+                        aria-label="Complete"
+                        title="Complete"
+                      >
                         <CheckIcon />
-                        Complete
                       </span>
                     </td>
                     <td className="py-3 pr-4 font-medium text-gray-900">
