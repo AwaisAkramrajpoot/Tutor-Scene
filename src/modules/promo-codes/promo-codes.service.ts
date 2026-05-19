@@ -20,6 +20,13 @@ export class PromoCodesService {
       throw new BadRequestException('Promo code already exists');
     }
 
+    if (
+      createDto.discountType === PromoCodeDiscountType.PERCENTAGE &&
+      createDto.discountValue > 100
+    ) {
+      throw new BadRequestException('Discount percentage cannot exceed 100');
+    }
+
     // Create Stripe coupon
     const discountType = createDto.discountType === PromoCodeDiscountType.PERCENTAGE ? 'percentage' : 'fixed';
     const stripeCoupon = await this.stripeService.createStripeCoupon(
