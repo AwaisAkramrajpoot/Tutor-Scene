@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Snackbar } from '@mui/material';
 import { apiRequest, uploadOnboardingFile, getCurrentUser, submitTutorOnboarding, resolveApiAssetUrl } from '../../utils/api';
@@ -112,6 +112,8 @@ const TutorInterviewsPage = ({ embedded = false }) => {
   const [topics, setTopics] = useState([]);
   const [responses, setResponses] = useState({});
   const [draftFiles, setDraftFiles] = useState({});
+  const draftFilesRef = useRef(draftFiles);
+  draftFilesRef.current = draftFiles;
   const [uploadingKey, setUploadingKey] = useState('');
   const [dragOverKey, setDragOverKey] = useState(null);
   const [snackbar, setSnackbar] = useState({
@@ -165,6 +167,12 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     loadAll();
   }, [loadAll]);
 
+  useEffect(() => {
+    return () => {
+      Object.values(draftFilesRef.current).forEach(revokeDraftPreview);
+    };
+  }, []);
+
   const setSelectedQuestion = (topicSlug, optionKey) => {
     setResponses((prev) => {
       const base = normalizeTopicProgress(prev[topicSlug]);
@@ -181,6 +189,19 @@ const TutorInterviewsPage = ({ embedded = false }) => {
   };
 
   const draftKey = (slug, opt) => `${slug}::${opt}`;
+
+  const revokeDraftPreview = (draft) => {
+    if (draft?.previewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(draft.previewUrl);
+    }
+  };
+
+  const getVideoPreviewSrc = (draft, savedUrl) => {
+    if (draft?.url) return resolveApiAssetUrl(draft.url);
+    if (draft?.previewUrl) return draft.previewUrl;
+    if (savedUrl) return resolveApiAssetUrl(savedUrl);
+    return null;
+  };
 
   const handlePickVideo = async (topicSlug, optionKey, file) => {
     if (!file) return;
@@ -217,16 +238,32 @@ const TutorInterviewsPage = ({ embedded = false }) => {
       showSnackbar(msg, 'error');
       return;
     }
+    const dk = draftKey(topicSlug, optionKey);
+    const localPreview = URL.createObjectURL(file);
+    setDraftFiles((prev) => {
+      const next = { ...prev };
+      revokeDraftPreview(next[dk]);
+      next[dk] = { name: file.name, url: null, previewUrl: localPreview };
+      return next;
+    });
     setMessage('');
-    setUploadingKey(draftKey(topicSlug, optionKey));
+    setUploadingKey(dk);
     try {
       const res = await uploadOnboardingFile(file);
       const url = res.url || res.Location || res.fileUrl || res.data?.url;
-      setDraftFiles((prev) => ({
-        ...prev,
-        [draftKey(topicSlug, optionKey)]: { name: file.name, url },
-      }));
+      setDraftFiles((prev) => {
+        const next = { ...prev };
+        revokeDraftPreview(next[dk]);
+        next[dk] = { name: file.name, url };
+        return next;
+      });
     } catch (err) {
+      setDraftFiles((prev) => {
+        const next = { ...prev };
+        revokeDraftPreview(next[dk]);
+        delete next[dk];
+        return next;
+      });
       const msg = err?.message || 'Video upload failed.';
       setMessage(msg);
       showSnackbar(msg, 'error');
@@ -281,7 +318,8 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     });
     setDraftFiles((prev) => {
       const copy = { ...prev };
-      delete copy[draftKey(topicSlug, optionKey)];
+      revokeDraftPreview(copy[dk]);
+      delete copy[dk];
       return copy;
     });
     setMessage('');
@@ -378,7 +416,10 @@ const TutorInterviewsPage = ({ embedded = false }) => {
       empty[t.slug] = { selectedQuestion: '', videos: {} };
     });
     setResponses(empty);
-    setDraftFiles({});
+    setDraftFiles((prev) => {
+      Object.values(prev).forEach(revokeDraftPreview);
+      return {};
+    });
     setMessage('');
   };
 
@@ -436,6 +477,7 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                     const dk = draftKey(slug, q.optionKey);
                     const draft = draftFiles[dk];
                     const uploading = uploadingKey === dk;
+                    const previewSrc = getVideoPreviewSrc(draft, savedUrl);
                     const fileInputId = `iv-vid-${slug}-${q.optionKey}`.replace(/[^a-zA-Z0-9_-]/g, '-');
                     const isDragTarget = dragOverKey === dk && isSelected;
                     return (
@@ -530,6 +572,15 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                               Clear
                             </button>
                           </div>
+                          {previewSrc ? (
+                            <video
+                              key={previewSrc}
+                              className="mt-3 w-full max-h-44 rounded-lg border border-[#d1dae6] bg-black object-contain"
+                              src={previewSrc}
+                              controls
+                              playsInline
+                            />
+                          ) : null}
                           <p
                             className="mt-2 min-h-[18px] w-full min-w-0 max-w-full px-1 text-center text-xs text-[#64748b] break-all line-clamp-2"
                             title={
@@ -544,15 +595,6 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                               : draft?.name ||
                                 (savedUrl ? 'Video saved' : isSelected ? 'No file selected' : 'Select question first')}
                           </p>
-                          {savedUrl ? (
-                            <video
-                              key={String(savedUrl).slice(0, 120)}
-                              className="mt-2 w-full max-h-44 rounded-lg border border-[#d1dae6] bg-black object-contain"
-                              src={resolveApiAssetUrl(savedUrl)}
-                              controls
-                              playsInline
-                            />
-                          ) : null}
                         </div>
                       </div>
                     );
