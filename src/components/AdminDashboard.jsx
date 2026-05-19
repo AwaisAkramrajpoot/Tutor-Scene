@@ -1123,6 +1123,27 @@ export default function AdminDashboard() {
     }
   };
 
+  const getIvTopicById = (topicId) =>
+    interviewTopics.find((t) => t.id === topicId);
+
+  const isIvQuestionSortOrderTaken = (topicId, sortOrder, excludeQuestionId = null) => {
+    const topic = getIvTopicById(topicId);
+    const questions = topic?.questions || [];
+    return questions.some(
+      (q) => clampSortOrder(q.sortOrder ?? 0) === sortOrder && q.id !== excludeQuestionId,
+    );
+  };
+
+  const getNextIvQuestionSortOrder = (topicId) => {
+    const topic = getIvTopicById(topicId);
+    const used = new Set(
+      (topic?.questions || []).map((q) => clampSortOrder(q.sortOrder ?? 0)),
+    );
+    let n = 0;
+    while (used.has(n)) n += 1;
+    return n;
+  };
+
   const openIvQuestionModal = (topicId, question = null) => {
     setIvQuestionTopicId(topicId);
     if (question) {
@@ -1138,7 +1159,7 @@ export default function AdminDashboard() {
       setIvQuestionForm({
         optionKey: "",
         body: "",
-        sortOrder: 0,
+        sortOrder: getNextIvQuestionSortOrder(topicId),
         isActive: true,
       });
     }
@@ -1163,12 +1184,19 @@ export default function AdminDashboard() {
       alert("Option key and question text are required");
       return;
     }
+    const sortOrder = clampSortOrder(ivQuestionForm.sortOrder);
+    if (isIvQuestionSortOrderTaken(ivQuestionTopicId, sortOrder, editingIvQuestionId)) {
+      alert(
+        `Sort order ${sortOrder} is already used by another question in this topic. Each question must have a unique sort order.`,
+      );
+      return;
+    }
     setSubmittingIv(true);
     try {
       const payload = {
         optionKey: ivQuestionForm.optionKey.trim(),
         body: ivQuestionForm.body.trim(),
-        sortOrder: clampSortOrder(ivQuestionForm.sortOrder),
+        sortOrder,
         isActive: !!ivQuestionForm.isActive,
       };
       if (editingIvQuestionId) {
@@ -2268,6 +2296,7 @@ export default function AdminDashboard() {
               onKeyDown={sortOrderKeyDownBlockInvalid}
               variant="outlined"
               inputProps={{ min: 0, step: 1, inputMode: "numeric" }}
+              helperText="Must be unique within this topic (0, 1, 2, …)"
             />
             <FormControlLabel
               control={
