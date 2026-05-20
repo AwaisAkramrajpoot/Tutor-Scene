@@ -60,6 +60,15 @@ const sanitizePositiveDecimalInput = (value) => {
   return cleaned;
 };
 
+const parseApiList = (data, nestedKeys = []) => {
+  if (Array.isArray(data)) return data;
+  for (const key of nestedKeys) {
+    if (Array.isArray(data?.[key])) return data[key];
+  }
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+};
+
 const DotsVerticalIcon = (props) => (
   <svg
     {...props}
@@ -256,6 +265,51 @@ export default function AdminDashboard() {
   });
   const [editingIvQuestionId, setEditingIvQuestionId] = useState(null);
   const [submittingIv, setSubmittingIv] = useState(false);
+
+  const [summaryStats, setSummaryStats] = useState({
+    students: null,
+    tutors: null,
+    activePromos: null,
+    loading: true,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadSummaryStats = async () => {
+      setSummaryStats((prev) => ({ ...prev, loading: true }));
+      try {
+        const [studentsData, tutorsData, promoData] = await Promise.all([
+          apiRequest("/api/v1/users/students/all?status=all"),
+          apiRequest("/api/v1/onboarding/tutors/list?status=all"),
+          apiRequest("/api/v1/promo-codes"),
+        ]);
+        if (cancelled) return;
+        const studentList = parseApiList(studentsData, ["students"]);
+        const tutorList = parseApiList(tutorsData, ["prospects", "tutors"]);
+        const promoList = parseApiList(promoData, ["promoCodes"]);
+        setSummaryStats({
+          students: studentList.length,
+          tutors: tutorList.length,
+          activePromos: promoList.filter((p) => p.isActive).length,
+          loading: false,
+        });
+      } catch (err) {
+        console.error("Failed to load dashboard summary stats:", err);
+        if (!cancelled) {
+          setSummaryStats({
+            students: 0,
+            tutors: 0,
+            activePromos: 0,
+            loading: false,
+          });
+        }
+      }
+    };
+    loadSummaryStats();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Fetch tutors when tab is active or filter changes
   useEffect(() => {
@@ -932,6 +986,10 @@ export default function AdminDashboard() {
         list = data.data;
       }
       setPromoCodes(list);
+      setSummaryStats((prev) => ({
+        ...prev,
+        activePromos: list.filter((p) => p.isActive).length,
+      }));
     } catch (err) {
       console.error("Failed to create promo code:", err);
       alert(err.message || "Failed to create promo code");
@@ -961,6 +1019,10 @@ export default function AdminDashboard() {
         list = data.data;
       }
       setPromoCodes(list);
+      setSummaryStats((prev) => ({
+        ...prev,
+        activePromos: list.filter((p) => p.isActive).length,
+      }));
     } catch (err) {
       console.error("Failed to deactivate promo code:", err);
       alert(err.message || "Failed to deactivate promo code");
@@ -1263,29 +1325,25 @@ export default function AdminDashboard() {
         <StatCard
           title="Students"
           value={
-            activeTab === "students" && !loadingStudents ? students.length : "—"
+            summaryStats.loading
+              ? "—"
+              : summaryStats.students ?? "—"
           }
-          subtitle={
-            statusFilter === "all" ? "All students" : `${statusFilter} students`
-          }
+          subtitle="All students"
           icon={statIcon}
         />
         <StatCard
           title="Tutors"
-          value={activeTab === "tutors" && !loadingTutors ? tutors.length : "—"}
-          subtitle={
-            tutorStatusFilter === "all"
-              ? "All tutors"
-              : `${tutorStatusFilter} tutors`
+          value={
+            summaryStats.loading ? "—" : summaryStats.tutors ?? "—"
           }
+          subtitle="All tutors"
           icon={statIcon}
         />
         <StatCard
           title="Active Promo Codes"
           value={
-            activeTab === "discounts" && !loadingPromoCodes
-              ? promoCodes.filter((p) => p.isActive).length
-              : "—"
+            summaryStats.loading ? "—" : summaryStats.activePromos ?? "—"
           }
           subtitle="Active promotions"
           icon={statIcon}
