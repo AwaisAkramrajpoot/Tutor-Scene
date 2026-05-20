@@ -28,6 +28,8 @@ const Navbar = () => {
   const [notifBadgeCount, setNotifBadgeCount] = useState(0);
   const isStudent = user?.role === 'student';
   const isVerifyIdentityRoute = location.pathname.startsWith('/verify-identity');
+  const isLearnerTutorProfileRoute =
+    user?.role === 'student' && /^\/tutor\/[^/]+$/.test(location.pathname);
   const isTutorOnboardingPage =
     isTutorOnboardingPath(location.pathname) ||
     location.pathname === '/ready-to-teach' ||
@@ -101,7 +103,6 @@ const Navbar = () => {
 
   const handleDashboardClick = () => {
     handleMenuClose();
-    // Route based on user role
     if (user.role === 'tutor') {
       navigate('/tutor-dashboard');
     } else if (user.role === 'student') {
@@ -110,6 +111,25 @@ const Navbar = () => {
       navigate('/admin-dashboard');
     }
   };
+
+  const logoLinkTo = !user
+    ? '/'
+    : isLearnerTutorProfileRoute
+      ? '/find-tutors'
+      : user.role === 'student'
+        ? '/dashboard'
+        : user.role === 'tutor'
+          ? tutorApproved && !tutorInOnboarding
+            ? '/tutor-dashboard'
+            : '/create-profile'
+          : user.role === 'admin'
+            ? '/admin-dashboard'
+            : '/';
+
+  const logoLayoutClass =
+    isVerifyIdentityRoute || isLearnerTutorProfileRoute
+      ? 'top-1/2 -translate-y-1/2'
+      : 'bottom-0 translate-y-[42%] items-end';
 
   const handleLogoutClick = () => {
     handleMenuClose();
@@ -141,16 +161,8 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col bg-white shadow-sm">
       <div className="max-w-7xl mx-auto relative min-h-[4rem] md:min-h-[4.25rem] flex items-center justify-end px-4 sm:px-6 lg:px-8 py-2 w-full">
           <Link 
-            to={user ? (
-              user.role === 'student' ? '/dashboard' :
-              user.role === 'tutor' ? (tutorApproved && !tutorInOnboarding ? '/tutor-dashboard' : '/create-profile') :
-              user.role === 'admin' ? '/admin-dashboard' : '/'
-            ) : '/'}
-            className={`absolute left-4 sm:left-6 lg:left-8 z-20 flex cursor-pointer items-center ${
-              isVerifyIdentityRoute
-                ? 'top-1/2 -translate-y-1/2'
-                : 'bottom-0 translate-y-[42%] items-end'
-            }`}
+            to={logoLinkTo}
+            className={`absolute left-4 sm:left-6 lg:left-8 z-20 flex cursor-pointer items-center ${logoLayoutClass}`}
           >
             {isVerifyIdentityRoute ? (
               <span className="text-lg font-bold tracking-tight text-brand-dark-blue sm:text-xl">
@@ -442,21 +454,18 @@ const Navbar = () => {
                       }}
                     >
                       {/* ── STUDENT ONLY: updated dropdown menu items ── */}
-                      {user.role === 'student' ? (
-                        <>
-                          <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>Profile</MenuItem>
-                          <MenuItem onClick={() => { handleMenuClose(); navigate('/account-settings'); }}>Account Settings</MenuItem>
-                          <MenuItem onClick={() => { handleMenuClose(); navigate('/my-sessions'); }}>Session History</MenuItem>
-                          <MenuItem onClick={() => { handleMenuClose(); navigate('/credits-referrals'); }}>Credits &amp; Referrals</MenuItem>
-                          <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Log Out</MenuItem>
-                        </>
-                      ) : (
-                        // Tutor & Admin: original menu items UNCHANGED
-                        <>
-                          <MenuItem onClick={handleDashboardClick}>Dashboard</MenuItem>
-                          <MenuItem onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>
-                        </>
-                      )}
+                      {user.role === 'student'
+                        ? [
+                            <MenuItem key="profile" onClick={() => { handleMenuClose(); navigate('/profile'); }}>Profile</MenuItem>,
+                            <MenuItem key="settings" onClick={() => { handleMenuClose(); navigate('/account-settings'); }}>Account Settings</MenuItem>,
+                            <MenuItem key="sessions" onClick={() => { handleMenuClose(); navigate('/my-sessions'); }}>Session History</MenuItem>,
+                            <MenuItem key="credits" onClick={() => { handleMenuClose(); navigate('/credits-referrals'); }}>Credits &amp; Referrals</MenuItem>,
+                            <MenuItem key="logout" onClick={handleLogoutClick} sx={{ color: 'red' }}>Log Out</MenuItem>,
+                          ]
+                        : [
+                            <MenuItem key="dashboard" onClick={handleDashboardClick}>Dashboard</MenuItem>,
+                            <MenuItem key="logout" onClick={handleLogoutClick} sx={{ color: 'red' }}>Logout</MenuItem>,
+                          ]}
                     </Menu>
                   </>
                 )}

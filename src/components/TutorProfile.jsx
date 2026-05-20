@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import BookSession from './BookSession';
 import MessageRequestButton from './Messaging/MessageRequestButton';
 import { apiRequest, resolveApiAssetUrl } from '../utils/api';
@@ -11,6 +11,8 @@ import {
   resolveSubjectDisplayLine,
   bioPreview,
 } from '../utils/tutorLearnerDisplay';
+
+const FIND_TUTORS_PATH = '/find-tutors';
 
 const ClockIcon = (props) => (
   <svg {...props} className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,20 +47,9 @@ const tutorData = {
 const TutorProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const filterSubject = searchParams.get('subject') || '';
   const filterLevel = searchParams.get('level') || '';
-
-  const defaultFindTutorsReturn = useMemo(() => {
-    const qs = new URLSearchParams();
-    if (filterSubject) qs.set('subject', filterSubject);
-    if (filterLevel) qs.set('level', filterLevel);
-    const q = qs.toString();
-    return q ? `/find-tutors?${q}` : '/find-tutors';
-  }, [filterSubject, filterLevel]);
-
-  const returnTo = location.state?.returnTo || defaultFindTutorsReturn;
 
   const [showBooking, setShowBooking] = useState(null);
   const [tutorDetails, setTutorDetails] = useState(null);
@@ -67,14 +58,6 @@ const TutorProfile = () => {
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [error, setError] = useState(null);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      navigate(returnTo, { replace: true });
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigate, returnTo]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -162,14 +145,13 @@ const TutorProfile = () => {
       filterSubject,
       filterLevel,
       subjectDisplayLine,
-      returnTo,
     };
     setShowBooking(bookingData);
   };
 
   const handleCloseBooking = () => {
     setShowBooking(null);
-    navigate(returnTo);
+    navigate(FIND_TUTORS_PATH, { replace: true });
   };
 
   if (loading) {
@@ -232,9 +214,6 @@ const TutorProfile = () => {
   }
 
   const displayFirst = tutorFirstName(mergedTutorData.name);
-  const backToSearch = () => {
-    navigate(returnTo);
-  };
 
   const introSrc = tutorDetails?.introVideo;
   const showIntro = Boolean(introSrc && String(introSrc).trim());
@@ -246,13 +225,13 @@ const TutorProfile = () => {
           className="relative w-full bg-gradient-to-r from-brand-dark-blue to-brand-medium-blue text-white"
           style={{ height: '180px' }}
         >
-          <div className="absolute top-6 left-1/2 transform -translate-x-1/2 w-full max-w-7xl px-4 sm:px-6 lg:px-8 z-20">
+          <div className="absolute top-6 left-0 right-0 z-[60] max-w-7xl mx-auto px-4 pl-52 sm:pl-56 sm:px-6 lg:px-8">
             <button
               type="button"
-              onClick={backToSearch}
-              className="flex items-center text-white text-base font-medium cursor-pointer hover:text-brand-gold transition-colors bg-transparent border-0 p-0"
+              onClick={() => navigate(FIND_TUTORS_PATH, { replace: true })}
+              className="relative z-[60] flex items-center border-0 bg-transparent p-0 text-base font-medium text-white hover:text-brand-gold transition-colors cursor-pointer"
             >
-              <ArrowLeftIcon className="mr-2" />
+              <ArrowLeftIcon className="mr-2 shrink-0" />
               Back to Search
             </button>
           </div>

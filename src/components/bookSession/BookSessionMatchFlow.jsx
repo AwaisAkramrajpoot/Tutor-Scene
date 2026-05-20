@@ -33,7 +33,6 @@ const BookSessionMatchFlow = ({
   refreshKey,
   onEditAssessment,
   onAfterRemove,
-  profileReturnPath = '/find-tutors',
 }) => {
   const [learners, setLearners] = useState([]);
   const [selectedLabel, setSelectedLabel] = useState('');
@@ -688,7 +687,6 @@ const BookSessionMatchFlow = ({
                         const q = u.toString();
                         return q ? `/tutor/${tutor.id}?${q}` : `/tutor/${tutor.id}`;
                       })()}
-                      state={{ returnTo: profileReturnPath }}
                       className="inline-block rounded-lg bg-brand-medium-blue px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark-blue"
                     >
                       View Profile

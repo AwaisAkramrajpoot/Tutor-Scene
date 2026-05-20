@@ -755,9 +755,7 @@ const StudentDashboard = () => {
                                 <div className="flex flex-wrap items-center gap-1.5 justify-start sm:justify-end">
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      navigate(`/tutor/${tutorId}`)
-                                    }
+                                    onClick={() => navigate(`/tutor/${tutorId}`)}
                                     className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
                                   >
                                     View Profile
