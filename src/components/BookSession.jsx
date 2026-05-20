@@ -1,18 +1,10 @@
 import { useState, useEffect } from 'react';
 import { apiRequest } from '../utils/api';
+import BookSessionStickyHeader from './bookSession/BookSessionStickyHeader';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-
-// Icons
-const ArrowLeftIcon = (props) => (
-  <svg {...props} className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-  </svg>
-);
-
-
 
 const CheckIcon = (props) => (
   <svg {...props} className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,8 +229,13 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
 
 
 
+  const subjectDisplayLine =
+    bookingData?.subjectDisplayLine && String(bookingData.subjectDisplayLine).trim()
+      ? bookingData.subjectDisplayLine
+      : '';
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-[calc(100vh-4.25rem)] bg-[#f5f7fa]">
       {/* Confirmation Modal */}
       {showConfirmationModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -265,55 +262,20 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
         </div>
       )}
 
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={onClose}
-              className="flex items-center text-white text-base font-medium hover:text-blue-200 transition-colors"
-            >
-              <ArrowLeftIcon className="mr-2" />
-              Back to Search
-            </button>
-            <h1 className="text-3xl font-bold">Book a Session</h1>
-            <div></div> {/* Empty div for centering */}
-          </div>
-        </div>
-      </div>
+      <BookSessionStickyHeader
+        tutorName={tutorData.name}
+        profilePhotoUrl={tutorData.profilePhotoUrl}
+        subjectDisplayLine={subjectDisplayLine}
+        currentStep={1}
+        onBack={onClose}
+      />
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-2">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
             {/* Left Column - Session Details */}
             <div className="lg:col-span-2 space-y-6">
-
-              {/* Tutor Profile Card */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
-                    <img
-                      src={tutorData.profilePhotoUrl || "https://placehold.co/64x64/E0E0E0/333333?text=T"}
-                      alt={tutorData.name}
-                      className="object-cover w-full h-full"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">{tutorData.name}</h3>
-                    {subjects.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {subjects.map((subject, index) => (
-                          <span key={index} className="bg-brand-light-blue text-brand-dark-blue px-3 py-1 rounded-full text-sm font-medium border border-brand-gold">
-                            {subject}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
 
               {/* Loading State */}
               {loadingAvailability && (

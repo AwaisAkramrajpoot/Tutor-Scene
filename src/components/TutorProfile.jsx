@@ -8,6 +8,7 @@ import {
   formatAverageResponseLabel,
   formatLearnerRateDisplay,
   filterSubjectPills,
+  resolveSubjectDisplayLine,
   bioPreview,
 } from '../utils/tutorLearnerDisplay';
 
@@ -146,18 +147,29 @@ const TutorProfile = () => {
     );
   }, [tutorDetails, filterSubject, filterLevel]);
 
+  const subjectDisplayLine = useMemo(() => {
+    const pills = tutorDetails?.subjectPills;
+    if (!Array.isArray(pills) || !pills.length) return '';
+    return resolveSubjectDisplayLine(pills, filterSubject, filterLevel);
+  }, [tutorDetails, filterSubject, filterLevel]);
+
   const handleBookSession = () => {
     const bookingData = {
       tutorProfileId: tutorDetails?.id,
       userId: tutorDetails?.userId,
       subjects: tutorDetails?.subjects,
       gradeLevels: tutorDetails?.gradeLevels,
+      filterSubject,
+      filterLevel,
+      subjectDisplayLine,
+      returnTo,
     };
     setShowBooking(bookingData);
   };
 
   const handleCloseBooking = () => {
     setShowBooking(null);
+    navigate(returnTo);
   };
 
   if (loading) {

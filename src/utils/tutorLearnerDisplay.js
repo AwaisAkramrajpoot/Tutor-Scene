@@ -62,6 +62,26 @@ export function buildSubjectPillsFromCatalog(subjectsCsv, catalog) {
   return out;
 }
 
+export function formatSubjectDisplayLine(pill) {
+  if (!pill) return '';
+  const grades = pill.gradeLevelsDisplay
+    ? ` (${String(pill.gradeLevelsDisplay).replace(/\s*\/\s*/g, ', ')})`
+    : '';
+  return `${pill.category} – ${pill.subjectLine}${grades}`;
+}
+
+export function resolveSubjectDisplayLine(pills, subjectFilter, levelFilter) {
+  if (!Array.isArray(pills) || !pills.length) return '';
+  const hasFilter = Boolean(
+    (subjectFilter && String(subjectFilter).trim()) ||
+      (levelFilter && String(levelFilter).trim()),
+  );
+  const displayPills = hasFilter
+    ? filterSubjectPills(pills, subjectFilter, levelFilter)
+    : pills;
+  return formatSubjectDisplayLine(displayPills[0]);
+}
+
 export function filterSubjectPills(pills, subjectFilter, levelFilter) {
   if (!Array.isArray(pills) || !pills.length) return [];
   let out = pills;
