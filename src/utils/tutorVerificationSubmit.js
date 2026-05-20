@@ -6,14 +6,7 @@ export const BACKGROUND_CHECK_PROVIDER_URL =
   process.env.REACT_APP_BACKGROUND_CHECK_URL || "https://www.checkr.com";
 
 export function getPostBackgroundCheckPath() {
-  if (
-    process.env.REACT_APP_SKIP_PROFILE_UNDER_REVIEW === "true" ||
-    (process.env.NODE_ENV === "development" &&
-      process.env.REACT_APP_SKIP_PROFILE_UNDER_REVIEW !== "false")
-  ) {
-    return "/tutor-dashboard";
-  }
-  return "/profile-under-review";
+  return "/ready-to-teach";
 }
 
 export function markVerificationStarted() {

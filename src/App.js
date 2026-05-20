@@ -1,5 +1,9 @@
 import { useEffect } from 'react';
-import { mergeProspectStatusIntoUser, isTutorApproved } from './utils/tutorProspectStatus';
+import { mergeProspectStatusIntoUser } from './utils/tutorProspectStatus';
+import {
+  refreshTutorSessionOnboardingFlags,
+  resolveTutorPostLoginPath,
+} from './utils/tutorOnboardingProgress';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './components/Home';
@@ -58,11 +62,44 @@ function GoogleAuthSuccess() {
           headers: { Authorization: `Bearer ${accessToken}` },
         })
           .then((res) => res.json())
-          .then((user) => {
+          .then(async (user) => {
             localStorage.setItem('user', JSON.stringify(user));
-            // Redirect based on role
             if (user.role === 'tutor') {
-              navigate('/tutor-dashboard');
+              const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+              try {
+                const statusRes = await fetch(
+                  `${apiUrl}/api/v1/onboarding/status/${user.id}`,
+                  { headers: { Authorization: `Bearer ${accessToken}` } },
+                );
+                if (statusRes.ok) {
+                  const statusData = await statusRes.json();
+                  let updatedUser = mergeProspectStatusIntoUser(user, statusData);
+                  localStorage.setItem('user', JSON.stringify(updatedUser));
+                  const refreshed = await refreshTutorSessionOnboardingFlags(
+                    apiUrl,
+                    accessToken,
+                    updatedUser,
+                  );
+                  updatedUser = refreshed.user;
+                  const path = resolveTutorPostLoginPath({
+                    prospectStatus: statusData.status || statusData.data?.status,
+                    publishedStatus:
+                      statusData.publishedStatus || statusData.data?.publishedStatus,
+                    hasPendingProfileUpdate: Boolean(
+                      statusData.hasPendingProfileUpdate ??
+                        statusData.data?.hasPendingProfileUpdate,
+                    ),
+                    paymentOnBoarded: updatedUser.paymentOnBoarded,
+                    interviewCompleted: updatedUser.interviewCompleted,
+                    verificationCompleted: updatedUser.verificationCompleted,
+                  });
+                  navigate(path);
+                  return;
+                }
+              } catch {
+                /* fall through */
+              }
+              navigate('/create-profile');
             } else if (user.role === 'admin') {
               navigate('/admin-dashboard');
             } else {
@@ -130,15 +167,25 @@ function TutorStatusChecker() {
 
         // Update user object with new prospectStatus
         if (response && response.status) {
-          const updatedUser = mergeProspectStatusIntoUser(user, response);
+          let updatedUser = mergeProspectStatusIntoUser(user, response);
           localStorage.setItem('user', JSON.stringify(updatedUser));
+          const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+          const token = localStorage.getItem('accessToken');
+          if (token) {
+            const refreshed = await refreshTutorSessionOnboardingFlags(apiUrl, token, updatedUser);
+            updatedUser = refreshed.user;
+          }
 
           if (location.pathname === '/') {
-            if (isTutorApproved(updatedUser)) {
-              navigate('/tutor-dashboard');
-            } else if (response.status === 'awaiting_interview') {
-              navigate('/interviews');
-            }
+            const path = resolveTutorPostLoginPath({
+              prospectStatus: response.status,
+              publishedStatus: response.publishedStatus,
+              hasPendingProfileUpdate: Boolean(response.hasPendingProfileUpdate),
+              paymentOnBoarded: updatedUser.paymentOnBoarded,
+              interviewCompleted: updatedUser.interviewCompleted,
+              verificationCompleted: updatedUser.verificationCompleted,
+            });
+            navigate(path);
           }
         }
       } catch (error) {

@@ -1,7 +1,13 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTutorOnboarding } from "../utils/onboarding";
 import { TUTOR_ONBOARDING_STEPS } from "../components/TutorProfile/TutorOnboardingStepper";
+import {
+  hasCompletedTutorOnboardingFlow,
+  isInterviewStepComplete,
+  isVerificationStepComplete,
+  refreshTutorSessionOnboardingFlags,
+} from "../utils/tutorOnboardingProgress";
 
 export function useTutorOnboardingNavigation(activeKey) {
   const navigate = useNavigate();
@@ -10,6 +16,21 @@ export function useTutorOnboardingNavigation(activeKey) {
     () => TUTOR_ONBOARDING_STEPS.findIndex((s) => s.key === activeKey),
     [activeKey],
   );
+
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    const userStr = localStorage.getItem("user");
+    if (!token || !userStr) return;
+    let user;
+    try {
+      user = JSON.parse(userStr);
+    } catch {
+      return;
+    }
+    if (user?.role !== "tutor") return;
+    const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:3000";
+    refreshTutorSessionOnboardingFlags(apiUrl, token, user);
+  }, []);
 
   const onStepClick = useCallback(
     (index) => {
@@ -21,6 +42,14 @@ export function useTutorOnboardingNavigation(activeKey) {
         user = {};
       }
 
+      const target = TUTOR_ONBOARDING_STEPS[index];
+      if (!target) return;
+
+      if (hasCompletedTutorOnboardingFlow(user)) {
+        navigate(target.path);
+        return;
+      }
+
       const localProfileFieldsComplete = Boolean(
         onboarding?.fullName &&
           onboarding?.dateOfBirth &&
@@ -30,13 +59,15 @@ export function useTutorOnboardingNavigation(activeKey) {
           onboarding?.cv,
       );
       const prospectStatus = String(user?.prospectStatus || "");
-      const profileSavedOnServer = ["pending", "awaiting_interview", "active"].includes(prospectStatus);
-      const profileGateComplete =
-        localProfileFieldsComplete || profileSavedOnServer || Boolean(user?.interviewCompleted);
-      const isInterviewComplete = Boolean(user?.interviewCompleted);
-      const isVerificationComplete = Boolean(
-        onboarding?.govId || user?.prospectStatus === "pending",
+      const profileSavedOnServer = ["pending", "awaiting_interview", "active"].includes(
+        prospectStatus,
       );
+      const profileGateComplete =
+        localProfileFieldsComplete || profileSavedOnServer || isInterviewStepComplete(user);
+      const isInterviewComplete = isInterviewStepComplete(user);
+      const isVerificationComplete = isVerificationStepComplete(user, {
+        govId: onboarding?.govId,
+      });
 
       const canAccess = (i) => {
         if (i <= currentStepIndex) return true;
@@ -46,8 +77,6 @@ export function useTutorOnboardingNavigation(activeKey) {
         return false;
       };
 
-      const target = TUTOR_ONBOARDING_STEPS[index];
-      if (!target) return;
       if (canAccess(index)) {
         navigate(target.path);
         return;
