@@ -7,6 +7,10 @@ import {
   migrateUnscopedTutorOnboardingForCurrentUser,
 } from "../utils/onboarding";
 import { mergeProspectStatusIntoUser } from "../utils/tutorProspectStatus";
+import {
+  refreshTutorSessionOnboardingFlags,
+  resolveTutorPostLoginPath,
+} from "../utils/tutorOnboardingProgress";
 //signin
 const EyeIcon = (props) => (
   <svg
@@ -168,7 +172,6 @@ const SignIn = () => {
             );
 
             const statusData = await statusResponse.json();
-            console.log("Onboarding status data:", statusData);
 
             if (statusResponse.ok) {
               const status = statusData.status || statusData.data?.status;
@@ -179,39 +182,29 @@ const SignIn = () => {
                   statusData.data?.hasPendingProfileUpdate,
               );
 
-              const updatedUser = mergeProspectStatusIntoUser(
+              let updatedUser = mergeProspectStatusIntoUser(
                 { ...data.user, paymentOnBoarded: data.user.paymentOnBoarded },
                 statusData,
               );
               localStorage.setItem("user", JSON.stringify(updatedUser));
 
-              const paymentOnBoarded = data.user.paymentOnBoarded;
-              const isApprovedTutor =
-                status === "active" ||
-                publishedStatus === "active" ||
-                hasPendingProfileUpdate;
+              const refreshed = await refreshTutorSessionOnboardingFlags(
+                apiUrl,
+                data.accessToken,
+                updatedUser,
+              );
+              updatedUser = refreshed.user;
 
-              console.log("Status:", status);
-              console.log("PaymentOnBoarded:", paymentOnBoarded);
-
-              if (isApprovedTutor) {
-                // Check if payment onboarding is complete
-                if (paymentOnBoarded === false) {
-                  console.log("Redirecting to payment setup");
-                  setTimeout(() => navigate("/create-profile"), 1500);
-                } else {
-                  console.log("Redirecting to tutor dashboard");
-                  setTimeout(() => navigate("/tutor-dashboard"), 1500);
-                }
-              } else if (status === "awaiting_interview") {
-                console.log("Redirecting to interviews page");
-                setTimeout(() => navigate("/interviews"), 1500);
-              } else if (status === "pending") {
-                console.log("Redirecting to interviews");
-                setTimeout(() => navigate("/interviews"), 1500);
-              } else {
-                setTimeout(() => navigate("/create-profile"), 1500);
-              }
+              const paymentOnBoarded = updatedUser.paymentOnBoarded;
+              const redirectPath = resolveTutorPostLoginPath({
+                prospectStatus: status,
+                publishedStatus,
+                hasPendingProfileUpdate,
+                paymentOnBoarded,
+                interviewCompleted: updatedUser.interviewCompleted,
+                verificationCompleted: updatedUser.verificationCompleted,
+              });
+              setTimeout(() => navigate(redirectPath), 1500);
             } else {
               // If status check fails, default to create-profile
               setTimeout(() => navigate("/create-profile"), 1500);

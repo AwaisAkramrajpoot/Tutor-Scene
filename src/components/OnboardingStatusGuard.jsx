@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  isTutorApproved,
-  isTutorInInitialOnboarding,
   isTutorOnboardingPath,
   isTutorPaymentSetupPath,
   mergeProspectStatusIntoUser,
   shouldForcePaymentSetup,
 } from "../utils/tutorProspectStatus";
+import {
+  hasCompletedTutorOnboardingFlow,
+  refreshTutorSessionOnboardingFlags,
+} from "../utils/tutorOnboardingProgress";
 
 const OnboardingStatusGuard = ({ children }) => {
   const navigate = useNavigate();
@@ -80,128 +82,81 @@ const OnboardingStatusGuard = ({ children }) => {
           return;
         }
 
+        const refreshed = await refreshTutorSessionOnboardingFlags(apiUrl, token, user);
+        user = refreshed.user;
+
+        if (hasCompletedTutorOnboardingFlow(user, refreshed)) {
+          setIsAllowed(true);
+          setIsChecking(false);
+          return;
+        }
+
         if (status === "pending") {
-          try {
-            const virtualResponse = await fetch(
-              `${apiUrl}/api/v1/interviews/virtual/me`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-              },
-            );
-            const virtualData = virtualResponse.ok ? await virtualResponse.json() : null;
-            const isInterviewCompleted = !!(virtualData?.completed || user?.interviewCompleted);
-
-            const latestUserStr = localStorage.getItem("user");
-            const latestUser = latestUserStr ? JSON.parse(latestUserStr) : user;
-            const hasStartedVerification = latestUser?.verificationCompleted === true;
-
-            localStorage.setItem(
-              "user",
-              JSON.stringify({
-                ...latestUser,
-                prospectStatus: status,
-                interviewCompleted: isInterviewCompleted,
-              }),
-            );
-
-            if (isInterviewCompleted) {
-              if (hasStartedVerification) {
-                setIsAllowed(true);
-              } else {
-                const skipUnderReview =
-                  process.env.REACT_APP_SKIP_PROFILE_UNDER_REVIEW === "true" ||
-                  (process.env.NODE_ENV === "development" &&
-                    process.env.REACT_APP_SKIP_PROFILE_UNDER_REVIEW !== "false");
-                const allowedAfterInterviewPaths = skipUnderReview
-                  ? [
-                      "/verify-identity",
-                      "/create-profile",
-                      "/interviews",
-                      "/messages",
-                      "/ready-to-teach",
-                      "/tutor-dashboard",
-                      "/admin-dashboard",
-                      "/",
-                      "/about",
-                      "/become-tutor",
-                    ]
-                  : [
-                      "/profile-under-review",
-                      "/verify-identity",
-                      "/interviews",
-                      "/create-profile",
-                      "/messages",
-                      "/",
-                      "/about",
-                    ];
-                const isAllowedPath = allowedAfterInterviewPaths.some((p) => {
-                  if (p === "/") return location.pathname === "/";
-                  return (
-                    location.pathname === p || location.pathname.startsWith(`${p}/`)
-                  );
-                });
-                if (!isAllowedPath) {
-                  navigate(skipUnderReview ? "/verify-identity" : "/profile-under-review", {
-                    replace: true,
-                  });
-                  setIsAllowed(false);
-                } else {
-                  if (
-                    skipUnderReview &&
-                    location.pathname === "/profile-under-review"
-                  ) {
-                    navigate("/verify-identity", { replace: true });
-                    setIsAllowed(false);
-                  } else {
-                    setIsAllowed(true);
-                  }
-                }
-              }
-            } else {
-              const allowedPendingPaths = [
-                "/interviews",
-                "/create-profile",
-                "/messages",
-                "/",
-                "/about",
-                "/become-tutor",
-              ];
-              const isAllowedPendingPath = allowedPendingPaths.some((path) =>
+          if (!user.interviewCompleted) {
+            const allowedPendingPaths = [
+              "/interviews",
+              "/create-profile",
+              "/messages",
+              "/",
+              "/about",
+              "/become-tutor",
+            ];
+            const isAllowedPendingPath = allowedPendingPaths.some(
+              (path) =>
                 location.pathname === path || location.pathname.startsWith(`${path}/`),
-              );
-              if (!isAllowedPendingPath) {
-                navigate("/interviews", { replace: true });
-                setIsAllowed(false);
-              } else {
-                setIsAllowed(true);
-              }
-            }
-          } catch {
-            if (
-              location.pathname !== "/interviews" &&
-              location.pathname !== "/create-profile"
-            ) {
+            );
+            if (!isAllowedPendingPath) {
               navigate("/interviews", { replace: true });
               setIsAllowed(false);
             } else {
               setIsAllowed(true);
             }
+          } else if (!user.verificationCompleted) {
+            const allowedAfterInterviewPaths = [
+              "/verify-identity",
+              "/verify-identity/status",
+              "/create-profile",
+              "/interviews",
+              "/messages",
+              "/",
+              "/about",
+              "/become-tutor",
+            ];
+            const isAllowedPath = allowedAfterInterviewPaths.some((p) => {
+              if (p === "/") return location.pathname === "/";
+              return location.pathname === p || location.pathname.startsWith(`${p}/`);
+            });
+            if (!isAllowedPath) {
+              navigate("/verify-identity", { replace: true });
+              setIsAllowed(false);
+            } else {
+              setIsAllowed(true);
+            }
+          } else {
+            setIsAllowed(true);
           }
           setIsChecking(false);
           return;
         }
 
         if (status === "awaiting_interview") {
-          const allowedPaths = ["/interviews", "/messages", "/", "/about", "/become-tutor"];
+          const allowedPaths = [
+            "/interviews",
+            "/create-profile",
+            "/verify-identity",
+            "/messages",
+            "/",
+            "/about",
+            "/become-tutor",
+          ];
           const isAllowedPath = allowedPaths.some(
             (path) =>
               location.pathname === path || location.pathname.startsWith(`${path}/`),
           );
           if (!isAllowedPath) {
-            navigate("/interviews", { replace: true });
+            navigate(user.interviewCompleted ? "/verify-identity" : "/interviews", {
+              replace: true,
+            });
             setIsAllowed(false);
           } else {
             setIsAllowed(true);
@@ -237,23 +192,8 @@ const OnboardingStatusGuard = ({ children }) => {
             // keep stored payment flag
           }
 
-          const onboardingRoutes = [
-            "/create-profile",
-            "/verify-identity",
-            "/become-tutor",
-            "/ready-to-teach",
-            "/interviews",
-          ];
-          const isOnboardingRoute = onboardingRoutes.some(
-            (p) =>
-              location.pathname === p || location.pathname.startsWith(`${p}/`),
-          );
-
           if (shouldForcePaymentSetup(user, location.pathname)) {
             navigate("/tutor/wallet", { replace: true });
-            setIsAllowed(false);
-          } else if (paymentOnBoarded !== false && isOnboardingRoute) {
-            navigate("/tutor-dashboard", { replace: true });
             setIsAllowed(false);
           } else {
             setIsAllowed(true);
