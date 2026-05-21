@@ -58,7 +58,6 @@ export const ProfileTipsSection = () => {
   const [subjectsFieldError, setSubjectsFieldError] = useState("");
   const [yearsOfExperienceError, setYearsOfExperienceError] = useState("");
   const [cvFieldError, setCvFieldError] = useState("");
-  const [dateOfBirthPickerValue, setDateOfBirthPickerValue] = useState("");
   const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [selectedCV, setSelectedCV] = useState(null);
@@ -84,16 +83,21 @@ export const ProfileTipsSection = () => {
     const yyyy = Number(m[3]);
     if (mm < 1 || mm > 12) return { iso: "", error: "Month must be 01-12." };
     if (dd < 1 || dd > 31) return { iso: "", error: "Day must be 01-31." };
-    if (yyyy < 1900 || yyyy > new Date().getFullYear()) return { iso: "", error: "Enter a valid year." };
+    if (yyyy < 1900) return { iso: "", error: "Enter a valid year." };
 
     const iso = `${String(yyyy).padStart(4, "0")}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
     const d = new Date(`${iso}T00:00:00`);
-    // Validate real date (e.g. 02/30 invalid)
     const isReal =
       d.getFullYear() === yyyy &&
       d.getMonth() + 1 === mm &&
       d.getDate() === dd;
     if (!isReal) return { iso: "", error: "Enter a real calendar date." };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (d.getTime() > today.getTime()) {
+      return { iso: "", error: "Date of birth cannot be in the future." };
+    }
 
     return { iso, error: "" };
   };
@@ -198,12 +202,10 @@ export const ProfileTipsSection = () => {
           setDateOfBirthText(dobFromSaved);
           const parsed = parseMmDdYyyyToIso(dobFromSaved);
           setDateOfBirthIso(parsed.iso);
-          setDateOfBirthPickerValue(parsed.iso);
           setDateOfBirthError(parsed.error);
         } else {
           setDateOfBirthText("");
           setDateOfBirthIso("");
-          setDateOfBirthPickerValue("");
           setDateOfBirthError("");
         }
         setSelectedPhoto(null);
@@ -658,51 +660,17 @@ const handleCVFile = async (file) => {
               setDateOfBirthText(formatted);
               if (formatted.length < 10) {
                 setDateOfBirthIso("");
-                setDateOfBirthPickerValue("");
                 setDateOfBirthError("");
                 return;
               }
               const parsed = parseMmDdYyyyToIso(formatted);
               setDateOfBirthIso(parsed.iso);
-              setDateOfBirthPickerValue(parsed.iso);
               setDateOfBirthError(parsed.error);
             }}
             required
             placeholder="MM/DD/YYYY"
-            className="w-full h-12 pl-4 pr-12 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
+            className="w-full h-12 px-4 py-2 bg-[#f3f3f5] rounded-xl border border-transparent text-[#717182] text-base focus:outline-none focus:border-[#4A8FCC] focus:ring-1 focus:ring-[#4A8FCC] transition-colors"
           />
-          <input
-            type="date"
-            value={dateOfBirthPickerValue}
-            onChange={(e) => {
-              const iso = e.target.value;
-              const mmddyyyy = formatIsoToMmDdYyyy(iso);
-              const parsed = parseMmDdYyyyToIso(mmddyyyy);
-              setDateOfBirthPickerValue(iso);
-              setDateOfBirthText(mmddyyyy);
-              setDateOfBirthIso(parsed.iso);
-              setDateOfBirthError(parsed.error);
-            }}
-            className="absolute opacity-0 pointer-events-none"
-            tabIndex={-1}
-            aria-hidden="true"
-            id="dob-picker-hidden"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              const picker = document.getElementById('dob-picker-hidden');
-              if (picker && typeof picker.showPicker === 'function') {
-                picker.showPicker();
-              } else if (picker) {
-                picker.focus();
-              }
-            }}
-            className="absolute right-3 top-[42px] -translate-y-1/2 text-[#697282] hover:text-[#4A8FCC]"
-            aria-label="Open date picker"
-          >
-            📅
-          </button>
           {dateOfBirthError && (
             <p className="text-sm text-red-600 mt-2">{dateOfBirthError}</p>
           )}
