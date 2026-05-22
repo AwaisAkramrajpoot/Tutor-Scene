@@ -29,7 +29,7 @@ export const Home = () => {
             Why Teach on Tutor Scene?
           </h2>
           <p className="text-[#62698b] text-2xl">
-            Join thousands of tutors making a difference
+            Join and Make A Difference
           </p>
         </div>
       </section>
