@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import BookSession from './BookSession';
-import MessageRequestButton from './Messaging/MessageRequestButton';
-import { apiRequest, resolveApiAssetUrl } from '../utils/api';
+import React, { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import BookSession from "./BookSession";
+import MessageRequestButton from "./Messaging/MessageRequestButton";
+import { apiRequest, resolveApiAssetUrl } from "../utils/api";
 import {
   tutorFirstName,
   formatAverageResponseLabel,
@@ -10,19 +10,41 @@ import {
   filterSubjectPills,
   resolveSubjectDisplayLine,
   bioPreview,
-} from '../utils/tutorLearnerDisplay';
+} from "../utils/tutorLearnerDisplay";
 
-const FIND_TUTORS_PATH = '/find-tutors';
+const FIND_TUTORS_PATH = "/find-tutors";
 
 const ClockIcon = (props) => (
-  <svg {...props} className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  <svg
+    {...props}
+    className="w-4 h-4"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
   </svg>
 );
 
 const ArrowLeftIcon = (props) => (
-  <svg {...props} className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  <svg
+    {...props}
+    className="w-5 h-5"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M15 19l-7-7 7-7"
+    />
   </svg>
 );
 
@@ -33,14 +55,14 @@ const StarIcon = (props) => (
 );
 
 const tutorData = {
-  name: 'Sarah Mitchell',
+  name: "Sarah Mitchell",
   rate: 70,
   rating: 4.9,
   totalReviews: 127,
   sessions: 450,
-  experience: '8 years',
+  experience: "8 years",
   description:
-    'Experienced mathematics and physics tutor with over 8 years of teaching experience. I specialize in making complex concepts easy to understand. With 8 years of teaching experience, I\'ve helped hundreds of students achieve their academic goals. My teaching philosophy focuses on building strong fundamentals and developing critical thinking skills. I believe every student can succeed with the right guidance and support.',
+    "Experienced mathematics and physics tutor with over 8 years of teaching experience. I specialize in making complex concepts easy to understand. With 8 years of teaching experience, I've helped hundreds of students achieve their academic goals. My teaching philosophy focuses on building strong fundamentals and developing critical thinking skills. I believe every student can succeed with the right guidance and support.",
   reviews: [],
 };
 
@@ -48,8 +70,8 @@ const TutorProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const filterSubject = searchParams.get('subject') || '';
-  const filterLevel = searchParams.get('level') || '';
+  const filterSubject = searchParams.get("subject") || "";
+  const filterLevel = searchParams.get("level") || "";
 
   const [showBooking, setShowBooking] = useState(null);
   const [tutorDetails, setTutorDetails] = useState(null);
@@ -75,12 +97,17 @@ const TutorProfile = () => {
       try {
         setLoading(true);
         setError(null);
-        const detailsResponse = await apiRequest(`/api/v1/onboarding/tutor/${id}`, {
-          method: 'GET',
-        });
+        const detailsResponse = await apiRequest(
+          `/api/v1/onboarding/tutor/${id}`,
+          {
+            method: "GET",
+          },
+        );
         setTutorDetails(detailsResponse);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load tutor information');
+        setError(
+          err.response?.data?.message || "Failed to load tutor information",
+        );
       } finally {
         setLoading(false);
       }
@@ -95,7 +122,7 @@ const TutorProfile = () => {
         setLoadingReviews(true);
         const reviewsResponse = await apiRequest(
           `/api/v1/reviews/tutor/${id}?status=approved`,
-          { method: 'GET' },
+          { method: "GET" },
         );
         let reviewsList = [];
         if (Array.isArray(reviewsResponse)) reviewsList = reviewsResponse;
@@ -120,7 +147,7 @@ const TutorProfile = () => {
   }, [tutorDetails, filterSubject, filterLevel]);
 
   const rateDisplay = useMemo(() => {
-    if (!tutorDetails) return { line: '—' };
+    if (!tutorDetails) return { line: "—" };
     return formatLearnerRateDisplay(
       tutorDetails.fee,
       tutorDetails.feeRangeMin,
@@ -132,7 +159,7 @@ const TutorProfile = () => {
 
   const subjectDisplayLine = useMemo(() => {
     const pills = tutorDetails?.subjectPills;
-    if (!Array.isArray(pills) || !pills.length) return '';
+    if (!Array.isArray(pills) || !pills.length) return "";
     return resolveSubjectDisplayLine(pills, filterSubject, filterLevel);
   }, [tutorDetails, filterSubject, filterLevel]);
 
@@ -170,7 +197,9 @@ const TutorProfile = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Failed to Load Profile</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Failed to Load Profile
+            </h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <button
               type="button"
@@ -187,15 +216,16 @@ const TutorProfile = () => {
 
   const mergedTutorData = tutorDetails
     ? {
-        name: tutorDetails.fullName || 'Unknown Tutor',
+        name: tutorDetails.fullName || "Unknown Tutor",
         rate: parseFloat(tutorDetails.fee) || 70,
         rating: tutorDetails.rating || 4.9,
         totalReviews: reviews.length || tutorDetails.totalReviews || 0,
         sessions: tutorDetails.totalSessions || 0,
         experience: tutorDetails.yearsOfExperience
           ? `${tutorDetails.yearsOfExperience} years`
-          : 'N/A',
-        description: tutorDetails.teachingPhilosophy || 'No description available',
+          : "N/A",
+        description:
+          tutorDetails.teachingPhilosophy || "No description available",
         reviews,
         profilePhotoUrl: tutorDetails.profilePic,
         subjects: tutorDetails.subjects,
@@ -223,13 +253,13 @@ const TutorProfile = () => {
       <header className="relative bg-white">
         <div
           className="relative w-full bg-gradient-to-r from-brand-dark-blue to-brand-medium-blue text-white"
-          style={{ height: '180px' }}
+          style={{ height: "180px" }}
         >
-          <div className="absolute top-6 left-0 right-0 z-[60] max-w-7xl mx-auto px-4 pl-52 sm:pl-56 sm:px-6 lg:px-8">
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
             <button
               type="button"
               onClick={() => navigate(FIND_TUTORS_PATH, { replace: true })}
-              className="relative z-[60] flex items-center border-0 bg-transparent p-0 text-base font-medium text-white hover:text-brand-gold transition-colors cursor-pointer"
+              className="flex items-center border-0 bg-transparent p-0 text-base font-medium text-white hover:text-brand-gold transition-colors cursor-pointer"
             >
               <ArrowLeftIcon className="mr-2 shrink-0" />
               Back to Search
@@ -240,23 +270,23 @@ const TutorProfile = () => {
         <div
           className="absolute left-0 right-0 bg-gray-50"
           style={{
-            top: '140px',
-            height: '120px',
-            borderTopLeftRadius: '50% 100px',
-            borderTopRightRadius: '50% 100px',
+            top: "140px",
+            height: "120px",
+            borderTopLeftRadius: "50% 100px",
+            borderTopRightRadius: "50% 100px",
           }}
         />
 
         <div
           className="relative z-10 flex justify-center"
-          style={{ marginTop: '-80px', paddingBottom: '20px' }}
+          style={{ marginTop: "-80px", paddingBottom: "20px" }}
         >
           <div className="w-40 h-40 bg-white rounded-full flex items-center justify-center border-4 border-white shadow-xl">
             <div className="w-36 h-36 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
               <img
                 src={
                   resolveApiAssetUrl(mergedTutorData.profilePhotoUrl) ||
-                  'https://placehold.co/144x144/E0E0E0/333333?text=Tutor'
+                  "https://placehold.co/144x144/E0E0E0/333333?text=Tutor"
                 }
                 alt={displayFirst}
                 className="object-cover w-full h-full"
@@ -266,7 +296,9 @@ const TutorProfile = () => {
         </div>
 
         <div className="relative z-10 text-center pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">{displayFirst}</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            {displayFirst}
+          </h1>
 
           <div className="flex items-center justify-center text-gray-600 mb-2">
             <ClockIcon className="mr-2 w-5 h-5 text-gray-500" />
@@ -291,14 +323,18 @@ const TutorProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">About Me</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                About Me
+              </h2>
               <p className="text-gray-700 leading-relaxed">
                 {bioPreview(mergedTutorData.description, 35, 50)}
               </p>
             </div>
 
             <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Subject(s)</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                Subject(s)
+              </h2>
               <div className="flex flex-wrap gap-2">
                 {filteredPills.map((p, idx) => (
                   <span
@@ -309,7 +345,7 @@ const TutorProfile = () => {
                     <span>– {p.subjectLine}</span>
                     {p.gradeLevelsDisplay ? (
                       <span className="text-gray-700 font-normal">
-                        {' '}
+                        {" "}
                         {p.gradeLevelsDisplay}
                       </span>
                     ) : null}
@@ -319,7 +355,9 @@ const TutorProfile = () => {
             </div>
 
             <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Student Reviews</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Student Reviews
+              </h2>
               {loadingReviews ? (
                 <div className="flex justify-center items-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-medium-blue" />
@@ -333,13 +371,13 @@ const TutorProfile = () => {
                   {mergedTutorData.reviews.map((review) => {
                     const studentName = review.student
                       ? `${review.student.firstName} ${review.student.lastName}`
-                      : review.name || 'Anonymous';
+                      : review.name || "Anonymous";
                     const reviewDate = review.createdAt
-                      ? new Date(review.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
+                      ? new Date(review.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
                         })
-                      : review.date || '';
+                      : review.date || "";
                     return (
                       <div
                         key={review.id}
@@ -349,33 +387,41 @@ const TutorProfile = () => {
                           <div className="flex items-center">
                             <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center mr-3">
                               <img
-                                src={`https://placehold.co/40x40/E0E0E0/333333?text=${(studentName.split(' ')[0] || 'A')[0]}`}
+                                src={`https://placehold.co/40x40/E0E0E0/333333?text=${(studentName.split(" ")[0] || "A")[0]}`}
                                 alt=""
                                 className="rounded-full"
                               />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900">{studentName}</h4>
-                              <p className="text-xs text-gray-500">{reviewDate}</p>
+                              <h4 className="font-semibold text-gray-900">
+                                {studentName}
+                              </h4>
+                              <p className="text-xs text-gray-500">
+                                {reviewDate}
+                              </p>
                             </div>
                           </div>
                           <div className="flex text-amber-500">
                             {[...Array(review.rating || 5)].map((_, i) => (
                               <StarIcon key={i} className="w-4 h-4" />
                             ))}
-                            {[...Array(5 - (review.rating || 5))].map((_, i) => (
-                              <svg
-                                key={`e-${i}`}
-                                className="w-4 h-4 text-gray-300"
-                                fill="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                              </svg>
-                            ))}
+                            {[...Array(5 - (review.rating || 5))].map(
+                              (_, i) => (
+                                <svg
+                                  key={`e-${i}`}
+                                  className="w-4 h-4 text-gray-300"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                </svg>
+                              ),
+                            )}
                           </div>
                         </div>
-                        <p className="text-gray-700 text-sm">{review.comment}</p>
+                        <p className="text-gray-700 text-sm">
+                          {review.comment}
+                        </p>
                       </div>
                     );
                   })}
@@ -387,8 +433,13 @@ const TutorProfile = () => {
           <div className="space-y-6">
             {showIntro && (
               <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Introduction Video</h3>
-                <div className="relative rounded-lg overflow-hidden bg-black" style={{ aspectRatio: '16/9' }}>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  Introduction Video
+                </h3>
+                <div
+                  className="relative rounded-lg overflow-hidden bg-black"
+                  style={{ aspectRatio: "16/9" }}
+                >
                   <video
                     key="inline"
                     controls
@@ -424,7 +475,12 @@ const TutorProfile = () => {
                   onClick={handleBookSession}
                   className="w-full flex items-center justify-center gap-2 bg-brand-medium-blue hover:bg-brand-dark-blue text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-all hover:shadow-xl border-2 border-transparent hover:border-brand-gold"
                 >
-                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-5 h-5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -457,8 +513,18 @@ const TutorProfile = () => {
               className="absolute top-3 right-3 z-10 rounded-full bg-white/90 p-2 text-gray-800 hover:bg-white"
               aria-label="Close video"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
             <div className="aspect-video w-full">

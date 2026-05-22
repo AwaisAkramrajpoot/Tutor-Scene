@@ -23,7 +23,7 @@ export const BookSessionStickyRibbon = ({ onBack }) => (
       className="fixed left-0 right-0 z-40 bg-gradient-to-r from-brand-dark-blue to-brand-medium-blue text-white shadow-md"
       style={{ top: NAVBAR_OFFSET, height: RIBBON_HEIGHT }}
     >
-      <div className="mx-auto flex h-full max-w-7xl items-center px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-full max-w-7xl items-center px-4 sm:px-6 lg:px-8 pt-4">
         <button
           type="button"
           onClick={onBack}
