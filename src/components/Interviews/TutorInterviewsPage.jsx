@@ -23,6 +23,13 @@ function normalizeTopicProgress(raw) {
   return { selectedQuestion: sel, videos };
 }
 
+function getTopicSavedVideoUrl(norm) {
+  const sel = norm?.selectedQuestion;
+  if (sel && norm?.videos?.[sel]) return norm.videos[sel];
+  const urls = Object.values(norm?.videos || {}).filter(Boolean);
+  return urls.length === 1 ? urls[0] : null;
+}
+
 function VideoCameraIcon({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -188,7 +195,7 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     });
   };
 
-  const draftKey = (slug, opt) => `${slug}::${opt}`;
+  const draftKey = (slug) => slug;
 
   const revokeDraftPreview = (draft) => {
     if (draft?.previewUrl?.startsWith('blob:')) {
@@ -203,11 +210,12 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     return null;
   };
 
-  const handlePickVideo = async (topicSlug, optionKey, file) => {
+  const handlePickVideo = async (topicSlug, file) => {
     if (!file) return;
-    if (responses[topicSlug]?.selectedQuestion !== optionKey) {
-      setMessage('Select this question (checkbox) before uploading a video.');
-      showSnackbar('Select this question (checkbox) before uploading a video.', 'error');
+    const norm = normalizeTopicProgress(responses[topicSlug]);
+    if (!norm.selectedQuestion) {
+      setMessage('Select a question option before uploading a video.');
+      showSnackbar('Select a question option before uploading a video.', 'error');
       return;
     }
     if (!file.type.startsWith('video/')) {
@@ -238,7 +246,7 @@ const TutorInterviewsPage = ({ embedded = false }) => {
       showSnackbar(msg, 'error');
       return;
     }
-    const dk = draftKey(topicSlug, optionKey);
+    const dk = draftKey(topicSlug);
     const localPreview = URL.createObjectURL(file);
     setDraftFiles((prev) => {
       const next = { ...prev };
@@ -272,26 +280,28 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     }
   };
 
-  const saveQuestion = (topicSlug, optionKey) => {
+  const saveQuestion = (topicSlug) => {
     const norm = normalizeTopicProgress(responses[topicSlug]);
-    if (norm.selectedQuestion !== optionKey) {
-      setMessage('Select this question before saving its video.');
-      showSnackbar('Select this question before saving its video.', 'error');
+    if (!norm.selectedQuestion) {
+      setMessage('Select a question option before saving its video.');
+      showSnackbar('Select a question option before saving its video.', 'error');
       return;
     }
-    const draft = draftFiles[draftKey(topicSlug, optionKey)];
-    if (!draft?.url) {
+    const draft = draftFiles[draftKey(topicSlug)];
+    const url = draft?.url || getTopicSavedVideoUrl(norm);
+    if (!url) {
       setMessage('Upload a video for this question before Save.');
       showSnackbar('Upload a video for this question before Save.', 'error');
       return;
     }
     setResponses((prev) => {
       const base = normalizeTopicProgress(prev[topicSlug]);
+      const sel = base.selectedQuestion || norm.selectedQuestion;
       return {
         ...prev,
         [topicSlug]: {
-          selectedQuestion: optionKey,
-          videos: { ...base.videos, [optionKey]: draft.url },
+          selectedQuestion: sel,
+          videos: { [sel]: url },
         },
       };
     });
@@ -299,20 +309,16 @@ const TutorInterviewsPage = ({ embedded = false }) => {
     showSnackbar('Saved for this question.', 'success');
   };
 
-  const clearQuestion = (topicSlug, optionKey) => {
-    const dk = draftKey(topicSlug, optionKey);
+  const clearQuestion = (topicSlug) => {
+    const dk = draftKey(topicSlug);
     setDragOverKey((cur) => (cur === dk ? null : cur));
     setResponses((prev) => {
       const base = normalizeTopicProgress(prev[topicSlug]);
-      const nextVideos = { ...base.videos };
-      delete nextVideos[optionKey];
-      let nextSel = base.selectedQuestion;
-      if (nextSel === optionKey) nextSel = '';
       return {
         ...prev,
         [topicSlug]: {
-          selectedQuestion: nextSel,
-          videos: nextVideos,
+          selectedQuestion: '',
+          videos: {},
         },
       };
     });
@@ -470,45 +476,56 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                   </div>
                   <div className="text-[#1e3a8a] font-semibold text-base">{topic.title}</div>
                 </div>
-                <div className="p-4 space-y-4">
-                  {questions.map((q) => {
-                    const isSelected = norm.selectedQuestion === q.optionKey;
-                    const savedUrl = norm.videos[q.optionKey] || null;
-                    const dk = draftKey(slug, q.optionKey);
+                <div className="p-4">
+                  {(() => {
+                    const hasSelection = Boolean(norm.selectedQuestion);
+                    const savedUrl = getTopicSavedVideoUrl(norm);
+                    const dk = draftKey(slug);
                     const draft = draftFiles[dk];
                     const uploading = uploadingKey === dk;
                     const previewSrc = getVideoPreviewSrc(draft, savedUrl);
-                    const fileInputId = `iv-vid-${slug}-${q.optionKey}`.replace(/[^a-zA-Z0-9_-]/g, '-');
-                    const isDragTarget = dragOverKey === dk && isSelected;
+                    const fileInputId = `iv-vid-${slug}`.replace(/[^a-zA-Z0-9_-]/g, '-');
+                    const isDragTarget = dragOverKey === dk && hasSelection;
                     return (
-                      <div
-                        key={q.id || `${slug}-${q.optionKey}`}
-                        className={`grid grid-cols-1 lg:grid-cols-[1fr_minmax(300px,340px)] gap-4 items-stretch border rounded-lg p-4 min-h-[220px] ${
-                          isSelected ? 'border-[#93c5fd] bg-[#f8fbff]' : 'border-[#e5eaf2] bg-white'
-                        }`}
-                      >
-                        <label className="flex items-start gap-3 cursor-pointer min-h-[180px]">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => setSelectedQuestion(slug, q.optionKey)}
-                            className="mt-1.5 shrink-0 rounded border-gray-300 text-[#2563eb]"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-[#1e40af] mb-1">Option {q.optionKey}</p>
-                            <p className="text-sm text-[#374151] leading-relaxed">{q.body}</p>
-                          </div>
-                        </label>
+                      <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(300px,340px)] gap-4 items-stretch">
+                        <div className="space-y-3 min-h-[220px]">
+                          {questions.map((q) => {
+                            const isSelected = norm.selectedQuestion === q.optionKey;
+                            return (
+                              <label
+                                key={q.id || `${slug}-${q.optionKey}`}
+                                className={`flex items-start gap-3 cursor-pointer border rounded-lg p-4 min-h-[72px] ${
+                                  isSelected
+                                    ? 'border-[#93c5fd] bg-[#f8fbff]'
+                                    : 'border-[#e5eaf2] bg-white'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => setSelectedQuestion(slug, q.optionKey)}
+                                  className="mt-1.5 shrink-0 rounded border-gray-300 text-[#2563eb]"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-semibold text-[#1e40af] mb-1">
+                                    Option {q.optionKey}
+                                  </p>
+                                  <p className="text-sm text-[#374151] leading-relaxed">{q.body}</p>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
                         <div className="flex min-h-[260px] min-w-0 flex-col overflow-hidden">
                           <div
-                            role={isSelected && !uploading ? 'button' : undefined}
-                            tabIndex={isSelected && !uploading ? 0 : undefined}
+                            role={hasSelection && !uploading ? 'button' : undefined}
+                            tabIndex={hasSelection && !uploading ? 0 : undefined}
                             onClick={() => {
-                              if (!isSelected || uploading) return;
+                              if (!hasSelection || uploading) return;
                               document.getElementById(fileInputId)?.click();
                             }}
                             onKeyDown={(e) => {
-                              if ((e.key === 'Enter' || e.key === ' ') && isSelected && !uploading) {
+                              if ((e.key === 'Enter' || e.key === ' ') && hasSelection && !uploading) {
                                 e.preventDefault();
                                 document.getElementById(fileInputId)?.click();
                               }
@@ -516,7 +533,7 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                             onDragOver={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              if (isSelected && !uploading) setDragOverKey(dk);
+                              if (hasSelection && !uploading) setDragOverKey(dk);
                             }}
                             onDragLeave={(e) => {
                               if (!e.currentTarget.contains(e.relatedTarget)) {
@@ -528,10 +545,10 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                               e.stopPropagation();
                               setDragOverKey(null);
                               const f = e.dataTransfer.files?.[0];
-                              if (f) handlePickVideo(slug, q.optionKey, f);
+                              if (f) handlePickVideo(slug, f);
                             }}
                             className={`flex flex-1 flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
-                              !isSelected || uploading
+                              !hasSelection || uploading
                                 ? 'cursor-not-allowed border-[#d1dae6] bg-[#f8fafc] opacity-70'
                                 : isDragTarget
                                   ? 'cursor-pointer border-[#2563eb] bg-[#e8f2ff] shadow-inner'
@@ -547,9 +564,9 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                               id={fileInputId}
                               type="file"
                               accept="video/mp4,video/quicktime,video/x-msvideo,video/*"
-                              disabled={!isSelected || uploading}
+                              disabled={!hasSelection || uploading}
                               onChange={(e) => {
-                                handlePickVideo(slug, q.optionKey, e.target.files?.[0]);
+                                handlePickVideo(slug, e.target.files?.[0]);
                                 e.target.value = '';
                               }}
                               className="sr-only"
@@ -558,15 +575,15 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                           <div className="mt-3 flex w-full gap-3">
                             <button
                               type="button"
-                              onClick={() => saveQuestion(slug, q.optionKey)}
-                              disabled={!isSelected}
+                              onClick={() => saveQuestion(slug)}
+                              disabled={!hasSelection}
                               className="h-11 flex-1 rounded-lg border-2 border-[#5b8fd4] bg-white text-sm font-semibold text-[#1d4ed8] shadow-sm transition-colors hover:bg-[#eff6ff] disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               Save
                             </button>
                             <button
                               type="button"
-                              onClick={() => clearQuestion(slug, q.optionKey)}
+                              onClick={() => clearQuestion(slug)}
                               className="h-11 flex-1 rounded-lg border-2 border-[#e57373] bg-white text-sm font-semibold text-[#c62828] shadow-sm transition-colors hover:bg-[#fff5f5]"
                             >
                               Clear
@@ -587,18 +604,26 @@ const TutorInterviewsPage = ({ embedded = false }) => {
                               uploading
                                 ? undefined
                                 : draft?.name ||
-                                  (savedUrl ? 'Video saved' : isSelected ? 'No file selected' : 'Select question first')
+                                  (savedUrl
+                                    ? 'Video saved'
+                                    : hasSelection
+                                      ? 'No file selected'
+                                      : 'Select question first')
                             }
                           >
                             {uploading
                               ? 'Uploading…'
                               : draft?.name ||
-                                (savedUrl ? 'Video saved' : isSelected ? 'No file selected' : 'Select question first')}
+                                (savedUrl
+                                  ? 'Video saved'
+                                  : hasSelection
+                                    ? 'No file selected'
+                                    : 'Select question first')}
                           </p>
                         </div>
                       </div>
                     );
-                  })}
+                  })()}
                 </div>
               </div>
             );
