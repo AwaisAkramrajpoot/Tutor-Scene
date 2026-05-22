@@ -44,14 +44,9 @@ function shortenText(s, max) {
   return `${t.slice(0, max)}…`;
 }
 
-function getQuestionSummary(topic, optionKey) {
-  const qs = Array.isArray(topic?.questions) ? topic.questions : [];
-  const q = qs.find((x) => String(x.optionKey) === String(optionKey));
-  if (!q) {
-    return optionKey ? `Option ${optionKey}` : "the question you chose";
-  }
-  const body = shortenText(q.body, 100);
-  return `Option ${q.optionKey}${body ? ` — ${body}` : ""}`;
+function getOptionLabel(optionKey) {
+  const key = String(optionKey || "").trim();
+  return key ? `Option ${key}` : "your selected option";
 }
 
 function saveAndContinueValidationToast(topics, payload) {
@@ -59,19 +54,16 @@ function saveAndContinueValidationToast(topics, payload) {
     const t = topics[i];
     const r = payload[t.slug];
     const step = i + 1;
-    const topicTitle = t.title || t.slug || "this topic";
+    const topicTitle = shortenText(t.title || t.slug || "this topic", 36);
     if (!r?.selectedQuestion) {
-      return `Step ${step} (${topicTitle}): no question selected. Pick one option, then upload your video and click Save.`;
+      return `Step ${step} (${topicTitle}): select an option, upload a video, and click Save.`;
     }
     if (!r?.videoUrl) {
-      const qSummary = getQuestionSummary(t, r.selectedQuestion);
-      if (i === 0) {
-        return `Step ${step} (${topicTitle}): video missing for ${qSummary}. Upload your introduction video and click Save before continuing.`;
-      }
-      return `Step ${step} (${topicTitle}): video missing for ${qSummary}. Upload your video and click Save before continuing.`;
+      const opt = getOptionLabel(r.selectedQuestion);
+      return `Step ${step} (${topicTitle}): upload a video for ${opt} and click Save before continuing.`;
     }
   }
-  return "Please complete all topics (one question + saved video each) before Save and Continue.";
+  return "Complete all steps: one option and saved video per topic, then try again.";
 }
 
 const MAX_INTERVIEW_VIDEO_BYTES = 50 * 1024 * 1024;
