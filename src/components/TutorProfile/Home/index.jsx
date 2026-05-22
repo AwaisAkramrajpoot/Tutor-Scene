@@ -3,9 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { HeroSection } from "./HeroSection";
 import { FeaturesSection } from "./FeaturesSection";
 import { WhyTeachSection } from "./WhyTeachSection";
+import { getCurrentUser, isAuthenticated } from "../../../utils/api";
 
 export const Home = () => {
   const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    if (isAuthenticated() && getCurrentUser()?.role === "tutor") {
+      navigate("/create-profile");
+      return;
+    }
+    navigate("/signup");
+  };
   
   const ctaData = {
     title: "Ready to Start Teaching?",
@@ -22,8 +31,7 @@ export const Home = () => {
     <div className="w-full bg-white">
       <HeroSection />
       
-      {/* Why Teach Header */}
-      <section className="w-full py-16 text-center">
+      <section id="why-teach-on-tutor-scene" className="w-full py-16 text-center scroll-mt-24">
         <div className="max-w-7xl mx-auto px-6">
           <h2 className="text-4xl md:text-5xl text-[#2d3660] font-semibold mb-4">
             Why Teach on Tutor Scene?
@@ -42,8 +50,9 @@ export const Home = () => {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-4xl font-semibold mb-4">{ctaData.title}</h2>
           <p className="text-xl mb-8">{ctaData.subtitle}</p>
-          <button 
-            onClick={() => navigate('/create-profile')}
+          <button
+            type="button"
+            onClick={handleGetStarted}
             className="px-8 py-3 bg-white text-[#3495da] font-semibold text-lg rounded-lg hover:bg-opacity-90 transition-all"
           >
             {ctaData.buttonText}
