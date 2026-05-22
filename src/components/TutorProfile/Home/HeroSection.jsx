@@ -6,13 +6,7 @@ export const HeroSection = () => {
     { id: 1, icon: "📊", value: "10K+", label: "Successful Lessons" },
     { id: 2, icon: "📚", value: "20+", label: "Subjects Available" },
     { id: 3, icon: "👨‍🏫", value: "250+", label: "Tutors" },
-  ];
-
-  // const features = [
-  //   { id: 1, icon: "🎤", label: "Public Speaking" },
-  //   { id: 2, icon: "💼", label: "Career-Oriented" },
-  //   { id: 3, icon: "💡", label: "Creative Thinking" },
-  // ];
+  ]; 
 
   return (
     <section className="relative bg-gradient-to-r from-brand-dark-blue via-brand-medium-blue to-brand-dark-blue text-white overflow-hidden">
