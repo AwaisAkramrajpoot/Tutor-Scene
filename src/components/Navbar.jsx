@@ -190,10 +190,10 @@ const Navbar = () => {
             </span>
           ) : (
             <div className="flex items-end">
-              <img
-                src="/images/logo.png.png"
-                alt="Tutor Scene Logo"
-                className="h-[3.25rem] sm:h-[4rem] md:h-[7.4rem] w-auto object-contain object-bottom drop-shadow-md"
+              <img 
+                src="/images/logo.png.png" 
+                alt="Tutor Scene Logo" 
+                className="h-[3.25rem] sm:h-[3.75rem] md:h-[5rem] w-auto object-contain object-bottom drop-shadow-md"
                 onError={(e) => {
                   e.target.style.display = "none";
                   e.target.nextSibling.style.display = "flex";
