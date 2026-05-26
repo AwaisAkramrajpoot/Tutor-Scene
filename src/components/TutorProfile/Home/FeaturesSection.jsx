@@ -11,6 +11,7 @@ export const FeaturesSection = () => {
         { icon: "✓", text: "Work from anywhere" },
         { icon: "✓", text: "Set your own availability" },
         { icon: "✓", text: "No minimum hours" },
+        { icon: "✓", text: "Seamless Onboarding" },
       ],
     },
     {
@@ -21,7 +22,6 @@ export const FeaturesSection = () => {
       items: [
         { icon: "✓", text: "Global student network" },
         { icon: "✓", text: "Build your brand" },
-        { icon: "✓", text: "Get verified badge" },
       ],
     },
     {
@@ -33,6 +33,7 @@ export const FeaturesSection = () => {
         { icon: "✓", text: "Set your own rates" },
         { icon: "✓", text: "Weekly direct deposits" },
         { icon: "✓", text: "Protected payments" },
+        { icon: "✓", text: "Earn tips too" },
       ],
     },
   ];
