@@ -11,11 +11,7 @@ export const Home = () => {
     title: "Ready to Start Teaching?",
     subtitle: "Join our community of expert tutors and make a difference today",
     buttonText: "Get Started",
-    stats: [
-      { value: "10,000+", label: "Active Students" },
-      { value: "5,000+", label: "Expert Tutors" },
-      { value: "50+", label: "Subjects Covered" },
-    ],
+  
   };
 
   return (
@@ -47,15 +43,7 @@ export const Home = () => {
             className="px-8 py-3 bg-white text-[#3495da] font-semibold text-lg rounded-lg hover:bg-opacity-90 transition-all"
           >
             {ctaData.buttonText}
-          </button>
-          <div className="flex flex-wrap justify-center gap-12 mt-12">
-            {ctaData.stats.map((stat, index) => (
-              <div key={index} className="flex flex-col items-center">
-                <span className="font-bold text-3xl">{stat.value}</span>
-                <span className="text-base mt-1">{stat.label}</span>
-              </div>
-            ))}
-          </div>
+          </button> 
         </div>
       </section>
     </div>
