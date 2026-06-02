@@ -41,8 +41,35 @@ export class MessagingGateway
 
   private readonly logger = new Logger(MessagingGateway.name);
   
-  // Track online users: userId -> socketId
-  private onlineUsers: Map<number, string> = new Map();
+  // Track online users: userId -> Set of socketIds
+  private onlineUsers: Map<number, Set<string>> = new Map();
+
+  private addOnlineUser(userId: number, socketId: string): boolean {
+    const sockets = this.onlineUsers.get(userId) ?? new Set<string>();
+    const wasOnline = sockets.size > 0;
+    sockets.add(socketId);
+    this.onlineUsers.set(userId, sockets);
+    return !wasOnline;
+  }
+
+  private removeOnlineUser(userId: number, socketId: string): boolean {
+    const sockets = this.onlineUsers.get(userId);
+    if (!sockets) return false;
+
+    sockets.delete(socketId);
+    if (sockets.size === 0) {
+      this.onlineUsers.delete(userId);
+      return true;
+    }
+
+    return false;
+  }
+
+  private getOnlineUserIds(excludeUserId?: number): number[] {
+    return Array.from(this.onlineUsers.keys()).filter(
+      (id) => id !== excludeUserId,
+    );
+  }
 
   constructor(
     private readonly messagesService: MessagesService,
@@ -56,7 +83,7 @@ export class MessagingGateway
    * Check if a user is currently online
    */
   isUserOnline(userId: number): boolean {
-    return this.onlineUsers.has(userId);
+    return (this.onlineUsers.get(userId)?.size ?? 0) > 0;
   }
 
   /**
@@ -136,19 +163,19 @@ export class MessagingGateway
 
       this.logger.log(`Client connected: ${client.id} (User: ${user.id})`);
 
-      // Track online user
-      this.onlineUsers.set(user.id, client.id);
+      const becameOnline = this.addOnlineUser(user.id, client.id);
 
-      // Broadcast user online status
-      this.server.emit('userOnline', {
-        userId: user.id,
-        timestamp: new Date(),
-      });
+      if (becameOnline) {
+        this.server.emit('userOnline', {
+          userId: user.id,
+          timestamp: new Date(),
+        });
+      }
 
-      // Send connection confirmation to client
       client.emit('connected', {
         message: 'Successfully connected to messaging service',
         userId: user.id,
+        onlineUserIds: this.getOnlineUserIds(user.id),
       });
     } catch (error) {
       this.logger.error(`Connection error: ${error.message}`, error.stack);
@@ -167,14 +194,14 @@ export class MessagingGateway
       if (user) {
         this.logger.log(`Client disconnected: ${client.id} (User: ${user.id})`);
 
-        // Remove from online users
-        this.onlineUsers.delete(user.id);
+        const becameOffline = this.removeOnlineUser(user.id, client.id);
 
-        // Broadcast user offline status
-        this.server.emit('userOffline', {
-          userId: user.id,
-          timestamp: new Date(),
-        });
+        if (becameOffline) {
+          this.server.emit('userOffline', {
+            userId: user.id,
+            timestamp: new Date(),
+          });
+        }
       } else {
         this.logger.log(`Client disconnected: ${client.id}`);
       }
