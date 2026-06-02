@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { apiRequest, resolveApiAssetUrl } from '../utils/api';
+import { apiRequest } from '../utils/api';
 import {
   tutorFirstName,
   bioPreview,
@@ -9,6 +9,7 @@ import {
   computeFeeRangeFromBaseFee,
   formatLearnerRateDisplay,
 } from '../utils/tutorLearnerDisplay';
+import TutorProfileAvatar from './TutorProfileAvatar';
 
 const ChevronDownIcon = (props) => (
   <svg {...props} className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -448,19 +449,10 @@ const FindTutorsPage = () => {
                   className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow text-left"
                 >
                   <div className="flex gap-4 items-start">
-                    {tutor.profilePic ? (
-                      <img
-                        src={resolveApiAssetUrl(tutor.profilePic)}
-                        alt={tutorFirstName(tutor.fullName)}
-                        className="w-24 h-24 shrink-0 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-24 h-24 shrink-0 bg-gray-300 rounded-full flex items-center justify-center">
-                        <svg className="w-12 h-12 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                        </svg>
-                      </div>
-                    )}
+                    <TutorProfileAvatar
+                      profilePic={tutor.profilePic}
+                      name={tutorFirstName(tutor.fullName)}
+                    />
                     <div className="min-w-0 flex-1 pt-1">
                       <h3 className="text-xl font-bold text-gray-900">
                         {tutorFirstName(tutor.fullName)}
