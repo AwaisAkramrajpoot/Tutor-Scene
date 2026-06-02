@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import BookSession from "./BookSession";
 import MessageRequestButton from "./Messaging/MessageRequestButton";
 import { apiRequest, resolveApiAssetUrl } from "../utils/api";
@@ -69,7 +69,11 @@ const tutorData = {
 const TutorProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const returnTo = location.state?.returnTo;
+  const isFromMessages =
+    typeof returnTo === "string" && returnTo.startsWith("/messages");
   const filterSubject = searchParams.get("subject") || "";
   const filterLevel = searchParams.get("level") || "";
 
@@ -176,8 +180,20 @@ const TutorProfile = () => {
     setShowBooking(bookingData);
   };
 
+  const handleBack = () => {
+    if (returnTo) {
+      navigate(returnTo);
+      return;
+    }
+    navigate(FIND_TUTORS_PATH, { replace: true });
+  };
+
   const handleCloseBooking = () => {
     setShowBooking(null);
+    if (returnTo) {
+      navigate(returnTo);
+      return;
+    }
     navigate(FIND_TUTORS_PATH, { replace: true });
   };
 
@@ -258,11 +274,11 @@ const TutorProfile = () => {
           <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
             <button
               type="button"
-              onClick={() => navigate(FIND_TUTORS_PATH, { replace: true })}
+              onClick={handleBack}
               className="flex items-center border-0 bg-transparent p-0 text-base font-medium text-white hover:text-brand-gold transition-colors cursor-pointer"
             >
               <ArrowLeftIcon className="mr-2 shrink-0" />
-              Back to Search
+              {isFromMessages ? "Back to Messages" : "Back to Search"}
             </button>
           </div>
         </div>

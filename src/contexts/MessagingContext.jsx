@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { initializeSocket, disconnectSocket } from '../utils/socket';
-import { getCurrentUser } from '../utils/api';
 import {
   getConversations as fetchConversationsAPI,
   getMessages as fetchMessagesAPI,
@@ -10,6 +9,7 @@ import {
   getMessageRequests as getMessageRequestsAPI,
   markMessagesAsRead as markMessagesAsReadAPI,
 } from '../services/messagingService';
+import { dedupeMessages, sameUserId } from '../utils/messagingHelpers';
 
 const MessagingContext = createContext();
 
@@ -34,8 +34,14 @@ export const MessagingProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [messagePagination, setMessagePagination] = useState({});
 
-  const currentUser = getCurrentUser();
+  const userJson = localStorage.getItem('user');
+  const currentUser = useMemo(
+    () => (userJson ? JSON.parse(userJson) : null),
+    [userJson],
+  );
   const currentUserId = currentUser?.id;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
   const socketRef = useRef(null);
   const typingTimeouts = useRef({});
   const activeConversationRef = useRef(null);
@@ -127,6 +133,21 @@ export const MessagingProvider = ({ children }) => {
       console.log('Socket connected');
       setIsConnected(true);
       setError(null);
+      if (activeConversationRef.current) {
+        newSocket.emit('joinConversation', {
+          conversationId: activeConversationRef.current.id,
+        });
+      }
+    });
+
+    newSocket.on('connected', ({ onlineUserIds = [] }) => {
+      setOnlineUsers(
+        new Set(
+          Array.isArray(onlineUserIds)
+            ? onlineUserIds.map((id) => Number(id)).filter((id) => !Number.isNaN(id))
+            : [],
+        ),
+      );
     });
 
     newSocket.on('disconnect', (reason) => {
@@ -134,85 +155,96 @@ export const MessagingProvider = ({ children }) => {
       setIsConnected(false);
     });
 
-    // User online/offline events
     newSocket.on('userOnline', ({ userId }) => {
-      setOnlineUsers((prev) => new Set(prev).add(userId));
+      setOnlineUsers((prev) => {
+        const updated = new Set(prev);
+        updated.add(Number(userId));
+        return updated;
+      });
     });
 
     newSocket.on('userOffline', ({ userId }) => {
       setOnlineUsers((prev) => {
         const updated = new Set(prev);
-        updated.delete(userId);
+        updated.delete(Number(userId));
         return updated;
       });
     });
 
     // New message event
     newSocket.on('newMessage', ({ message }) => {
-      console.log('New message received:', message);
+      const conversationId = Number(message.conversationId);
+      const normalizedMessage = {
+        ...message,
+        conversationId,
+        senderId: Number(message.senderId),
+        status: 'delivered',
+      };
 
-      // Add message to messages state
       setMessages((prev) => {
-        const conversationMessages = prev[message.conversationId] || [];
-        
-        // Check if message already exists by ID (real message ID)
-        const existsByIdIndex = conversationMessages.findIndex((msg) => 
-          msg.id === message.id && !String(msg.id).startsWith('temp-')
+        const conversationMessages = prev[conversationId] || prev[message.conversationId] || [];
+
+        const existsById = conversationMessages.some(
+          (msg) =>
+            !String(msg.id).startsWith('temp-') &&
+            msg.id === normalizedMessage.id,
         );
-        if (existsByIdIndex !== -1) {
-          // Real message already exists, don't add duplicate
-          console.log('Message already exists, skipping:', message.id);
+        if (existsById) {
           return prev;
         }
-        
-        // If this is our own message (sent by current user), look for optimistic message
-        const isSentByMe = message.senderId === currentUserId;
-        
+
+        const isSentByMe = sameUserId(
+          normalizedMessage.senderId,
+          currentUserIdRef.current,
+        );
+
         if (isSentByMe) {
-          // Look for ANY temp message with matching content from the last 10 seconds
           const optimisticIndex = conversationMessages.findIndex(
-            (msg) => 
-              String(msg.id).startsWith('temp-') && 
-              msg.content.trim() === message.content.trim() &&
-              Math.abs(new Date(msg.createdAt).getTime() - new Date(message.createdAt).getTime()) < 10000
+            (msg) =>
+              String(msg.id).startsWith('temp-') &&
+              sameUserId(msg.senderId, normalizedMessage.senderId) &&
+              (msg.content?.trim() || '') === (normalizedMessage.content?.trim() || ''),
           );
-          
+
           if (optimisticIndex !== -1) {
-            // Replace optimistic message with the real one
-            console.log('Replacing optimistic message:', conversationMessages[optimisticIndex].id, 'with', message.id);
             const updatedMessages = [...conversationMessages];
-            updatedMessages[optimisticIndex] = { ...message, status: 'delivered' };
+            updatedMessages[optimisticIndex] = normalizedMessage;
             return {
               ...prev,
-              [message.conversationId]: updatedMessages,
+              [conversationId]: dedupeMessages(updatedMessages),
             };
           }
         }
-        
-        // Add new message if it doesn't exist and no optimistic match
-        console.log('Adding new message:', message.id);
+
         return {
           ...prev,
-          [message.conversationId]: [...conversationMessages, message],
+          [conversationId]: dedupeMessages([
+            ...conversationMessages,
+            normalizedMessage,
+          ]),
         };
       });
 
-      // Update conversation last message and unread count
       setConversations((prev) =>
         prev.map((conv) => {
-          if (conv.id === message.conversationId) {
-            const isActive = activeConversationRef.current?.id === message.conversationId;
-            const isSentByCurrentUser = message.senderId === currentUserId;
+          if (conv.id === conversationId) {
+            const isActive = activeConversationRef.current?.id === conversationId;
+            const isSentByCurrentUser = sameUserId(
+              normalizedMessage.senderId,
+              currentUserIdRef.current,
+            );
             return {
               ...conv,
-              lastMessage: message,
-              lastMessageAt: message.createdAt,
-              // Only increment unread if not active and not sent by current user
-              unreadCount: (isActive || isSentByCurrentUser) ? conv.unreadCount : (conv.unreadCount || 0) + 1,
+              lastMessage: normalizedMessage,
+              lastMessageAt: normalizedMessage.createdAt,
+              unreadCount:
+                isActive || isSentByCurrentUser
+                  ? conv.unreadCount
+                  : (conv.unreadCount || 0) + 1,
             };
           }
           return conv;
-        })
+        }),
       );
     });
 
@@ -324,28 +356,34 @@ export const MessagingProvider = ({ children }) => {
 
   // Set active conversation and manage chat state
   const setActiveConversationWithManagement = useCallback((conversation) => {
-    // Leave previous conversation if exists
-    if (activeConversationRef.current && socketRef.current) {
+    const previousId = activeConversationRef.current?.id ?? null;
+    const nextId = conversation?.id ?? null;
+
+    if (previousId === nextId) {
+      if (conversation && activeConversationRef.current !== conversation) {
+        setActiveConversation(conversation);
+        activeConversationRef.current = conversation;
+      }
+      return;
+    }
+
+    if (previousId != null && socketRef.current) {
       socketRef.current.emit('leaveConversation', {
-        conversationId: activeConversationRef.current.id,
+        conversationId: previousId,
       });
     }
 
-    // Set new active conversation
     setActiveConversation(conversation);
     activeConversationRef.current = conversation;
 
-    // Join new conversation if exists
     if (conversation && socketRef.current) {
       socketRef.current.emit('joinConversation', {
         conversationId: conversation.id,
       });
 
-      // Mark messages as read when conversation becomes active
       if (conversation.unreadCount > 0) {
         markMessagesAsReadAPI(conversation.id)
           .then(() => {
-            // Update local state
             setConversations((prev) =>
               prev.map((conv) =>
                 conv.id === conversation.id ? { ...conv, unreadCount: 0 } : conv

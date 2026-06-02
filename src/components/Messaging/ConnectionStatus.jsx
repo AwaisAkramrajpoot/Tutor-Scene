@@ -35,7 +35,7 @@ const ConnectionStatus = () => {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full flex-shrink-0">
       {/* Disconnected Status - Reconnecting */}
       {!isConnected && !error && (
         <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2">

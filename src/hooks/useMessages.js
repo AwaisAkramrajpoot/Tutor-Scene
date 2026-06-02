@@ -12,6 +12,7 @@ import {
   joinConversation,
   leaveConversation,
 } from '../utils/socket';
+import { dedupeMessages } from '../utils/messagingHelpers';
 
 export const useMessages = () => {
   const {
@@ -50,25 +51,20 @@ export const useMessages = () => {
         setMessages((prev) => {
           const existing = prev[conversationId] || [];
 
-          // If first page, replace all messages
           if (page === 1) {
+            const pendingOptimistic = existing.filter((msg) =>
+              String(msg.id).startsWith('temp-'),
+            );
             return {
               ...prev,
-              [conversationId]: messagesList,
+              [conversationId]: dedupeMessages([...messagesList, ...pendingOptimistic]),
             };
           }
 
-          // Otherwise, prepend older messages
           const combined = [...messagesList, ...existing];
-
-          // Remove duplicates
-          const unique = combined.filter(
-            (msg, index, self) => index === self.findIndex((m) => m.id === msg.id)
-          );
-
           return {
             ...prev,
-            [conversationId]: unique,
+            [conversationId]: dedupeMessages(combined),
           };
         });
 
@@ -112,8 +108,8 @@ export const useMessages = () => {
         // Create optimistic message
         const optimisticMessage = {
           id: `temp-${Date.now()}`,
-          conversationId,
-          senderId: currentUser?.id,
+          conversationId: Number(conversationId),
+          senderId: Number(currentUser?.id),
           content: content.trim(),
           attachmentUrl,
           isRead: false,
@@ -121,10 +117,12 @@ export const useMessages = () => {
           status: 'sending',
         };
 
-        // Add optimistic message to state
         setMessages((prev) => ({
           ...prev,
-          [conversationId]: [...(prev[conversationId] || []), optimisticMessage],
+          [conversationId]: dedupeMessages([
+            ...(prev[conversationId] || []),
+            optimisticMessage,
+          ]),
         }));
 
         // Store in localStorage for recovery (user-specific to avoid conflicts between tabs)
@@ -257,25 +255,22 @@ export const useMessages = () => {
     (conversationId) => {
       const failedMessagesKey = `failed_messages_${currentUser?.id}_${conversationId}`;
       const storedFailedMessages = JSON.parse(localStorage.getItem(failedMessagesKey) || '[]');
-      
-      if (storedFailedMessages.length > 0) {
-        setMessages((prev) => {
-          const existing = prev[conversationId] || [];
-          const existingIds = new Set(existing.map(msg => msg.id));
-          
-          // Only add failed messages that aren't already in state
-          const newFailedMessages = storedFailedMessages
-            .filter(msg => !existingIds.has(msg.id))
-            .map(msg => ({ ...msg, status: 'failed' }));
-          
-          return {
-            ...prev,
-            [conversationId]: [...existing, ...newFailedMessages],
-          };
-        });
-      }
+
+      if (storedFailedMessages.length === 0) return;
+
+      setMessages((prev) => {
+        const existing = prev[conversationId] || [];
+        const merged = dedupeMessages([
+          ...existing,
+          ...storedFailedMessages.map((msg) => ({ ...msg, status: 'failed' })),
+        ]);
+        return {
+          ...prev,
+          [conversationId]: merged,
+        };
+      });
     },
-    [setMessages, currentUser]
+    [setMessages, currentUser?.id]
   );
 
   /**
@@ -381,6 +376,25 @@ export const useMessages = () => {
     [getPaginationInfo, fetchMessages]
   );
 
+  const fetchAllMessages = useCallback(
+    async (conversationId) => {
+      let result = await fetchMessages(conversationId, 1);
+      let page = result.page || 1;
+      const limit = result.limit || 50;
+      const total = result.total || (result.messages || []).length;
+      let hasMore = page * limit < total;
+
+      while (hasMore) {
+        page += 1;
+        result = await fetchMessages(conversationId, page);
+        hasMore = page * limit < (result.total || total);
+      }
+
+      return result.messages || [];
+    },
+    [fetchMessages]
+  );
+
   return {
     messages,
     fetchMessages,
@@ -393,5 +407,6 @@ export const useMessages = () => {
     getPaginationInfo,
     loadMoreMessages,
     loadFailedMessages,
+    fetchAllMessages,
   };
 };

@@ -6,34 +6,39 @@
  * @returns {string} - Formatted date string
  */
 export const formatMessageDate = (date) => {
+  if (!date) return '';
+
   const messageDate = new Date(date);
+  if (Number.isNaN(messageDate.getTime())) return '';
+
   const now = new Date();
-  const diffInMs = now - messageDate;
+  const diffInMs = now.getTime() - messageDate.getTime();
+  if (diffInMs < 0) return 'Just now';
+
   const diffInMinutes = Math.floor(diffInMs / 60000);
   const diffInHours = Math.floor(diffInMs / 3600000);
+
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfYesterday = new Date(startOfToday);
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  const startOfMessageDay = new Date(messageDate);
+  startOfMessageDay.setHours(0, 0, 0, 0);
+
+  if (diffInMinutes < 1) return 'Just now';
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+
+  if (startOfMessageDay.getTime() === startOfToday.getTime()) {
+    return `${Math.max(diffInHours, 1)}h ago`;
+  }
+
+  if (startOfMessageDay.getTime() === startOfYesterday.getTime()) {
+    return 'Yesterday';
+  }
+
   const diffInDays = Math.floor(diffInMs / 86400000);
+  if (diffInDays < 7) return `${diffInDays}d ago`;
 
-  // Less than 1 minute
-  if (diffInMinutes < 1) {
-    return 'Just now';
-  }
-
-  // Less than 1 hour
-  if (diffInMinutes < 60) {
-    return `${diffInMinutes}m ago`;
-  }
-
-  // Less than 24 hours
-  if (diffInHours < 24) {
-    return `${diffInHours}h ago`;
-  }
-
-  // Less than 7 days
-  if (diffInDays < 7) {
-    return `${diffInDays}d ago`;
-  }
-
-  // More than 7 days - show date
   return messageDate.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -194,7 +199,10 @@ export const getFullName = (user) => {
  * @returns {boolean} - True if user is online
  */
 export const isUserOnline = (onlineUsers, userId) => {
-  return onlineUsers && onlineUsers.has(userId);
+  if (!onlineUsers || userId == null) return false;
+  const normalizedId = Number(userId);
+  if (onlineUsers.has(normalizedId)) return true;
+  return onlineUsers.has(userId);
 };
 
 /**
@@ -256,4 +264,49 @@ export const filterConversations = (conversations, query, currentUserId) => {
  */
 export const getTotalUnreadCount = (conversations) => {
   return conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
+};
+
+export const sameUserId = (a, b) => {
+  if (a == null || b == null) return false;
+  return Number(a) === Number(b);
+};
+
+export const sortMessagesByCreatedAt = (messages) => {
+  return [...messages].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+};
+
+export const dedupeMessages = (messages) => {
+  const realMessages = [];
+  const tempMessages = [];
+  const seenRealIds = new Set();
+
+  messages.forEach((message) => {
+    if (String(message.id).startsWith('temp-')) {
+      tempMessages.push(message);
+      return;
+    }
+
+    if (seenRealIds.has(message.id)) return;
+    seenRealIds.add(message.id);
+    realMessages.push(message);
+  });
+
+  tempMessages.forEach((temp) => {
+    const hasMatchingReal = realMessages.some(
+      (real) =>
+        sameUserId(real.senderId, temp.senderId) &&
+        (real.content?.trim() || '') === (temp.content?.trim() || '') &&
+        Math.abs(
+          new Date(real.createdAt).getTime() - new Date(temp.createdAt).getTime(),
+        ) < 60000,
+    );
+
+    if (!hasMatchingReal) {
+      realMessages.push(temp);
+    }
+  });
+
+  return sortMessagesByCreatedAt(realMessages);
 };

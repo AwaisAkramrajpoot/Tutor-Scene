@@ -45,7 +45,7 @@ const MessageBubble = memo(({ message, isOwn, showAvatar = false, showTimestamp 
       onMouseLeave={() => setShowFullTimestamp(false)}
     >
       {/* Avatar placeholder for alignment */}
-      {showAvatar && <div className="w-8 h-8" />}
+      <div className="w-8 h-8 shrink-0" aria-hidden="true" />
 
       <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[70%]`}>
         {/* Message bubble */}

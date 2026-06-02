@@ -23,12 +23,12 @@ const MessagingPageContent = () => {
       const conversation = conversations.find(
         (conv) => conv.id === parseInt(conversationId, 10)
       );
-      if (conversation) {
+      if (conversation && conversation.id !== activeConversation?.id) {
         setActiveConversation(conversation);
         setIsMobileChatOpen(true);
       }
     }
-  }, [searchParams, conversations, setActiveConversation]);
+  }, [searchParams, conversations, setActiveConversation, activeConversation?.id]);
 
   // Handle mobile back button
   const handleMobileBack = () => {
@@ -63,35 +63,32 @@ const MessagingPageContent = () => {
   }, [isMobileChatOpen, searchParams, setActiveConversation]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-      {/* Connection Status Indicator */}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <ConnectionStatus />
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Sidebar - Hidden on mobile when chat is open */}
         <div
           className={`
-            w-full md:w-80 lg:w-96 flex-shrink-0 flex flex-col
+            flex h-full min-h-0 w-full flex-shrink-0 flex-col
+            md:w-80 lg:w-96
             ${isMobileChatOpen ? 'hidden md:flex' : 'flex'}
           `}
         >
           {/* Message Requests Section (Tutors Only) */}
-          {isTutor && (
-            <div className="p-4 bg-gray-50 border-b border-gray-200">
-              <MessageRequestsList />
-            </div>
-          )}
-
-          {/* Sent Message Requests Section (Students Only) */}
           {isStudent && (
-            <div className="p-4 bg-gray-50 border-b border-gray-200">
+            <div className="max-h-[min(40vh,320px)] flex-shrink-0 overflow-y-auto overscroll-y-contain border-b border-gray-200 bg-gray-50 p-4">
               <SentMessageRequestsList />
             </div>
           )}
 
-          {/* Conversations List */}
-          <div className="flex-1 overflow-hidden">
+          {isTutor && (
+            <div className="max-h-[min(40vh,320px)] flex-shrink-0 overflow-y-auto overscroll-y-contain border-b border-gray-200 bg-gray-50 p-4">
+              <MessageRequestsList />
+            </div>
+          )}
+
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <ConversationsList />
           </div>
         </div>
@@ -99,7 +96,7 @@ const MessagingPageContent = () => {
         {/* Main Chat Area - Full width on mobile when open */}
         <div
           className={`
-            flex-1 flex flex-col min-w-0
+            flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden
             ${isMobileChatOpen ? 'flex' : 'hidden md:flex'}
           `}
         >

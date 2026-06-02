@@ -73,7 +73,7 @@ const MessageInput = ({
   }, [handleSend]);
 
   return (
-    <div className="bg-white border-t border-gray-200 px-4 py-3 safe-bottom">
+    <div className="safe-bottom flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3">
       <div className="flex items-end gap-2">
         {/* Message textarea */}
         <textarea
