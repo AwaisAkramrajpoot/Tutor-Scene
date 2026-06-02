@@ -5,10 +5,9 @@ import {
   DialogActions,
   Button,
   LinearProgress,
-  Snackbar,
-  Alert,
 } from "@mui/material";
 import { apiRequest } from "../../utils/api";
+import { useSystemMessage } from "../../hooks/useSystemMessage";
 import {
   LEARNER_ASSESSMENT_MODAL_SUBTITLE,
   LEARNER_ASSESSMENT_QUESTIONS,
@@ -32,24 +31,13 @@ const LearnerAssessmentModal = ({
   user,
   onPersisted,
 }) => {
+  const { showMessage } = useSystemMessage();
   const [answers, setAnswers] = useState(emptyAnswers());
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Toast state
-  const [toast, setToast] = useState({
-    open: false,
-    message: "",
-    severity: "success", // 'success' | 'error' | 'info' | 'warning'
-  });
-
   const showToast = (message, severity = "success") => {
-    setToast({ open: true, message, severity });
-  };
-
-  const handleToastClose = (_, reason) => {
-    if (reason === "clickaway") return;
-    setToast((prev) => ({ ...prev, open: false }));
+    showMessage({ message, type: severity });
   };
 
   const answeredCount = useMemo(
@@ -318,22 +306,6 @@ const LearnerAssessmentModal = ({
         </DialogActions>
       </Dialog>
 
-      {/* Toast notification — rendered outside the Dialog so it's never clipped */}
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={handleToastClose}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleToastClose}
-          severity={toast.severity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {toast.message}
-        </Alert>
-      </Snackbar>
     </>
   );
 };

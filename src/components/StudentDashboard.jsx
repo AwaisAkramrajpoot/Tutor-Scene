@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import NotificationsPanel from "./Notifications/NotificationsPanel";
 import BookSessionLearnerFlow from "./bookSession/BookSessionLearnerFlow";
+import { showSystemMessage } from '../utils/systemMessage';
 
 // Icons
 const CalendarIcon = (props) => (
@@ -251,7 +252,7 @@ const StudentDashboard = () => {
     if (zoomLink) {
       window.open(zoomLink, "_blank");
     } else {
-      alert("Zoom link not available for this session");
+      showSystemMessage({ message: "Zoom link not available for this session", type: "warning" });
     }
   };
 
@@ -295,7 +296,7 @@ const StudentDashboard = () => {
       handleCloseCancelDialog();
     } catch (err) {
       console.error("Failed to cancel booking:", err);
-      alert(err.message || "Failed to cancel booking. Please try again.");
+      showSystemMessage({ message: err.message || "Failed to cancel booking. Please try again.", type: "error" });
     } finally {
       setCancellingBooking(false);
     }

@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import LearnerAssessmentModal from './LearnerAssessmentModal';
+import { showSystemMessage } from '../../utils/systemMessage';
 
 const ChevronDownIcon = ({ collapsed }) => (
   <svg
@@ -157,7 +158,7 @@ const BookSessionStepsSection = ({ embedded = false }) => {
                 type="button"
                 onClick={() => {
                   if (!selectedLearnerLabel) {
-                    window.alert('Please select a learner before starting.');
+                    showSystemMessage({ message: 'Please select a learner before starting.', type: 'warning' });
                     return;
                   }
                   setAssessmentOpen(true);

@@ -1,8 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Alert,
-  Snackbar,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -11,6 +9,15 @@ import {
 } from "@mui/material";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
+import SystemMessageDialog from "./SystemMessageDialog";
+import { useSystemMessage } from "../hooks/useSystemMessage";
+
+const SIGNUP_PENDING_VERIFY_KEY = "signupPendingEmailVerify";
+const SIGNUP_ROLE_CHOICE_KEY = "signupRoleChoice";
+
+function isDuplicateEmailError(status, message) {
+  return status === 409 || /already exists/i.test(String(message || ""));
+}
 
 // Utility for Eye/Eye-Slash icons
 const EyeIcon = (props) => (
@@ -98,6 +105,7 @@ function passwordMeetsAllRules(password) {
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const { showMessage } = useSystemMessage();
 
   // --- State Hooks ---
   const [activeTab, setActiveTab] = useState("student");
@@ -118,12 +126,27 @@ const SignUp = () => {
 
   const [selectedGender, setSelectedGender] = useState("");
   const [loading, setLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
   const [roleChoiceModalOpen, setRoleChoiceModalOpen] = useState(true);
+  const [verifyEmailModalOpen, setVerifyEmailModalOpen] = useState(false);
+  const [accountExistsModalOpen, setAccountExistsModalOpen] = useState(false);
+  const [signupPendingVerify, setSignupPendingVerify] = useState(false);
+
+  useEffect(() => {
+    const pendingVerify = sessionStorage.getItem(SIGNUP_PENDING_VERIFY_KEY);
+    const savedRole = sessionStorage.getItem(SIGNUP_ROLE_CHOICE_KEY);
+
+    if (pendingVerify) {
+      setSignupPendingVerify(true);
+      setVerifyEmailModalOpen(true);
+      setRoleChoiceModalOpen(false);
+      return;
+    }
+
+    if (savedRole === "student" || savedRole === "tutor") {
+      setActiveTab(savedRole);
+      setRoleChoiceModalOpen(false);
+    }
+  }, []);
 
   // --- Handlers ---
   const handleChange = (e) => {
@@ -134,13 +157,35 @@ const SignUp = () => {
     }));
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  };
-
   const confirmSignupRole = (role) => {
     setActiveTab(role);
     setRoleChoiceModalOpen(false);
+    sessionStorage.setItem(SIGNUP_ROLE_CHOICE_KEY, role);
+  };
+
+  const clearSignupSession = () => {
+    sessionStorage.removeItem(SIGNUP_PENDING_VERIFY_KEY);
+    sessionStorage.removeItem(SIGNUP_ROLE_CHOICE_KEY);
+  };
+
+  const handleVerifyModalClose = () => {
+    setVerifyEmailModalOpen(false);
+  };
+
+  const handleVerifyModalSignIn = () => {
+    clearSignupSession();
+    setVerifyEmailModalOpen(false);
+    navigate("/signin");
+  };
+
+  const handleAccountExistsClose = () => {
+    setAccountExistsModalOpen(false);
+  };
+
+  const handleAccountExistsSignIn = () => {
+    setAccountExistsModalOpen(false);
+    clearSignupSession();
+    navigate("/signin");
   };
 
   const passwordIsStrong = passwordMeetsAllRules(formData.password);
@@ -162,48 +207,48 @@ const SignUp = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (signupPendingVerify) {
+      setVerifyEmailModalOpen(true);
+      return;
+    }
+
     if (!formData.agreeTerms) {
-      setSnackbar({
-        open: true,
+      showMessage({
         message: "Please agree to the Terms and Privacy Policies",
-        severity: "error",
+        type: "error",
       });
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setSnackbar({
-        open: true,
+      showMessage({
         message: "Passwords do not match",
-        severity: "error",
+        type: "error",
       });
       return;
     }
 
     if (!passwordIsStrong) {
-      setSnackbar({
-        open: true,
+      showMessage({
         message:
           "Password must be at least 8 characters long and include uppercase letters, lowercase letters, numbers, and special characters.",
-        severity: "error",
+        type: "error",
       });
       return;
     }
 
     if (!phoneNumber || phoneNumber.length <= 4) {
-      setSnackbar({
-        open: true,
+      showMessage({
         message: "Please enter a valid phone number.",
-        severity: "error",
+        type: "error",
       });
       return;
     }
 
     if (activeTab === "tutor" && !selectedGender.trim()) {
-      setSnackbar({
-        open: true,
+      showMessage({
         message: "Please select a gender identity.",
-        severity: "error",
+        type: "error",
       });
       return;
     }
@@ -248,25 +293,28 @@ const SignUp = () => {
       }
 
       if (response.ok) {
-        navigate("/", {
-          replace: true,
-          state: { showPostSignupEmailVerify: true },
-        });
+        sessionStorage.setItem(SIGNUP_PENDING_VERIFY_KEY, formData.email.trim());
+        setSignupPendingVerify(true);
+        setVerifyEmailModalOpen(true);
         return;
       }
-      setSnackbar({
-        open: true,
+
+      if (isDuplicateEmailError(response.status, data.message)) {
+        setAccountExistsModalOpen(true);
+        return;
+      }
+
+      showMessage({
         message:
           data.message ||
           `Registration failed (${response.status}). Please try again.`,
-        severity: "error",
+        type: "error",
       });
     } catch (error) {
-      setSnackbar({
-        open: true,
+      showMessage({
         message:
           error.message || "Network error. Please check your connection.",
-        severity: "error",
+        type: "error",
       });
     } finally {
       setLoading(false);
@@ -293,6 +341,27 @@ const SignUp = () => {
 
   return (
     <>
+      <SystemMessageDialog
+        open={verifyEmailModalOpen}
+        onClose={handleVerifyModalClose}
+        title="Verify your account"
+        message="Please check your email and verify your account before logging in."
+        actionLabel="Sign in"
+        onAction={handleVerifyModalSignIn}
+      />
+      <SystemMessageDialog
+        open={accountExistsModalOpen}
+        onClose={handleAccountExistsClose}
+        title="An account with this email already exists."
+        message={
+          <>
+            Select <span className="font-semibold">BACK TO SIGN IN</span> to use
+            this email or create a new account with a different email address.
+          </>
+        }
+        actionLabel="BACK TO SIGN IN"
+        onAction={handleAccountExistsSignIn}
+      />
       <Dialog
         open={roleChoiceModalOpen}
         onClose={(_, reason) => {
@@ -797,7 +866,7 @@ const SignUp = () => {
               {/* Sign Up Button */}
               <button
                 type="submit"
-                disabled={loading || !isFormValid()}
+                disabled={loading || !isFormValid() || signupPendingVerify}
                 className="w-full text-white font-semibold py-3.5 px-4 rounded-lg transition-shadow mb-4 text-base shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   backgroundImage: `linear-gradient(to right, ${COLOR_BUTTON_BLUE_GRADIENT.start}, ${COLOR_BUTTON_BLUE_GRADIENT.end})`,
@@ -924,20 +993,6 @@ const SignUp = () => {
         </div>
       </div>
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </>
   );
 };

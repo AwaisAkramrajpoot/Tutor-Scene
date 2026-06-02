@@ -5,6 +5,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import AvailabilityModal from './AvailabilityModal';
+import { showSystemMessage } from '../../utils/systemMessage';
 
 const TutorAvailability = () => {
   const [calendarEvents, setCalendarEvents] = useState([]);
@@ -275,7 +276,7 @@ const TutorAvailability = () => {
     try {
       const tutorProfileId = getTutorProfileId();
       if (!tutorProfileId) {
-        alert('User not authenticated. Please log in again.');
+        showSystemMessage({ message: 'User not authenticated. Please log in again.', type: 'error' });
         setAuthError(true);
         setSubmitting(false);
         return;
@@ -339,7 +340,7 @@ const TutorAvailability = () => {
         errorMsg += error.message || 'Please try again.';
       }
       
-      alert(errorMsg);
+      showSystemMessage({ message: errorMsg, type: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -355,7 +356,7 @@ const TutorAvailability = () => {
     try {
       const tutorProfileId = getTutorProfileId();
       if (!tutorProfileId) {
-        alert('User not authenticated. Please log in again.');
+        showSystemMessage({ message: 'User not authenticated. Please log in again.', type: 'error' });
         setAuthError(true);
         return;
       }
@@ -388,7 +389,7 @@ const TutorAvailability = () => {
         errorMsg += error.message || 'Please try again.';
       }
       
-      alert(errorMsg);
+      showSystemMessage({ message: errorMsg, type: 'error' });
     }
   };
 
@@ -403,7 +404,7 @@ const TutorAvailability = () => {
     try {
       const tutorProfileId = getTutorProfileId();
       if (!tutorProfileId) {
-        alert('User not authenticated. Please log in again.');
+        showSystemMessage({ message: 'User not authenticated. Please log in again.', type: 'error' });
         setAuthError(true);
         info.revert();
         return;
@@ -443,7 +444,7 @@ const TutorAvailability = () => {
         errorMsg += error.message || 'Please try again.';
       }
       
-      alert(errorMsg);
+      showSystemMessage({ message: errorMsg, type: 'error' });
       // Revert event to original position on error
       info.revert();
     }
@@ -460,7 +461,7 @@ const TutorAvailability = () => {
     try {
       const tutorProfileId = getTutorProfileId();
       if (!tutorProfileId) {
-        alert('User not authenticated. Please log in again.');
+        showSystemMessage({ message: 'User not authenticated. Please log in again.', type: 'error' });
         setAuthError(true);
         info.revert();
         return;
@@ -500,7 +501,7 @@ const TutorAvailability = () => {
         errorMsg += error.message || 'Please try again.';
       }
       
-      alert(errorMsg);
+      showSystemMessage({ message: errorMsg, type: 'error' });
       // Revert event to original size on error
       info.revert();
     }

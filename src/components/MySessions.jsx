@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../utils/api';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Rating } from '@mui/material';
+import { showSystemMessage } from '../utils/systemMessage';
 
 // Icons
 const SearchIcon = (props) => (
@@ -162,7 +163,7 @@ const MySessions = () => {
       fetchSessions();
     } catch (err) {
       console.error('Failed to cancel booking:', err);
-      alert(err.message || 'Failed to cancel booking. Please try again.');
+      showSystemMessage({ message: err.message || 'Failed to cancel booking. Please try again.', type: 'error' });
     } finally {
       setCancellingBooking(false);
     }

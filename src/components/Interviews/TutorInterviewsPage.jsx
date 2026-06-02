@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Snackbar } from '@mui/material';
 import { apiRequest, uploadOnboardingFile, getCurrentUser, submitTutorOnboarding, resolveApiAssetUrl } from '../../utils/api';
+import { useSystemMessage } from '../../hooks/useSystemMessage';
 import { mergeOnboardingSubmitIntoUser } from '../../utils/tutorProspectStatus';
 import { getTutorOnboarding } from '../../utils/onboarding';
 
@@ -105,6 +105,7 @@ function formatVideoDuration(seconds) {
 
 const TutorInterviewsPage = ({ embedded = false }) => {
   const navigate = useNavigate();
+  const { showMessage } = useSystemMessage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -115,20 +116,9 @@ const TutorInterviewsPage = ({ embedded = false }) => {
   draftFilesRef.current = draftFiles;
   const [uploadingKey, setUploadingKey] = useState('');
   const [dragOverKey, setDragOverKey] = useState(null);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success',
-  });
-
   const showSnackbar = useCallback((message, severity = 'info') => {
-    setSnackbar({ open: true, message, severity });
-  }, []);
-
-  const handleSnackbarClose = (_, reason) => {
-    if (reason === 'clickaway') return;
-    setSnackbar((s) => ({ ...s, open: false }));
-  };
+    showMessage({ message, type: severity });
+  }, [showMessage]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -650,21 +640,6 @@ const TutorInterviewsPage = ({ embedded = false }) => {
         </div>
       </div>
     </div>
-    <Snackbar
-      open={snackbar.open}
-      autoHideDuration={6000}
-      onClose={handleSnackbarClose}
-      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-    >
-      <Alert
-        onClose={handleSnackbarClose}
-        severity={snackbar.severity}
-        variant="filled"
-        sx={{ width: '100%' }}
-      >
-        {snackbar.message}
-      </Alert>
-    </Snackbar>
     </>
   );
 };

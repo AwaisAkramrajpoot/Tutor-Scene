@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTutorOnboarding } from "../utils/onboarding";
 import { TUTOR_ONBOARDING_STEPS } from "../components/TutorProfile/TutorOnboardingStepper";
+import { showSystemMessage } from "../utils/systemMessage";
 import {
   hasCompletedTutorOnboardingFlow,
   isInterviewStepComplete,
@@ -82,11 +83,20 @@ export function useTutorOnboardingNavigation(activeKey) {
         return;
       }
       if (index === 1) {
-        window.alert("Please complete and save your profile information first.");
+        showSystemMessage({
+          message: "Please complete and save your profile information first.",
+          type: "warning",
+        });
       } else if (index === 2) {
-        window.alert("Please complete the interview step first.");
+        showSystemMessage({
+          message: "Please complete the interview step first.",
+          type: "warning",
+        });
       } else {
-        window.alert("Please complete previous steps before moving ahead.");
+        showSystemMessage({
+          message: "Please complete previous steps before moving ahead.",
+          type: "warning",
+        });
       }
     },
     [currentStepIndex, navigate],

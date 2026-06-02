@@ -38,6 +38,7 @@ import StudentStaticPage from './components/student/StudentStaticPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import OnboardingStatusGuard from './components/OnboardingStatusGuard';
+import { SystemMessageProvider } from './contexts/SystemMessageContext';
 import { apiRequest } from './utils/api';
 
 // ─── NEW: Google OAuth Success Handler ────────────────────────────────────────
@@ -203,6 +204,7 @@ function TutorStatusChecker() {
 function App() {
   return (
     <Router>
+      <SystemMessageProvider>
       <TutorStatusChecker />
       <OnboardingStatusGuard>
         <Routes>
@@ -449,6 +451,7 @@ function App() {
         />
         </Routes>
       </OnboardingStatusGuard>
+      </SystemMessageProvider>
     </Router>
   );
 }
