@@ -176,17 +176,6 @@ function TutorStatusChecker() {
             updatedUser = refreshed.user;
           }
 
-          if (location.pathname === '/') {
-            const path = resolveTutorPostLoginPath({
-              prospectStatus: response.status,
-              publishedStatus: response.publishedStatus,
-              hasPendingProfileUpdate: Boolean(response.hasPendingProfileUpdate),
-              paymentOnBoarded: updatedUser.paymentOnBoarded,
-              interviewCompleted: updatedUser.interviewCompleted,
-              verificationCompleted: updatedUser.verificationCompleted,
-            });
-            navigate(path);
-          }
         }
       } catch (error) {
         console.error('Error checking tutor onboarding status:', error);
