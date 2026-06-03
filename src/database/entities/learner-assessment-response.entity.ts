@@ -32,4 +32,16 @@ export class LearnerAssessmentResponse extends BaseEntity {
 
   @Column({ name: 'relationship_to_learner', length: 80, nullable: true })
   relationshipToLearner: string | null;
+
+  @Column({ name: 'learner_last_name', length: 100, nullable: true })
+  learnerLastName: string | null;
+
+  @Column({ name: 'avatar_icon', length: 32, nullable: true })
+  avatarIcon: string | null;
+
+  @Column({ name: 'is_self', type: 'boolean', default: false })
+  isSelf: boolean;
+
+  @Column({ name: 'profile_status', length: 20, default: 'assessment' })
+  profileStatus: string;
 }

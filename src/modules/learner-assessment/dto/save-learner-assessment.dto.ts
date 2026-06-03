@@ -30,4 +30,14 @@ export class SaveLearnerAssessmentDto {
   @IsString()
   @MaxLength(80)
   relationshipToLearner?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  learnerLastName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  avatarIcon?: string;
 }

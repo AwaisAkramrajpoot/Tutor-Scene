@@ -33,9 +33,12 @@ export class LearnerAssessmentController {
       learners: rows.map((r) => ({
         learnerLabel: r.learnerLabel,
         learnerFirstName: r.learnerFirstName,
+        learnerLastName: r.learnerLastName,
         gradeLevel: r.gradeLevel,
         gender: r.gender,
         relationshipToLearner: r.relationshipToLearner,
+        avatarIcon: r.avatarIcon,
+        isSelf: r.isSelf,
         updatedAt: r.updatedAt,
       })),
     };

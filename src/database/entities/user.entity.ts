@@ -102,6 +102,15 @@ export class User extends BaseEntity {
 
   @Column({ type: 'varchar', length: 255, nullable: true, name: 'google_id' })
   googleId: string;
+
+  @Column({ type: 'varchar', length: 32, nullable: true, name: 'avatar_icon' })
+  avatarIcon: string | null;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'notification_preferences' })
+  notificationPreferences: Record<string, unknown> | null;
+
+  @Column({ type: 'boolean', default: false, name: 'registers_self_as_learner' })
+  registersSelfAsLearner: boolean;
   
   get fullName(): string {
     return `${this.firstName} ${this.lastName}`;

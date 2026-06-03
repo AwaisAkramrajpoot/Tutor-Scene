@@ -86,4 +86,7 @@ export class Booking extends BaseEntity {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'final_price' })
   finalPrice: number;
+
+  @Column({ type: 'varchar', length: 120, nullable: true, name: 'learner_label' })
+  learnerLabel: string | null;
 }

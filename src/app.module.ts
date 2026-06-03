@@ -29,6 +29,7 @@ import { GradeLevelsModule } from './modules/grade-levels/grade-levels.module';
 import { HealthModule } from './modules/health/health.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { LearnerAssessmentModule } from './modules/learner-assessment/learner-assessment.module';
+import { StudentAccountModule } from './modules/student-account/student-account.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { LearnerAssessmentModule } from './modules/learner-assessment/learner-as
     HealthModule,
     TestimonialsModule,
     LearnerAssessmentModule,
+    StudentAccountModule,
   ],
   controllers: [],
   providers: [

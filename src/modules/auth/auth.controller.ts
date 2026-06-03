@@ -117,7 +117,12 @@ export class AuthController {
       role: user.role,
       status: user.status,
       profilePhotoUrl: user.profilePhotoUrl,
+      avatarIcon: user.avatarIcon,
       gender: user.gender,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
+      twoFactorEnabled: user.twoFactorEnabled,
+      registersSelfAsLearner: user.registersSelfAsLearner,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

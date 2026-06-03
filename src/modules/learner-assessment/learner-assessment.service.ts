@@ -67,6 +67,12 @@ export class LearnerAssessmentService {
     if (dto.relationshipToLearner !== undefined) {
       row.relationshipToLearner = dto.relationshipToLearner ?? null;
     }
+    if (dto.learnerLastName !== undefined) {
+      row.learnerLastName = dto.learnerLastName ?? null;
+    }
+    if (dto.avatarIcon !== undefined) {
+      row.avatarIcon = dto.avatarIcon ?? null;
+    }
     return this.repo.save(row);
   }
 }

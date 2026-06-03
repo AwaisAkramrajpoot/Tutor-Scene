@@ -556,4 +556,32 @@ export class MailService {
       throw new InternalServerErrorException('Failed to send status change email');
     }
   }
+
+  async sendAccountChangeEmail(
+    to: string,
+    userName: string,
+    changeSummary: string,
+  ): Promise<void> {
+    const mailOptions = {
+      from: this.fromAddress,
+      to,
+      subject: 'Your Tutor Scene account was updated',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Account update confirmation</h2>
+          <p>Hi ${userName},</p>
+          <p>The following change was made to your Tutor Scene account:</p>
+          <p style="background:#f5f5f5;padding:12px;border-radius:6px;"><strong>${changeSummary}</strong></p>
+          <p>If you did not make this change, please contact support immediately.</p>
+          <hr>
+          <p style="font-size: 12px; color: #666;">This is an automated message from Tutor Scene.</p>
+        </div>
+      `,
+    };
+    try {
+      await this.transporter.sendMail(mailOptions);
+    } catch (error) {
+      console.error('Error sending account change email:', error);
+    }
+  }
 }
