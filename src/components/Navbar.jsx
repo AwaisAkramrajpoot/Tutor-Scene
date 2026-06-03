@@ -283,6 +283,16 @@ const Navbar = () => {
                   Dashboard
                 </Link>
                 <Link
+                  to="/on-demand-learning"
+                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                    location.pathname.startsWith("/on-demand-learning")
+                      ? "text-brand-medium-blue font-semibold"
+                      : "text-gray-700 hover:text-brand-medium-blue"
+                  }`}
+                >
+                  On-Demand Learning
+                </Link>
+                <Link
                   to="/find-tutors"
                   className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
                     location.pathname === "/find-tutors"

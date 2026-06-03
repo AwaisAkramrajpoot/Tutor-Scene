@@ -7,7 +7,7 @@ import {
   DialogActions,
   Button,
 } from "@mui/material";
-import { apiRequest } from "../utils/api";
+import { apiRequest, getCurrentUser, isAuthenticated } from "../utils/api";
 
 const LEARNERS_GUIDE_PDF = "/documents/learners-guide.pdf";
 const COMING_SOON_COUNTDOWN_START =
@@ -753,7 +753,16 @@ const Home = () => {
               On-Demand Learning Library
             </h2>
             <p className="text-4xl sm:text-6xl font-light leading-none -mt-1">
-              Coming Soon!
+              {isAuthenticated() && getCurrentUser()?.role === 'student' ? (
+                <Link
+                  to="/on-demand-learning"
+                  className="underline hover:text-brand-gold transition-colors"
+                >
+                  Explore the library →
+                </Link>
+              ) : (
+                'Coming Soon!'
+              )}
             </p>
 
             {/* CHANGE 5: Custom laptop illustration with video/PDF/worksheet thumbnails — no brand logos */}
