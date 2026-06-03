@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { apiRequest } from "../../../utils/api";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import NotificationsPanel from "../../Notifications/NotificationsPanel";
+import { showSystemMessage } from '../../../utils/systemMessage';
 
 export const BookingRequestsSection = () => {
   const navigate = useNavigate();
@@ -459,7 +460,7 @@ export const BookingRequestsSection = () => {
                             if (session.zoomJoinLink) {
                               window.open(session.hostStartUrl, '_blank', 'noopener,noreferrer');
                             } else {
-                              alert('Zoom link not available for this session');
+                              showSystemMessage({ message: 'Zoom link not available for this session', type: 'warning' });
                             }
                           }}
                           className="bg-[#01519A] text-white px-6 py-3 rounded-lg hover:opacity-90 transition-opacity whitespace-nowrap"

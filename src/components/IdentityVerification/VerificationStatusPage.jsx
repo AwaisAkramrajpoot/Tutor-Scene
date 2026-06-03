@@ -6,6 +6,7 @@ import {
   runTutorVerificationSubmit,
 } from "../../utils/tutorVerificationSubmit";
 import { VerificationPageFooter } from "./VerificationPageFooter";
+import { showSystemMessage } from '../../utils/systemMessage';
 
 export function VerificationStatusPage() {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ export function VerificationStatusPage() {
       setAllowContinue(true);
     } catch (err) {
       console.error(err);
-      alert(err.message || "Failed to start background check");
+      showSystemMessage({ message: err.message || "Failed to start background check", type: "error" });
     } finally {
       setBusy(false);
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { apiRequest } from '../../utils/api';
+import { apiRequest, resolveApiAssetUrl } from '../../utils/api';
+import { useSystemMessage } from '../../hooks/useSystemMessage';
 import {
   tutorFirstName,
   bioPreview,
@@ -35,6 +36,7 @@ const BookSessionMatchFlow = ({
   onEditAssessment,
   onAfterRemove,
 }) => {
+  const { showMessage } = useSystemMessage();
   const [learners, setLearners] = useState([]);
   const [selectedLabel, setSelectedLabel] = useState('');
   const [loadingList, setLoadingList] = useState(true);
@@ -141,7 +143,7 @@ const BookSessionMatchFlow = ({
     }
     setLearnerSelectionError('');
     if (!subject || !String(subject).trim()) {
-      window.alert('Please choose a subject to view tutors.');
+      showMessage({ message: 'Please choose a subject to view tutors.', type: 'warning' });
       return;
     }
     try {
@@ -196,7 +198,7 @@ const BookSessionMatchFlow = ({
       if (selectedLabel === learnerLabel) setSelectedLabel('');
       onAfterRemove();
     } catch {
-      window.alert('Could not remove assessment.');
+      showMessage({ message: 'Could not remove assessment.', type: 'error' });
     }
   };
 
@@ -565,7 +567,7 @@ const BookSessionMatchFlow = ({
                   onClick={() => {
                     setShowDateModal(false);
                     if (!subject.trim()) {
-                      window.alert('Please choose a subject before applying date filters.');
+                      showMessage({ message: 'Please choose a subject before applying date filters.', type: 'warning' });
                       return;
                     }
                     fetchTutors();

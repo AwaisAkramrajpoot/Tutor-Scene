@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Alert, Snackbar } from "@mui/material";
 import { startTokenRefreshScheduler } from "../utils/api";
+import { useSystemMessage } from "../hooks/useSystemMessage";
 import {
   applyTutorOnboardingStorageForAuthenticatedUser,
   migrateUnscopedTutorOnboardingForCurrentUser,
@@ -69,16 +69,12 @@ const CheckIcon = (props) => (
 
 const SignIn = () => {
   const navigate = useNavigate();
+  const { showMessage } = useSystemMessage();
   const [activeTab, setActiveTab] = useState("student");
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
 
   const COLOR_STUDENT_TAB_ACTIVE = "#b18e47";
   const COLOR_BUTTON_BLUE_GRADIENT = {
@@ -90,10 +86,6 @@ const SignIn = () => {
     end: "#47a3e7",
   };
   const COLOR_LINK_BLUE = "#3b82f6";
-
-  const handleCloseAlert = () => {
-    setAlert({ ...alert, open: false });
-  };
 
   const handleGoogleSignIn = () => {
     const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
@@ -107,10 +99,9 @@ const SignIn = () => {
     e.preventDefault();
 
     if (!email || !password) {
-      setAlert({
-        open: true,
+      showMessage({
         message: "Please enter both email and password",
-        severity: "error",
+        type: "error",
       });
       return;
     }
@@ -145,10 +136,9 @@ const SignIn = () => {
           data.additionalLoginNotice === true
             ? " You already have a previous sign-in; multiple devices are allowed. If this was not you, change your password or contact support."
             : "";
-        setAlert({
-          open: true,
+        showMessage({
           message: `Login successful! Redirecting...${extra}`,
-          severity: data.additionalLoginNotice === true ? "info" : "success",
+          type: data.additionalLoginNotice === true ? "info" : "success",
         });
 
         // Role-based navigation
@@ -219,19 +209,17 @@ const SignIn = () => {
         }
         migrateUnscopedTutorOnboardingForCurrentUser();
       } else {
-        setAlert({
-          open: true,
+        showMessage({
           message:
             data.message || "Login failed. Please check your credentials.",
-          severity: "error",
+          type: "error",
         });
       }
     } catch (error) {
-      setAlert({
-        open: true,
+      showMessage({
         message:
           error.message || "Network error. Please check your connection.",
-        severity: "error",
+        type: "error",
       });
     } finally {
       setLoading(false);
@@ -490,20 +478,6 @@ const SignIn = () => {
         </div>
       </div>
 
-      <Snackbar
-        open={alert.open}
-        autoHideDuration={alert.severity === "info" ? 10000 : 6000}
-        onClose={handleCloseAlert}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleCloseAlert}
-          severity={alert.severity}
-          sx={{ width: "100%" }}
-        >
-          {alert.message}
-        </Alert>
-      </Snackbar>
     </div>
   );
 };

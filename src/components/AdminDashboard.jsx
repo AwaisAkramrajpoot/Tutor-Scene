@@ -10,13 +10,12 @@ import {
   DialogActions,
   Button,
   TextField,
-  Snackbar,
-  Alert,
   FormGroup,
   FormControlLabel,
   Checkbox,
 } from "@mui/material";
 import { apiRequest } from "../utils/api";
+import { useSystemMessage } from "../hooks/useSystemMessage";
 
 const SUBJECT_LEVEL_OPTIONS = [
   "Elementary",
@@ -167,6 +166,7 @@ const Table = ({ columns, data }) => (
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { showMessage } = useSystemMessage();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(
     () => (location.state?.activeTab === "tutors" ? "tutors" : "students"),
@@ -203,11 +203,6 @@ export default function AdminDashboard() {
   const [testimonialToDelete, setTestimonialToDelete] = useState(null);
   const [deletingTestimonial, setDeletingTestimonial] = useState(false);
   const [submittingTestimonial, setSubmittingTestimonial] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
   const [submittingSubject, setSubmittingSubject] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -555,17 +550,9 @@ export default function AdminDashboard() {
     setTestimonialForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleCloseAlert = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  };
-
   const handleSaveTestimonial = async () => {
     if (!testimonialForm.testimonial || !testimonialForm.testimonialBy) {
-      setSnackbar({
-        open: true,
-        message: "All fields are required",
-        severity: "error",
-      });
+      showMessage({ message: "All fields are required", type: "error" });
       return;
     }
 
@@ -588,21 +575,13 @@ export default function AdminDashboard() {
           method: "PATCH",
           body: JSON.stringify(payload),
         });
-        setSnackbar({
-          open: true,
-          message: "Testimonial updated successfully",
-          severity: "success",
-        });
+        showMessage({ message: "Testimonial updated successfully", type: "success" });
       } else {
         await apiRequest("/api/v1/testimonials", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        setSnackbar({
-          open: true,
-          message: "Testimonial created successfully",
-          severity: "success",
-        });
+        showMessage({ message: "Testimonial created successfully", type: "success" });
       }
 
       handleCloseTestimonialModal();
@@ -612,10 +591,9 @@ export default function AdminDashboard() {
       setTestimonials(Array.isArray(data) ? data : data.data || []);
     } catch (err) {
       console.error("Failed to save testimonial:", err);
-      setSnackbar({
-        open: true,
+      showMessage({
         message: err.message || "Failed to save testimonial",
-        severity: "error",
+        type: "error",
       });
     } finally {
       setSubmittingTestimonial(false);
@@ -640,11 +618,7 @@ export default function AdminDashboard() {
       await apiRequest(`/api/v1/testimonials/${testimonialToDelete.id}`, {
         method: "DELETE",
       });
-      setSnackbar({
-        open: true,
-        message: "Testimonial deleted successfully",
-        severity: "success",
-      });
+      showMessage({ message: "Testimonial deleted successfully", type: "success" });
 
       handleCloseDeleteTestimonialDialog();
 
@@ -653,10 +627,9 @@ export default function AdminDashboard() {
       setTestimonials(Array.isArray(data) ? data : data.data || []);
     } catch (err) {
       console.error("Failed to delete testimonial:", err);
-      setSnackbar({
-        open: true,
+      showMessage({
         message: err.message || "Failed to delete testimonial",
-        severity: "error",
+        type: "error",
       });
     } finally {
       setDeletingTestimonial(false);
@@ -694,7 +667,7 @@ export default function AdminDashboard() {
 
   const handleSuspendTutor = async () => {
     if (!tutorToSuspend?.userId) {
-      alert("Invalid tutor data");
+      showMessage({ message: "Invalid tutor data", type: "error" });
       return;
     }
 
@@ -726,10 +699,10 @@ export default function AdminDashboard() {
       }
       setTutors(list);
 
-      alert("Tutor suspended successfully");
+      showMessage({ message: "Tutor suspended successfully", type: "success" });
     } catch (err) {
       console.error("Failed to suspend tutor:", err);
-      alert(err.message || "Failed to suspend tutor");
+      showMessage({ message: err.message || "Failed to suspend tutor", type: "error" });
     } finally {
       setSuspendingTutor(false);
     }
@@ -810,13 +783,13 @@ export default function AdminDashboard() {
       await loadDbSubjects();
     } catch (err) {
       console.error("Failed to delete subject:", err);
-      alert(err.message || "Failed to delete subject");
+      showMessage({ message: err.message || "Failed to delete subject", type: "error" });
     }
   };
 
   const handleSaveSubject = async () => {
     if (!subjectForm.name || !subjectForm.category) {
-      alert("Name and Category are required");
+      showMessage({ message: "Name and Category are required", type: "error" });
       return;
     }
     setSubmittingSubject(true);
@@ -844,7 +817,7 @@ export default function AdminDashboard() {
       await loadDbSubjects();
     } catch (err) {
       console.error("Failed to save subject:", err);
-      alert(err.message || "Failed to save subject");
+      showMessage({ message: err.message || "Failed to save subject", type: "error" });
     } finally {
       setSubmittingSubject(false);
     }
@@ -861,7 +834,7 @@ export default function AdminDashboard() {
       setReviews((prev) => prev.filter((r) => r.id !== reviewId));
     } catch (err) {
       console.error("Failed to update review status:", err);
-      alert(err.message || "Failed to update review status");
+      showMessage({ message: err.message || "Failed to update review status", type: "error" });
     } finally {
       setUpdatingReview(null);
     }
@@ -932,22 +905,22 @@ export default function AdminDashboard() {
 
   const handleCreatePromoCode = async () => {
     if (!promoCodeForm.code || !promoCodeForm.discountValue) {
-      alert("Code and Discount Value are required");
+      showMessage({ message: "Code and Discount Value are required", type: "error" });
       return;
     }
     const discountNum = parseFloat(promoCodeForm.discountValue);
     if (Number.isNaN(discountNum) || discountNum <= 0) {
-      alert("Discount value must be greater than 0");
+      showMessage({ message: "Discount value must be greater than 0", type: "error" });
       return;
     }
     if (promoCodeForm.discountType === "percentage" && discountNum > 100) {
-      alert("Discount percentage cannot exceed 100");
+      showMessage({ message: "Discount percentage cannot exceed 100", type: "error" });
       return;
     }
     if (promoCodeForm.usageLimit !== "") {
       const usageNum = parseInt(promoCodeForm.usageLimit, 10);
       if (Number.isNaN(usageNum) || usageNum < 1) {
-        alert("Usage limit must be a positive whole number (at least 1)");
+        showMessage({ message: "Usage limit must be a positive whole number (at least 1)", type: "error" });
         return;
       }
     }
@@ -992,7 +965,7 @@ export default function AdminDashboard() {
       }));
     } catch (err) {
       console.error("Failed to create promo code:", err);
-      alert(err.message || "Failed to create promo code");
+      showMessage({ message: err.message || "Failed to create promo code", type: "error" });
     } finally {
       setSubmittingPromoCode(false);
     }
@@ -1025,7 +998,7 @@ export default function AdminDashboard() {
       }));
     } catch (err) {
       console.error("Failed to deactivate promo code:", err);
-      alert(err.message || "Failed to deactivate promo code");
+      showMessage({ message: err.message || "Failed to deactivate promo code", type: "error" });
     }
   };
 
@@ -1052,7 +1025,7 @@ export default function AdminDashboard() {
 
   const handleSaveGradeLevel = async () => {
     if (!gradeLevelForm.name) {
-      alert("Name is required");
+      showMessage({ message: "Name is required", type: "error" });
       return;
     }
     setSubmittingGradeLevel(true);
@@ -1084,7 +1057,7 @@ export default function AdminDashboard() {
       setGradeLevels(list);
     } catch (err) {
       console.error("Failed to save grade level:", err);
-      alert(err.message || "Failed to save grade level");
+      showMessage({ message: err.message || "Failed to save grade level", type: "error" });
     } finally {
       setSubmittingGradeLevel(false);
     }
@@ -1111,7 +1084,7 @@ export default function AdminDashboard() {
       setGradeLevels(list);
     } catch (err) {
       console.error("Failed to delete grade level:", err);
-      alert(err.message || "Failed to delete grade level");
+      showMessage({ message: err.message || "Failed to delete grade level", type: "error" });
     }
   };
 
@@ -1139,7 +1112,7 @@ export default function AdminDashboard() {
 
   const saveIvTopic = async () => {
     if (!ivTopicForm.slug?.trim() || !ivTopicForm.title?.trim()) {
-      alert("Slug and title are required");
+      showMessage({ message: "Slug and title are required", type: "error" });
       return;
     }
     setSubmittingIv(true);
@@ -1167,7 +1140,7 @@ export default function AdminDashboard() {
       closeIvTopicModal();
       await loadInterviewCatalog();
     } catch (err) {
-      alert(err.message || "Failed to save topic");
+      showMessage({ message: err.message || "Failed to save topic", type: "error" });
     } finally {
       setSubmittingIv(false);
     }
@@ -1181,7 +1154,7 @@ export default function AdminDashboard() {
       });
       await loadInterviewCatalog();
     } catch (err) {
-      alert(err.message || "Failed to delete topic");
+      showMessage({ message: err.message || "Failed to delete topic", type: "error" });
     }
   };
 
@@ -1243,14 +1216,12 @@ export default function AdminDashboard() {
   const saveIvQuestion = async () => {
     if (!ivQuestionTopicId) return;
     if (!ivQuestionForm.optionKey?.trim() || !ivQuestionForm.body?.trim()) {
-      alert("Option key and question text are required");
+      showMessage({ message: "Option key and question text are required", type: "error" });
       return;
     }
     const sortOrder = clampSortOrder(ivQuestionForm.sortOrder);
     if (isIvQuestionSortOrderTaken(ivQuestionTopicId, sortOrder, editingIvQuestionId)) {
-      alert(
-        `Sort order ${sortOrder} is already used by another question in this topic. Each question must have a unique sort order.`,
-      );
+      showMessage({ message: `Sort order ${sortOrder} is already used by another question in this topic. Each question must have a unique sort order.`, type: "error" });
       return;
     }
     setSubmittingIv(true);
@@ -1281,7 +1252,7 @@ export default function AdminDashboard() {
       closeIvQuestionModal();
       await loadInterviewCatalog();
     } catch (err) {
-      alert(err.message || "Failed to save question");
+      showMessage({ message: err.message || "Failed to save question", type: "error" });
     } finally {
       setSubmittingIv(false);
     }
@@ -1295,7 +1266,7 @@ export default function AdminDashboard() {
       });
       await loadInterviewCatalog();
     } catch (err) {
-      alert(err.message || "Failed to delete question");
+      showMessage({ message: err.message || "Failed to delete question", type: "error" });
     }
   };
 
@@ -2795,21 +2766,6 @@ export default function AdminDashboard() {
         </DialogActions>
       </Dialog>
 
-      {/* Alert Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseAlert}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleCloseAlert}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </div>
   );
 }

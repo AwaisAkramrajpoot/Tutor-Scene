@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { showSystemMessage } from '../../utils/systemMessage';
 
 const ChevronDownIcon = ({ collapsed }) => (
   <svg
@@ -143,7 +144,7 @@ const BookSessionBlueSection = ({
               type="button"
               onClick={() => {
                 if (!selectedLearnerLabel) {
-                  window.alert('Please select a learner before starting.');
+                  showSystemMessage({ message: 'Please select a learner before starting.', type: 'warning' });
                   return;
                 }
                 onLaunchAssessment(selectedLearnerLabel);

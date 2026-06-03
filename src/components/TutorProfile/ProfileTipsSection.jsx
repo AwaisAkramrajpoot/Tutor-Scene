@@ -10,6 +10,7 @@ import {
 } from "../../utils/api";
 import { getTutorOnboarding, setTutorOnboarding } from "../../utils/onboarding";
 import { mergeOnboardingSubmitIntoUser } from "../../utils/tutorProspectStatus";
+import { showSystemMessage } from '../../utils/systemMessage';
 
 export const ProfileTipsSection = () => {
   const tutorLsUserKey = (() => {
@@ -458,7 +459,7 @@ const handlePhotoFile = async (file) => {
     setProfilePhotoError("");
   } catch (e) {
     console.error(e);
-    alert('Failed to upload profile photo.');
+    showSystemMessage({ message: 'Failed to upload profile photo.', type: 'error' });
   } finally {
     setUploading((u) => ({ ...u, photo: false }));
   }
@@ -505,7 +506,7 @@ const handleCVFile = async (file) => {
     setCvFieldError("");
   } catch (e) {
     console.error(e);
-    alert('Failed to upload CV.');
+    showSystemMessage({ message: 'Failed to upload CV.', type: 'error' });
   } finally {
     setUploading((u) => ({ ...u, cv: false }));
   }
@@ -931,7 +932,7 @@ const handleCVFile = async (file) => {
                 localStorage.setItem("user", JSON.stringify(next));
               }
             } catch (err) {
-              alert(err?.message || "Failed to save profile information.");
+              showSystemMessage({ message: err?.message || 'Failed to save profile information.', type: 'error' });
               setSavingProfile(false);
               return;
             }

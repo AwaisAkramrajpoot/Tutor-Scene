@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { markVerificationStarted, runTutorVerificationSubmit } from "../../utils/tutorVerificationSubmit";
 import { VerificationPageFooter } from "./VerificationPageFooter";
+import { showSystemMessage } from '../../utils/systemMessage';
 
 const identityVerificationUrl =
   process.env.REACT_APP_IDENTITY_VERIFICATION_URL || "https://withpersona.com";
@@ -34,7 +35,7 @@ export const VerificationProcessSection = () => {
       navigate("/verify-identity/status");
     } catch (err) {
       console.error(err);
-      alert(err.message || "Failed to start background check");
+      showSystemMessage({ message: err.message || "Failed to start background check", type: "error" });
     } finally {
       setSubmitting(false);
     }
