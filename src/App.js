@@ -35,6 +35,8 @@ import PaymentSuccess from './components/Payment/PaymentSuccess';
 import BookSessionPage from './components/BookSessionPage';
 import StudentNotificationsPage from './components/student/StudentNotificationsPage';
 import StudentStaticPage from './components/student/StudentStaticPage';
+import ProfileInformationPage from './components/student/profile/ProfileInformationPage';
+import AccountSettingsPage from './components/student/account/AccountSettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import OnboardingStatusGuard from './components/OnboardingStatusGuard';
@@ -260,9 +262,7 @@ function App() {
           path="/profile"
           element={
             <RoleProtectedRoute allowedRoles={['student']}>
-              <StudentStaticPage title="Profile">
-                <p>Update your profile and how tutors see you here.</p>
-              </StudentStaticPage>
+              <Layout><ProfileInformationPage /></Layout>
             </RoleProtectedRoute>
           }
         />
@@ -270,9 +270,7 @@ function App() {
           path="/account-settings"
           element={
             <RoleProtectedRoute allowedRoles={['student']}>
-              <StudentStaticPage title="Account Settings">
-                <p>Account security and preferences will be available here.</p>
-              </StudentStaticPage>
+              <Layout><AccountSettingsPage /></Layout>
             </RoleProtectedRoute>
           }
         />
