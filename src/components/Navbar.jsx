@@ -14,7 +14,6 @@ import { getNotifications } from "../services/notificationsService";
 import {
   isTutorApproved,
   isTutorInInitialOnboarding,
-  isTutorOnboardingPath,
 } from "../utils/tutorProspectStatus";
 
 // Icons
@@ -46,28 +45,21 @@ const Navbar = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifBadgeCount, setNotifBadgeCount] = useState(0);
   const isStudent = user?.role === "student";
-  const isVerifyIdentityRoute =
-    location.pathname.startsWith("/verify-identity");
   const isLearnerTutorProfileRoute =
     user?.role === "student" && /^\/tutor\/[^/]+$/.test(location.pathname);
-  const isTutorOnboardingPage =
-    isTutorOnboardingPath(location.pathname) ||
-    location.pathname === "/ready-to-teach" ||
-    isVerifyIdentityRoute;
   const tutorApproved = isTutorApproved(user);
   const tutorInOnboarding = isTutorInInitialOnboarding(user);
-  const showTutorMarketingNav =
-    user?.role === "tutor" &&
-    (isTutorOnboardingPage || tutorInOnboarding || !tutorApproved);
+  const showTutorOnboardingNav =
+    user?.role === "tutor" && tutorInOnboarding && !tutorApproved;
 
-  // Check if user is logged in
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (userStr) {
-      const userData = JSON.parse(userStr);
-      setUser(userData);
+      setUser(JSON.parse(userStr));
+    } else {
+      setUser(null);
     }
-  }, []);
+  }, [location.pathname]);
 
   // Fetch unread message count
   useEffect(() => {
@@ -147,10 +139,6 @@ const Navbar = () => {
             ? "/admin-dashboard"
             : "/";
 
-  const logoLayoutClass = isVerifyIdentityRoute
-    ? "top-1/2 -translate-y-1/2"
-    : "bottom-0 translate-y-[42%] items-end";
-
   const handleLogoutClick = () => {
     handleMenuClose();
     setLogoutDialogOpen(true);
@@ -182,55 +170,42 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto relative min-h-[4rem] md:min-h-[4.25rem] flex items-center justify-end px-4 sm:px-6 lg:px-8 py-2 w-full">
         <Link
           to={logoLinkTo}
-          className={`absolute left-4 sm:left-6 lg:left-8 z-20 flex cursor-pointer items-center ${logoLayoutClass}`}
+          className="absolute left-4 sm:left-6 lg:left-8 z-10 flex cursor-pointer items-end bottom-0 translate-y-[42%]"
         >
-          {isVerifyIdentityRoute ? (
-            <span className="text-lg font-bold tracking-tight text-brand-dark-blue sm:text-xl">
-              Tutor Scene
-            </span>
-          ) : (
-            <div className="flex items-end">
-              <img 
-                src="/images/logo.png.png" 
-                alt="Tutor Scene Logo" 
-                className="h-[3.25rem] sm:h-[3.75rem] md:h-[5rem] w-auto object-contain object-bottom drop-shadow-md"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                  e.target.nextSibling.style.display = "flex";
-                }}
-              />
-              <div className="hidden items-center gap-2 pb-0.5">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-dark-blue rounded-full flex items-center justify-center border-2 border-brand-gold flex-shrink-0">
-                  <svg
-                    className="w-6 h-6 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z" />
-                  </svg>
-                </div>
-                <div className="flex flex-col leading-tight">
-                  <span className="text-lg md:text-xl font-bold text-brand-dark-blue">
-                    TUTOR
-                  </span>
-                  <span className="text-lg md:text-xl font-bold text-brand-medium-blue">
-                    SCENE
-                  </span>
-                </div>
+          <div className="flex items-end">
+            <img
+              src="/images/logo.png.png"
+              alt="Tutor Scene Logo"
+              className="h-[3.25rem] sm:h-[3.75rem] md:h-[5rem] w-auto object-contain object-bottom drop-shadow-md"
+              onError={(e) => {
+                e.target.style.display = "none";
+                e.target.nextSibling.style.display = "flex";
+              }}
+            />
+            <div className="hidden items-center gap-2 pb-0.5">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-dark-blue rounded-full flex items-center justify-center border-2 border-brand-gold flex-shrink-0">
+                <svg
+                  className="w-6 h-6 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z" />
+                </svg>
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="text-lg md:text-xl font-bold text-brand-dark-blue">
+                  TUTOR
+                </span>
+                <span className="text-lg md:text-xl font-bold text-brand-medium-blue">
+                  SCENE
+                </span>
               </div>
             </div>
-          )}
+          </div>
         </Link>
-        <div
-          className={`flex flex-1 min-h-[2.75rem] items-center justify-end gap-2 md:gap-3 ${
-            isVerifyIdentityRoute
-              ? "pl-28 sm:pl-32 md:pl-36"
-              : "pl-[6.5rem] sm:pl-[8.5rem] md:pl-[10.5rem] lg:pl-[11rem]"
-          }`}
-        >
-          {/* Show Home only when user is not authenticated */}
-          <div className="hidden md:flex items-center gap-1 lg:gap-2 flex-shrink-0">
-            {(!user || user.role !== "admin") && (
+        <div className="relative z-30 flex flex-1 min-h-[2.75rem] items-center justify-end gap-2 md:gap-3 pl-[6.5rem] sm:pl-[8.5rem] md:pl-[10.5rem] lg:pl-[11rem]">
+          <div className="hidden md:flex items-center gap-1 lg:gap-2 flex-shrink-0 min-w-0">
+            {showTutorOnboardingNav ? (
               <>
                 <Link
                   to="/"
@@ -252,24 +227,49 @@ const Navbar = () => {
                 >
                   About
                 </Link>
-              </>
-            )}
-            {showTutorMarketingNav && (
-              <>
                 <Link
                   to="/become-tutor"
-                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                    location.pathname === "/become-tutor"
+                      ? "text-brand-medium-blue font-semibold"
+                      : "text-gray-700 hover:text-brand-medium-blue"
+                  }`}
                 >
                   Become a Tutor
                 </Link>
                 <Link
                   to="/create-profile"
-                  className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-1 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold"
+                  className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-1 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold whitespace-nowrap"
                 >
-                  Get Started
+                  Tutor Application
                 </Link>
               </>
-            )}
+            ) : (
+              <>
+                {(!user || user.role !== "admin") && (
+                  <>
+                    <Link
+                      to="/"
+                      className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                        location.pathname === "/"
+                          ? "text-brand-medium-blue font-semibold"
+                          : "text-gray-700 hover:text-brand-medium-blue"
+                      }`}
+                    >
+                      Home
+                    </Link>
+                    <Link
+                      to="/about"
+                      className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                        location.pathname === "/about"
+                          ? "text-brand-medium-blue font-semibold"
+                          : "text-gray-700 hover:text-brand-medium-blue"
+                      }`}
+                    >
+                      About
+                    </Link>
+                  </>
+                )}
             {isStudent && (
               <>
                 <Link
@@ -371,31 +371,31 @@ const Navbar = () => {
                   )}
                 </Link>
               )}
-            {(!user || user.role !== "tutor") &&
-              !(user && user.role === "student") && (
-                <Link
-                  to="/become-tutor"
-                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
-                >
-                  Become a Tutor
-                </Link>
-              )}
-            {!user && (
-              <Link
-                to="/signup"
-                className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-1 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold"
-              >
-                Get Started
-              </Link>
+                {(!user || user.role !== "tutor") &&
+                  !(user && user.role === "student") && (
+                    <Link
+                      to="/become-tutor"
+                      className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+                    >
+                      Become a Tutor
+                    </Link>
+                  )}
+                {!user && (
+                  <Link
+                    to="/signup"
+                    className="bg-brand-gold hover:bg-brand-dark-blue text-white px-4 py-1 rounded-md text-sm font-normal uppercase tracking-wide transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-brand-gold"
+                  >
+                    Get Started
+                  </Link>
+                )}
+              </>
             )}
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
             {user ? (
               <>
-                {user.role === "tutor" &&
-                showTutorMarketingNav &&
-                !tutorApproved ? (
+                {user.role === "tutor" && showTutorOnboardingNav ? (
                   <button
                     onClick={handleLogoutClick}
                     className="px-4 py-1.5 text-sm font-medium text-gray-700 border border-gray-400 rounded-md hover:bg-gray-50 transition-colors"
