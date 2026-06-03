@@ -115,6 +115,7 @@ const OnboardingStatusGuard = ({ children }) => {
             const allowedAfterInterviewPaths = [
               "/verify-identity",
               "/verify-identity/status",
+              "/ready-to-teach",
               "/create-profile",
               "/interviews",
               "/messages",
@@ -144,6 +145,8 @@ const OnboardingStatusGuard = ({ children }) => {
             "/interviews",
             "/create-profile",
             "/verify-identity",
+            "/verify-identity/status",
+            "/ready-to-teach",
             "/messages",
             "/",
             "/about",
