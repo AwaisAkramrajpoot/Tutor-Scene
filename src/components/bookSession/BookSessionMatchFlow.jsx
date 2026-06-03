@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { apiRequest, resolveApiAssetUrl } from '../../utils/api';
+import { apiRequest } from '../../utils/api';
 import {
   tutorFirstName,
   bioPreview,
@@ -9,6 +9,7 @@ import {
   computeFeeRangeFromBaseFee,
   formatLearnerRateDisplay,
 } from '../../utils/tutorLearnerDisplay';
+import TutorProfileAvatar from '../TutorProfileAvatar';
 
 const CheckIcon = () => (
   <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -627,19 +628,10 @@ const BookSessionMatchFlow = ({
                   className="rounded-xl border border-gray-200 bg-white p-6 text-left shadow-sm"
                 >
                   <div className="flex gap-4 items-start">
-                    {tutor.profilePic ? (
-                      <img
-                        src={resolveApiAssetUrl(tutor.profilePic)}
-                        alt=""
-                        className="h-24 w-24 shrink-0 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500">
-                        <svg className="h-12 w-12" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                        </svg>
-                      </div>
-                    )}
+                    <TutorProfileAvatar
+                      profilePic={tutor.profilePic}
+                      name={tutorFirstName(tutor.fullName)}
+                    />
                     <div className="min-w-0 flex-1 pt-1">
                       <h4 className="text-lg font-bold text-gray-900">
                         {tutorFirstName(tutor.fullName)}
