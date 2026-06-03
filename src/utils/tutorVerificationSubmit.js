@@ -17,6 +17,21 @@ export function markVerificationStarted() {
   }
 }
 
+/**
+ * Temporary testing bypass: no third-party verification or background check.
+ * Marks the step complete in session storage and returns the step-4 path.
+ */
+export function skipVerificationAndContinue() {
+  markVerificationStarted();
+  try {
+    sessionStorage.setItem("tutorVerificationSubmitted", "1");
+    sessionStorage.setItem("tutorBgCheckTermsAccepted", "1");
+  } catch {
+    /* ignore */
+  }
+  return getPostBackgroundCheckPath();
+}
+
 export async function runTutorVerificationSubmit() {
   markVerificationStarted();
   const user = getCurrentUser();

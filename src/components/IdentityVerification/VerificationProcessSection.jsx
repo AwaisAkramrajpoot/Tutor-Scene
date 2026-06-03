@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { markVerificationStarted, runTutorVerificationSubmit } from "../../utils/tutorVerificationSubmit";
+import {
+  markVerificationStarted,
+  runTutorVerificationSubmit,
+  skipVerificationAndContinue,
+} from "../../utils/tutorVerificationSubmit";
 import { VerificationPageFooter } from "./VerificationPageFooter";
 import { showSystemMessage } from '../../utils/systemMessage';
 
@@ -12,6 +16,7 @@ const TERMS_SESSION_KEY = "tutorBgCheckTermsAccepted";
 export const VerificationProcessSection = () => {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [savingContinue, setSavingContinue] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [ackChecked, setAckChecked] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -26,6 +31,19 @@ export const VerificationProcessSection = () => {
     "Build trust with learners who rely on our platform.",
     "Maintain the highest safety standards in online education.",
   ];
+
+  const handleSaveAndContinue = () => {
+    try {
+      setSavingContinue(true);
+      const path = skipVerificationAndContinue();
+      navigate(path);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Could not continue to the next step");
+    } finally {
+      setSavingContinue(false);
+    }
+  };
 
   const handleStartBackgroundCheck = async () => {
     if (!termsAccepted) return;
@@ -107,6 +125,15 @@ export const VerificationProcessSection = () => {
               }`}
             >
               {submitting ? "Starting…" : "Start Background Check"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveAndContinue}
+              disabled={savingContinue}
+              className="mt-4 h-12 w-full rounded-xl bg-[#2A66B8] text-lg font-semibold text-white shadow-sm transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {savingContinue ? "Saving…" : "Save and Continue"}
             </button>
           </div>
         </div>

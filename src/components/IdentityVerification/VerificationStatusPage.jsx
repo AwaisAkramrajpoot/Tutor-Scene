@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BACKGROUND_CHECK_PROVIDER_URL,
-  getPostBackgroundCheckPath,
   runTutorVerificationSubmit,
+  skipVerificationAndContinue,
 } from "../../utils/tutorVerificationSubmit";
 import { VerificationPageFooter } from "./VerificationPageFooter";
 import { showSystemMessage } from '../../utils/systemMessage';
@@ -11,20 +11,10 @@ import { showSystemMessage } from '../../utils/systemMessage';
 export function VerificationStatusPage() {
   const navigate = useNavigate();
   const [termsOk, setTermsOk] = useState(false);
-  const [allowContinue, setAllowContinue] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const refreshFlags = useCallback(() => {
     setTermsOk(sessionStorage.getItem("tutorBgCheckTermsAccepted") === "1");
-    const sub = sessionStorage.getItem("tutorVerificationSubmitted") === "1";
-    let uOk = false;
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "null");
-      uOk = !!u?.verificationCompleted;
-    } catch {
-      /* ignore */
-    }
-    setAllowContinue(sub || uOk);
   }, []);
 
   useEffect(() => {
@@ -40,7 +30,6 @@ export function VerificationStatusPage() {
         return;
       }
       await runTutorVerificationSubmit();
-      setAllowContinue(true);
     } catch (err) {
       console.error(err);
       showSystemMessage({ message: err.message || "Failed to start background check", type: "error" });
@@ -50,8 +39,8 @@ export function VerificationStatusPage() {
   };
 
   const handleSaveAndContinue = () => {
-    if (!allowContinue) return;
-    navigate(getPostBackgroundCheckPath());
+    const path = skipVerificationAndContinue();
+    navigate(path);
   };
 
   const rowClass =
@@ -136,12 +125,7 @@ export function VerificationStatusPage() {
             <button
               type="button"
               onClick={handleSaveAndContinue}
-              disabled={!allowContinue}
-              className={`mt-8 h-12 w-full rounded-xl text-lg font-semibold shadow ${
-                allowContinue
-                  ? "bg-[#2A66B8] text-white hover:opacity-95"
-                  : "cursor-not-allowed bg-gray-200 text-gray-500"
-              }`}
+              className="mt-8 h-12 w-full rounded-xl bg-[#2A66B8] text-lg font-semibold text-white shadow hover:opacity-95"
             >
               Save and Continue
             </button>
