@@ -19,6 +19,9 @@ import { MessageRequest } from '../database/entities/message-request.entity';
 import { Conversation } from '../database/entities/conversation.entity';
 import { GradeLevel } from '../database/entities/grade-level.entity';
 import { Testimonial } from '../database/entities/testimonial.entity';
+import { OnDemandContent } from '../database/entities/on-demand-content.entity';
+import { OnDemandContentSaved } from '../database/entities/on-demand-content-saved.entity';
+import { OnDemandCartItem } from '../database/entities/on-demand-cart-item.entity';
 
 config();
 
@@ -58,6 +61,9 @@ export default new DataSource({
     Conversation,
     GradeLevel,
     Testimonial,
+    OnDemandContent,
+    OnDemandContentSaved,
+    OnDemandCartItem,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
