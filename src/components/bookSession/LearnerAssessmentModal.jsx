@@ -33,8 +33,11 @@ const LearnerAssessmentModal = ({
 }) => {
   const { showMessage } = useSystemMessage();
   const [answers, setAnswers] = useState(emptyAnswers());
+  const [baselineAnswers, setBaselineAnswers] = useState(emptyAnswers);
+  const [baselineLearner, setBaselineLearner] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
 
   const showToast = (message, severity = "success") => {
     showMessage({ message, type: severity });
@@ -45,6 +48,22 @@ const LearnerAssessmentModal = ({
       Object.values(answers).filter((v) => v && String(v).length > 0).length,
     [answers],
   );
+
+  const isDirty = useMemo(() => {
+    if (!learnerLabel) return false;
+    if (learnerLabel !== baselineLearner) return true;
+    for (let i = 1; i <= TOTAL; i += 1) {
+      const key = String(i);
+      if ((answers[key] || "") !== (baselineAnswers[key] || "")) return true;
+    }
+    return false;
+  }, [answers, baselineAnswers, learnerLabel, baselineLearner]);
+
+  const markClean = (nextAnswers, label) => {
+    const snap = { ...nextAnswers };
+    setBaselineAnswers(snap);
+    setBaselineLearner(label || "");
+  };
 
   useEffect(() => {
     if (!open || !learnerLabel) return;
@@ -64,11 +83,18 @@ const LearnerAssessmentModal = ({
             if (res.answers[k]) next[k] = res.answers[k];
           });
           setAnswers(next);
+          if (!cancelled) markClean(next, learnerLabel);
         } else {
-          setAnswers(emptyAnswers());
+          const next = emptyAnswers();
+          setAnswers(next);
+          if (!cancelled) markClean(next, learnerLabel);
         }
       } catch {
-        if (!cancelled) setAnswers(emptyAnswers());
+        if (!cancelled) {
+          const next = emptyAnswers();
+          setAnswers(next);
+          markClean(next, learnerLabel);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -105,9 +131,33 @@ const LearnerAssessmentModal = ({
     }
   };
 
+  const requestClose = () => {
+    if (!isDirty) {
+      onClose();
+      return;
+    }
+    setExitConfirmOpen(true);
+  };
+
+  const handleDiscardAndClose = () => {
+    setExitConfirmOpen(false);
+    onClose();
+  };
+
+  const handleSaveAndExit = async () => {
+    try {
+      await persist("draft");
+      setExitConfirmOpen(false);
+      onClose();
+    } catch {
+      showToast("Failed to save progress. Please try again.", "error");
+    }
+  };
+
   const handleSave = async () => {
     try {
       await persist("draft");
+      markClean(answers, learnerLabel);
       showToast("Progress saved successfully.", "success");
     } catch {
       showToast("Failed to save progress. Please try again.", "error");
@@ -145,7 +195,7 @@ const LearnerAssessmentModal = ({
     <>
       <Dialog
         open={open}
-        onClose={onClose}
+        onClose={requestClose}
         maxWidth="md"
         fullWidth
         scroll="paper"
@@ -153,8 +203,18 @@ const LearnerAssessmentModal = ({
           sx: { maxHeight: "92vh", display: "flex", flexDirection: "column" },
         }}
       >
-        <div className="bg-gradient-to-r from-brand-dark-blue to-teal-600 text-white px-5 pt-5 pb-4 shrink-0">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="relative bg-gradient-to-r from-brand-dark-blue to-teal-600 text-white px-5 pt-5 pb-4 shrink-0">
+          <button
+            type="button"
+            onClick={requestClose}
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-white/90 hover:bg-white/15 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+            aria-label="Close learner assessment"
+          >
+            <span className="text-2xl leading-none" aria-hidden>
+              ×
+            </span>
+          </button>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between pr-10">
             <div className="min-w-0 pr-2">
               <h2 className="text-xl font-bold leading-tight">
                 Learner Assessment
@@ -292,7 +352,7 @@ const LearnerAssessmentModal = ({
               disabled={saving || !learnerLabel}
               onClick={handleSaveLater}
             >
-              Save Complete Later
+              Save & Complete Later
             </Button>
             <Button
               variant="contained"
@@ -306,6 +366,35 @@ const LearnerAssessmentModal = ({
         </DialogActions>
       </Dialog>
 
+      <Dialog
+        open={exitConfirmOpen}
+        onClose={() => setExitConfirmOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <div className="px-5 pt-5 pb-2">
+          <h3 className="text-lg font-bold text-gray-900">Unsaved changes</h3>
+          <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+            You have unsaved changes. Do you want to save before exiting?
+          </p>
+        </div>
+        <DialogActions sx={{ px: 2, pb: 2, gap: 1, flexWrap: "wrap" }}>
+          <Button onClick={() => setExitConfirmOpen(false)} color="inherit">
+            Stay
+          </Button>
+          <Button onClick={handleDiscardAndClose} color="inherit">
+            Exit without saving
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            disabled={saving || !learnerLabel}
+            onClick={handleSaveAndExit}
+          >
+            Save & exit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
