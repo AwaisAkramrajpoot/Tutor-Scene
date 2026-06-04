@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiRequest } from '../utils/api';
+import { getCreditsReferrals } from '../services/studentCreditsService';
 import BookSessionStickyHeader from './bookSession/BookSessionStickyHeader';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -33,6 +34,29 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
   const [validatingCode, setValidatingCode] = useState(false);
   const [codeValidation, setCodeValidation] = useState(null); // { valid: boolean, message: string, discount: number }
   const [appliedDiscount, setAppliedDiscount] = useState(0);
+
+  const [availableCredits, setAvailableCredits] = useState(0);
+  const [useCredits, setUseCredits] = useState(false);
+  const [creditApplied, setCreditApplied] = useState(0);
+
+  useEffect(() => {
+    const loadCredits = async () => {
+      try {
+        const data = await getCreditsReferrals();
+        const balance = Number(data?.availableCredits ?? 0);
+        setAvailableCredits(balance);
+        if (
+          sessionStorage.getItem('applyAvailableCredits') === 'true' &&
+          balance > 0
+        ) {
+          setUseCredits(true);
+        }
+      } catch {
+        setAvailableCredits(0);
+      }
+    };
+    loadCredits();
+  }, []);
 
   // Parse subjects from the booking data
   const subjects = bookingData?.subjects ? bookingData.subjects.split(',').map(s => s.trim()) : [];
@@ -199,12 +223,20 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
 
       console.log('Booking payload:', payload);
 
+      const creditToApply = useCredits
+        ? Math.min(availableCredits, Math.max(totalPrice - (codeValidation?.valid ? appliedDiscount : 0), 0))
+        : 0;
+      if (creditToApply > 0) {
+        sessionStorage.setItem('pendingCreditApplication', String(creditToApply));
+      }
+
       // Make the API call
       await apiRequest('/api/v1/bookings', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
 
+      sessionStorage.removeItem('applyAvailableCredits');
       // Show success modal
       setShowConfirmationModal(true);
     } catch (error) {
@@ -365,6 +397,30 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                 />
               </div>
 
+              {availableCredits > 0 && (
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Available Credits</h3>
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={useCredits}
+                      onChange={(e) => setUseCredits(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-medium-blue focus:ring-brand-medium-blue"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Apply up to{' '}
+                      <strong>${Math.min(availableCredits, tutorData.rate + 5 - appliedDiscount).toFixed(2)}</strong>{' '}
+                      from your balance ({availableCredits.toFixed(2)} available) at checkout.
+                    </span>
+                  </label>
+                  <p className="mt-2 text-xs text-gray-500">
+                    <a href="/credits-referrals" className="text-brand-medium-blue hover:underline">
+                      Manage credits
+                    </a>
+                  </p>
+                </div>
+              )}
+
               {/* Discount Code Section */}
               <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Discount Code (Optional)</h3>
@@ -445,13 +501,35 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                       <span className="font-medium">-${appliedDiscount.toFixed(2)}</span>
                     </div>
                   )}
+                  {useCredits && availableCredits > 0 && (
+                    <div className="flex justify-between text-brand-medium-blue">
+                      <span className="font-medium">Credits applied</span>
+                      <span className="font-medium">
+                        -$
+                        {Math.min(
+                          availableCredits,
+                          Math.max(tutorData.rate + 5 - appliedDiscount, 0),
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between">
                     <span className="font-semibold text-gray-900">Total</span>
                     <span className="font-semibold text-gray-900">
-                      ${(tutorData.rate + 5 - appliedDiscount).toFixed(2)}
+                      $
+                      {Math.max(
+                        tutorData.rate + 5 - appliedDiscount -
+                          (useCredits
+                            ? Math.min(
+                                availableCredits,
+                                Math.max(tutorData.rate + 5 - appliedDiscount, 0),
+                              )
+                            : 0),
+                        0,
+                      ).toFixed(2)}
                     </span>
                   </div>
                 </div>

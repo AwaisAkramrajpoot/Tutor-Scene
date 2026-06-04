@@ -34,7 +34,7 @@ import PaymentPage from './components/Payment/PaymentPage';
 import PaymentSuccess from './components/Payment/PaymentSuccess';
 import BookSessionPage from './components/BookSessionPage';
 import StudentNotificationsPage from './components/student/StudentNotificationsPage';
-import StudentStaticPage from './components/student/StudentStaticPage';
+import CreditsReferralsPage from './components/student/CreditsReferralsPage';
 import ProfileInformationPage from './components/student/profile/ProfileInformationPage';
 import AccountSettingsPage from './components/student/account/AccountSettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -278,9 +278,7 @@ function App() {
           path="/credits-referrals"
           element={
             <RoleProtectedRoute allowedRoles={['student']}>
-              <StudentStaticPage title="Credits & Referrals">
-                <p>Track credits and share your referral link from this page.</p>
-              </StudentStaticPage>
+              <Layout><CreditsReferralsPage /></Layout>
             </RoleProtectedRoute>
           }
         />
