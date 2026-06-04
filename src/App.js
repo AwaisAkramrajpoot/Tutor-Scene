@@ -11,6 +11,8 @@ import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
 import VerifyEmail from './components/VerifyEmail';
 import FindTutorsPage from './components/FindTutorsPage';
+import OnDemandLearningPage from './components/OnDemandLearningPage';
+import OnDemandCartPage from './components/OnDemandCartPage';
 import TutorProfile from './components/TutorProfile';
 import StudentDashboard from './components/StudentDashboard';
 import MySessions from './components/MySessions';
@@ -225,6 +227,22 @@ function App() {
               <Layout><FindTutorsPage /></Layout>
             </RoleProtectedRoute>
           } 
+        />
+        <Route
+          path="/on-demand-learning"
+          element={
+            <RoleProtectedRoute allowedRoles={['student']}>
+              <Layout><OnDemandLearningPage /></Layout>
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/on-demand-learning/cart"
+          element={
+            <RoleProtectedRoute allowedRoles={['student']}>
+              <Layout><OnDemandCartPage /></Layout>
+            </RoleProtectedRoute>
+          }
         />
         <Route 
           path="/tutor/:id" 
