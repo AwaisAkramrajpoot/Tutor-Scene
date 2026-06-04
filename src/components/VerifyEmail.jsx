@@ -5,7 +5,7 @@ import {
   applyTutorOnboardingStorageForAuthenticatedUser,
   migrateUnscopedTutorOnboardingForCurrentUser,
 } from '../utils/onboarding';
-
+// email verification
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
