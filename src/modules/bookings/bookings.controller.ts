@@ -156,4 +156,22 @@ export class BookingsController {
   async getTutorStatistics(@Param('tutorId', ParseIntPipe) tutorId: number) {
     return this.bookingsService.getTutorStatistics(tutorId);
   }
+
+  @Get('tutor-user/:userId/earnings-history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Tutor earnings breakdown and session history' })
+  async getTutorEarningsHistory(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Query('sort') sort?: 'newest' | 'oldest',
+    @Query('status') status?: string,
+    @Query('paymentStatus') paymentStatus?: string,
+  ) {
+    return this.bookingsService.getTutorEarningsHistory(
+      userId,
+      status || 'all',
+      sort || 'newest',
+      paymentStatus || 'all',
+    );
+  }
 }

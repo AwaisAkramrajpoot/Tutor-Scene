@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Booking } from '@/database/entities/booking.entity';
 import { User } from '@/database/entities/user.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
+import { Payment } from '@/database/entities/payment.entity';
+import { PaymentStatus } from '@/database/entities/enums';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { BookingStatus } from '@/database/entities/enums';
 import { StripeService } from './services/stripe.service';
@@ -23,6 +25,8 @@ export class BookingsService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Prospect)
     private readonly prospectRepository: Repository<Prospect>,
+    @InjectRepository(Payment)
+    private readonly paymentRepository: Repository<Payment>,
     private readonly stripeService: StripeService,
     private readonly zoomService: ZoomService,
     private readonly mailService: MailService,
@@ -266,6 +270,10 @@ export class BookingsService {
       await this.notificationsService.create({
         userId: booking.studentProfileId,
         notification: `Your booking request has been accepted by ${tutorProspect.fullName}`,
+        title: 'Booking Confirmation',
+        preview: 'Your session has been confirmed.',
+        type: 'booking_confirmation',
+        metadata: { bookingId: booking.id },
       });
     }
 
@@ -415,7 +423,21 @@ export class BookingsService {
     booking.cancelledAt = new Date();
     booking.cancelledBy = userId;
 
-    return this.bookingRepository.save(booking);
+    const saved = await this.bookingRepository.save(booking);
+
+    const notifyUserId = isStudent ? tutorUser.id : booking.studentProfileId;
+    await this.notificationsService.create({
+      userId: notifyUserId,
+      notification: isStudent
+        ? `${student.fullName} cancelled a scheduled session.`
+        : `${tutor.fullName} cancelled your scheduled session.`,
+      title: 'Cancellation Alert',
+      preview: 'A session on your schedule was cancelled.',
+      type: 'cancellation',
+      metadata: { bookingId: saved.id },
+    });
+
+    return saved;
   }
 
   async completeBooking(id: number): Promise<Booking> {
@@ -600,6 +622,131 @@ export class BookingsService {
     return {
       currentWeekBookingsCount,
       activeStudentsCount,
+    };
+  }
+
+  private mapEarningStatus(
+    booking: Booking,
+    payment: Payment | undefined,
+  ): 'pending' | 'cleared' | 'paid_out' | 'refunded' {
+    if (
+      booking.hasRefunded ||
+      payment?.status === PaymentStatus.REFUNDED ||
+      payment?.status === PaymentStatus.PARTIALLY_REFUNDED
+    ) {
+      return 'refunded';
+    }
+    if (
+      !payment ||
+      payment.status === PaymentStatus.PENDING ||
+      payment.status === PaymentStatus.PROCESSING
+    ) {
+      return 'pending';
+    }
+    if (payment.status === PaymentStatus.SUCCEEDED) {
+      if (booking.status === BookingStatus.COMPLETED) {
+        return payment.paidAt ? 'paid_out' : 'cleared';
+      }
+      return 'cleared';
+    }
+    return 'pending';
+  }
+
+  async getTutorEarningsHistory(
+    userId: number,
+    statusFilter = 'all',
+    sort: 'newest' | 'oldest' = 'newest',
+    paymentStatusFilter = 'all',
+  ) {
+    const prospect = await this.prospectRepository.findOne({
+      where: { userId },
+      order: { id: 'DESC' },
+    });
+    if (!prospect) {
+      throw new NotFoundException('Tutor profile not found');
+    }
+
+    const qb = this.bookingRepository
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.student', 'student')
+      .leftJoinAndSelect('booking.subject', 'subject')
+      .where('booking.tutorProfileId = :prospectId', { prospectId: prospect.id })
+      .andWhere('booking.status IN (:...statuses)', {
+        statuses: [
+          BookingStatus.CONFIRMED,
+          BookingStatus.COMPLETED,
+          BookingStatus.CANCELLED,
+          BookingStatus.PENDING,
+        ],
+      });
+
+    if (statusFilter === 'completed') {
+      qb.andWhere('booking.status = :st', { st: BookingStatus.COMPLETED });
+    } else if (statusFilter === 'upcoming') {
+      qb.andWhere('booking.status = :st', { st: BookingStatus.CONFIRMED }).andWhere(
+        'booking.startTime > :now',
+        { now: new Date() },
+      );
+    } else if (statusFilter === 'cancelled') {
+      qb.andWhere('booking.status = :st', { st: BookingStatus.CANCELLED });
+    }
+
+    qb.orderBy('booking.startTime', sort === 'oldest' ? 'ASC' : 'DESC').take(200);
+
+    const bookings = await qb.getMany();
+    const bookingIds = bookings.map((b) => b.id);
+    const payments =
+      bookingIds.length > 0
+        ? await this.paymentRepository.find({
+            where: { bookingId: In(bookingIds) },
+          })
+        : [];
+    const paymentByBooking = new Map(payments.map((p) => [p.bookingId, p]));
+
+    let availableBalance = 0;
+    let pendingBalance = 0;
+
+    const transactions = bookings.map((booking) => {
+      const payment = paymentByBooking.get(booking.id);
+      const gross = Number(booking.finalPrice ?? booking.totalPrice ?? 0);
+      const platformFee = Number(
+        payment?.platformFee ?? booking.platformFee ?? gross * 0.15,
+      );
+      const sessionBasePay = Number(
+        payment?.tutorPayout ?? Math.max(gross - platformFee, 0),
+      );
+      const sessionTips = 0;
+      const sessionTotal = sessionBasePay + sessionTips;
+      const earningStatus = this.mapEarningStatus(booking, payment);
+
+      if (earningStatus === 'cleared' || earningStatus === 'paid_out') {
+        availableBalance += sessionTotal;
+      } else if (earningStatus === 'pending') {
+        pendingBalance += sessionTotal;
+      }
+
+      return {
+        id: booking.id,
+        dateTime: booking.startTime,
+        sessionId: booking.referenceNumber || `TUT${String(booking.id).padStart(3, '0')}`,
+        learnerId: booking.learnerLabel || `LRN-${booking.studentProfileId}`,
+        sessionBasePay,
+        sessionTips,
+        sessionTotal,
+        status: earningStatus,
+        subject: booking.subject?.name || null,
+      };
+    });
+
+    const filtered =
+      paymentStatusFilter === 'all'
+        ? transactions
+        : transactions.filter((t) => t.status === paymentStatusFilter);
+
+    return {
+      availableBalance,
+      pendingBalance,
+      transactions: filtered,
     };
   }
 

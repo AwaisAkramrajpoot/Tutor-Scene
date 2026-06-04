@@ -2,11 +2,11 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
   UseGuards,
-  Request,
   ParseIntPipe,
 } from '@nestjs/common';
 import {
@@ -33,41 +33,55 @@ export class NotificationsController {
     return this.notificationsService.create(createDto);
   }
 
+  @Get('unread-count/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get unread notification count for a user' })
+  async getUnreadCount(@Param('userId', ParseIntPipe) userId: number) {
+    const count = await this.notificationsService.getUnreadCount(userId);
+    return { count };
+  }
+
+  @Get('count/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get notification count for a user' })
+  async getCount(@Param('userId', ParseIntPipe) userId: number) {
+    const count = await this.notificationsService.getCount(userId);
+    return { count };
+  }
+
   @Get(':userId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Get all notifications for a user with relative time',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'List of notifications with relative time',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'number' },
-          userId: { type: 'number' },
-          notification: {
-            type: 'string',
-            example: 'New booking request from Alex Johnson',
-          },
-          createdAt: { type: 'string', format: 'date-time' },
-          relativeTime: { type: 'string', example: '30 minutes ago' },
-        },
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Get all notifications for a user with relative time' })
   async findByUser(@Param('userId', ParseIntPipe) userId: number) {
     return this.notificationsService.findByUserWithRelativeTime(userId);
+  }
+
+  @Patch(':userId/read-all')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark all notifications as read for a user' })
+  async markAllRead(@Param('userId', ParseIntPipe) userId: number) {
+    return this.notificationsService.markAllAsRead(userId);
+  }
+
+  @Patch('user/:userId/notification/:id/read')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark a notification as read' })
+  async markRead(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.notificationsService.markAsRead(id, userId);
   }
 
   @Delete('user/:userId/notification/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a notification for a specific user' })
-  @ApiResponse({ status: 200, description: 'Notification deleted' })
   async delete(
     @Param('userId', ParseIntPipe) userId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -76,23 +90,22 @@ export class NotificationsController {
     return { message: 'Notification deleted successfully' };
   }
 
+  @Delete('user/:userId/non-system')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete all non-system notifications for a user' })
+  async deleteAllNonSystem(@Param('userId', ParseIntPipe) userId: number) {
+    const count = await this.notificationsService.deleteAllNonSystem(userId);
+    return { message: 'Non-system notifications deleted', count };
+  }
+
   @Delete('user/:userId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete all notifications for a user' })
-  @ApiResponse({ status: 200, description: 'All notifications deleted' })
   async deleteAll(@Param('userId', ParseIntPipe) userId: number) {
     const count = await this.notificationsService.deleteAll(userId);
     return { message: 'All notifications deleted', count };
   }
 
-  @Get('count/:userId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get notification count for a user' })
-  @ApiResponse({ status: 200, description: 'Notification count' })
-  async getCount(@Param('userId', ParseIntPipe) userId: number) {
-    const count = await this.notificationsService.getCount(userId);
-    return { count };
-  }
 }

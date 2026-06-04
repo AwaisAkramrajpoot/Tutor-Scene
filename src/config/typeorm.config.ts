@@ -19,6 +19,9 @@ import { MessageRequest } from '../database/entities/message-request.entity';
 import { Conversation } from '../database/entities/conversation.entity';
 import { GradeLevel } from '../database/entities/grade-level.entity';
 import { Testimonial } from '../database/entities/testimonial.entity';
+import { StudentReferral } from '../database/entities/student-referral.entity';
+import { StudentCreditLedger } from '../database/entities/student-credit-ledger.entity';
+import { LearnerAssessmentResponse } from '../database/entities/learner-assessment-response.entity';
 
 config();
 
@@ -58,6 +61,9 @@ export default new DataSource({
     Conversation,
     GradeLevel,
     Testimonial,
+    StudentReferral,
+    StudentCreditLedger,
+    LearnerAssessmentResponse,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

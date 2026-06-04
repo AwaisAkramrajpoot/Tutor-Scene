@@ -98,6 +98,10 @@ export class MessagesService {
       await this.notificationsService.create({
         userId: receiverId,
         notification: `New message from ${sender.firstName} ${sender.lastName}: ${messagePreview}`,
+        title: 'Message from Tutor',
+        preview: messagePreview,
+        type: 'message',
+        metadata: { conversationId },
       });
     }
 

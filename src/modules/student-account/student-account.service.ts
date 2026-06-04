@@ -10,6 +10,8 @@ import * as bcrypt from 'bcrypt';
 import { User } from '@/database/entities/user.entity';
 import { LearnerAssessmentResponse } from '@/database/entities/learner-assessment-response.entity';
 import { Booking } from '@/database/entities/booking.entity';
+import { StudentReferral } from '@/database/entities/student-referral.entity';
+import { StudentCreditLedger } from '@/database/entities/student-credit-ledger.entity';
 import { BookingStatus } from '@/database/entities/enums';
 import { MailService } from '@/modules/auth/services/mail.service';
 import {
@@ -29,6 +31,10 @@ export class StudentAccountService {
     @InjectRepository(LearnerAssessmentResponse)
     private readonly learnerRepo: Repository<LearnerAssessmentResponse>,
     @InjectRepository(Booking) private readonly bookingRepo: Repository<Booking>,
+    @InjectRepository(StudentReferral)
+    private readonly referralRepo: Repository<StudentReferral>,
+    @InjectRepository(StudentCreditLedger)
+    private readonly creditLedgerRepo: Repository<StudentCreditLedger>,
     private readonly mailService: MailService,
   ) {}
 
@@ -350,5 +356,218 @@ export class StudentAccountService {
 
   getProfilePageData(userId: number) {
     return this.listLearners(userId);
+  }
+
+  private generateReferralCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 7; i += 1) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  }
+
+  private async ensureReferralCode(user: User): Promise<string> {
+    if (user.referralCode) return user.referralCode;
+    let code = this.generateReferralCode();
+    let exists = await this.userRepo.findOne({ where: { referralCode: code } });
+    while (exists) {
+      code = this.generateReferralCode();
+      exists = await this.userRepo.findOne({ where: { referralCode: code } });
+    }
+    user.referralCode = code;
+    await this.userRepo.save(user);
+    return code;
+  }
+
+  async getCreditsReferrals(userId: number) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const referralCode = await this.ensureReferralCode(user);
+    const frontendBase =
+      process.env.FRONTEND_URL || 'https://tutorscene.com';
+
+    const referrals = await this.referralRepo.find({
+      where: { referrerUserId: userId },
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+
+    const referredUsers = referrals.length
+      ? await this.userRepo.find({
+          where: { id: In(referrals.map((r) => r.referredUserId).filter(Boolean) as number[]) },
+        })
+      : [];
+
+    const userById = new Map(referredUsers.map((u) => [u.id, u]));
+
+    const referralHistory = await Promise.all(
+      referrals.map(async (row) => {
+        const referred = row.referredUserId
+          ? userById.get(row.referredUserId)
+          : null;
+        return {
+          id: row.id,
+          dateTime: row.createdAt,
+          subject: row.subjectLabel || 'Referral',
+          sessionId: row.sessionId,
+          learnerId: row.referredUserId,
+          learnerName: referred
+            ? `${referred.firstName} ${referred.lastName}`
+            : row.referredEmail || 'Pending signup',
+          status: row.status,
+          rewardAmount: Number(row.rewardAmount),
+        };
+      }),
+    );
+
+    const referralSummary = referralHistory.slice(0, 6).map((r) => ({
+      id: r.id,
+      date: r.dateTime,
+      name: r.learnerName,
+      status: r.status,
+    }));
+
+    const pendingLedger = await this.creditLedgerRepo
+      .createQueryBuilder('ledger')
+      .select('COALESCE(SUM(ledger.amount), 0)', 'total')
+      .where('ledger.user_id = :userId', { userId })
+      .andWhere("ledger.source IN ('grace_refund_pending', 'referral_pending')")
+      .getRawOne();
+
+    let pendingBalance = Number(pendingLedger?.total || 0);
+
+    const gracePending = await this.bookingRepo.find({
+      where: {
+        studentProfileId: userId,
+        status: BookingStatus.CANCELLED,
+        refundEligible: true,
+        hasRefunded: false,
+      },
+      take: 20,
+    });
+    for (const b of gracePending) {
+      const amount = Number(b.finalPrice ?? b.totalPrice ?? 0);
+      const alreadyCredited = await this.creditLedgerRepo.findOne({
+        where: { bookingId: b.id, userId, source: 'grace_refund' },
+      });
+      if (!alreadyCredited && amount > 0) {
+        pendingBalance += amount;
+      }
+    }
+
+    const availableCredits = Number(user.availableCredits || 0);
+
+    return {
+      availableCredits,
+      availableBalance: availableCredits,
+      pendingBalance,
+      referralCode,
+      referralLink: `${frontendBase}/signup?ref=${referralCode}`,
+      referredByApplied: Boolean(user.referredByUserId),
+      referralHistory,
+      referralSummary,
+      howItWorks: [
+        'Share your unique referral code or referral link with future learners on social media or anywhere.',
+        'Earn $5 per referral when someone signs up using your code and completes their first session.',
+        'Rewards are added to your Available Credits.',
+      ],
+    };
+  }
+
+  async applyReferralCode(userId: number, code: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.referredByUserId) {
+      throw new BadRequestException('A referral code has already been applied.');
+    }
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) throw new BadRequestException('Referral code is required.');
+
+    const referrer = await this.userRepo.findOne({
+      where: { referralCode: normalized },
+    });
+    if (!referrer) throw new BadRequestException('Invalid referral code.');
+    if (referrer.id === userId) {
+      throw new BadRequestException('You cannot use your own referral code.');
+    }
+
+    user.referredByUserId = referrer.id;
+    await this.userRepo.save(user);
+
+    await this.referralRepo.save(
+      this.referralRepo.create({
+        referrerUserId: referrer.id,
+        referredUserId: user.id,
+        referredEmail: user.email,
+        status: 'in_progress',
+      }),
+    );
+
+    return this.getCreditsReferrals(userId);
+  }
+
+  async getSessionHistory(
+    userId: number,
+    status?: string,
+    sort: 'newest' | 'oldest' = 'newest',
+  ) {
+    const qb = this.bookingRepo
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.tutor', 'tutor')
+      .leftJoinAndSelect('booking.subject', 'subject')
+      .where('booking.studentProfileId = :userId', { userId });
+
+    if (status && status !== 'all') {
+      if (status === 'upcoming') {
+        qb.andWhere('booking.status = :st', { st: BookingStatus.CONFIRMED }).andWhere(
+          'booking.startTime > :now',
+          { now: new Date() },
+        );
+      } else {
+        qb.andWhere('booking.status = :st', {
+          st:
+            status === 'cancelled'
+              ? BookingStatus.CANCELLED
+              : BookingStatus.COMPLETED,
+        });
+      }
+    } else {
+      qb.andWhere('booking.status IN (:...statuses)', {
+        statuses: [
+          BookingStatus.CONFIRMED,
+          BookingStatus.COMPLETED,
+          BookingStatus.CANCELLED,
+          BookingStatus.PENDING,
+        ],
+      });
+    }
+
+    qb.orderBy(
+      'booking.startTime',
+      sort === 'oldest' ? 'ASC' : 'DESC',
+    );
+
+    const rows = await qb.take(100).getMany();
+
+    return rows.map((b) => ({
+      id: b.id,
+      sessionId: b.referenceNumber || `TS-${b.id}`,
+      dateTime: b.startTime,
+      subject: b.subject?.name || 'Session',
+      tutorName: b.tutor?.fullName || 'Tutor',
+      learnerLabel: b.learnerLabel,
+      sessionTotal: Number(b.finalPrice ?? b.totalPrice ?? 0),
+      status: b.status,
+      paymentStatus:
+        b.status === BookingStatus.COMPLETED
+          ? 'cleared'
+          : b.status === BookingStatus.CANCELLED && b.hasRefunded
+            ? 'refunded'
+            : b.status === BookingStatus.PENDING
+              ? 'pending'
+              : 'cleared',
+    }));
   }
 }

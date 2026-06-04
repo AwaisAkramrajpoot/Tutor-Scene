@@ -10,13 +10,14 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { User } from '@/database/entities/user.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
+import { StudentReferral } from '@/database/entities/student-referral.entity';
 import { MailService } from './services/mail.service';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Prospect]),
+    TypeOrmModule.forFeature([User, Prospect, StudentReferral]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

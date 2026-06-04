@@ -5,6 +5,7 @@ import { BookingsService } from './bookings.service';
 import { Booking } from '@/database/entities/booking.entity';
 import { User } from '@/database/entities/user.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
+import { Payment } from '@/database/entities/payment.entity';
 import { StripeService } from './services/stripe.service';
 import { InterviewsModule } from '../interviews/interviews.module';
 import { AuthModule } from '../auth/auth.module';
@@ -13,7 +14,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, User, Prospect]),
+    TypeOrmModule.forFeature([Booking, User, Prospect, Payment]),
     forwardRef(() => InterviewsModule),
     AuthModule,
     PromoCodesModule,

@@ -333,6 +333,17 @@ export class OnboardingController {
     }
   }
 
+  @Get('stripe-dashboard-link/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Stripe Express dashboard login URL for payouts' })
+  async getStripeDashboardLink(
+    @Param('userId', ParseIntPipe) userId: number,
+  ): Promise<{ url: string; message: string }> {
+    const url = await this.onboardingService.generateStripeDashboardLink(userId);
+    return { url, message: 'Stripe dashboard link generated' };
+  }
+
   @Get('payment-onboarded/:userId')
   @ApiOperation({ summary: 'Check if tutor has completed payment onboarding' })
   @ApiResponse({ 
