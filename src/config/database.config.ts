@@ -24,6 +24,9 @@ import { VirtualInterviewResponse } from '../database/entities/virtual-interview
 import { InterviewTopic } from '../database/entities/interview-topic.entity';
 import { InterviewQuestion } from '../database/entities/interview-question.entity';
 import { LearnerAssessmentResponse } from '../database/entities/learner-assessment-response.entity';
+import { OnDemandContent } from '../database/entities/on-demand-content.entity';
+import { OnDemandContentSaved } from '../database/entities/on-demand-content-saved.entity';
+import { OnDemandCartItem } from '../database/entities/on-demand-cart-item.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -89,6 +92,9 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         InterviewTopic,
         InterviewQuestion,
         LearnerAssessmentResponse,
+        OnDemandContent,
+        OnDemandContentSaved,
+        OnDemandCartItem,
       ],
       synchronize: false, // Auto-create tables from entities
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),
