@@ -21,6 +21,7 @@ import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { MailService } from './mail.service';
 import { UserStatus, UserRole, ProspectStatus } from '@/database/entities/enums';
+import { TutorReferralsService } from '@/modules/tutor-referrals/tutor-referrals.service';
 
 @Injectable()
 export class AuthService {
@@ -32,6 +33,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly tutorReferralsService: TutorReferralsService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
@@ -65,6 +67,11 @@ export class AuthService {
     });
 
     await this.userRepository.save(user);
+
+    await this.tutorReferralsService.recordReferralOnSignup(
+      user.id,
+      registerDto.referralCode,
+    );
 
     const verificationToken = this.jwtService.sign(
       { sub: user.id, email: user.email, type: 'verify' },

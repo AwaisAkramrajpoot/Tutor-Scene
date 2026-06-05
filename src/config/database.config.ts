@@ -27,6 +27,8 @@ import { LearnerAssessmentResponse } from '../database/entities/learner-assessme
 import { OnDemandContent } from '../database/entities/on-demand-content.entity';
 import { OnDemandContentSaved } from '../database/entities/on-demand-content-saved.entity';
 import { OnDemandCartItem } from '../database/entities/on-demand-cart-item.entity';
+import { Referral } from '../database/entities/referral.entity';
+import { ReferralProgramSettings } from '../database/entities/referral-program-settings.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -95,6 +97,8 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         OnDemandContent,
         OnDemandContentSaved,
         OnDemandCartItem,
+        Referral,
+        ReferralProgramSettings,
       ],
       synchronize: false, // Auto-create tables from entities
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),
