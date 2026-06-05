@@ -114,7 +114,13 @@ export class User extends BaseEntity {
 
   @Column({ type: 'varchar', length: 12, nullable: true, unique: true, name: 'referral_code' })
   referralCode: string | null;
-  
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, name: 'available_credits' })
+  availableCredits: number;
+
+  @Column({ type: 'int', nullable: true, name: 'referred_by_user_id' })
+  referredByUserId: number | null;
+
   get fullName(): string {
     return `${this.firstName} ${this.lastName}`;
   }
