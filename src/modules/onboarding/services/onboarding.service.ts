@@ -1056,6 +1056,33 @@ export class OnboardingService {
   }
 
   /**
+   * Stripe Express dashboard login (payouts) — opens in a new browser tab from the client.
+   */
+  async generateStripeDashboardLink(userId: number): Promise<string> {
+    const prospect = await this.findCanonicalProspectByUserId(
+      this.normalizeUserId(userId),
+    );
+
+    if (!prospect?.paymentAccountId) {
+      throw new BadRequestException(
+        'Connect your Stripe account first to view payouts.',
+      );
+    }
+
+    try {
+      const loginLink = await this.stripe.accounts.createLoginLink(
+        prospect.paymentAccountId,
+      );
+      return loginLink.url;
+    } catch (error) {
+      console.error('Stripe dashboard link error:', error);
+      throw new InternalServerErrorException(
+        `Failed to open Stripe dashboard: ${error.message}`,
+      );
+    }
+  }
+
+  /**
    * Get payment onboarding status for tutor
    * @param userId - User ID
    * @returns Payment onboarding status

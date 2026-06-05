@@ -13,6 +13,7 @@ import { Repository, IsNull } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '@/database/entities/user.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
+import { StudentReferral } from '@/database/entities/student-referral.entity';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { AuthResponseDto } from '../dto/auth-response.dto';
@@ -29,6 +30,8 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Prospect)
     private readonly prospectRepository: Repository<Prospect>,
+    @InjectRepository(StudentReferral)
+    private readonly referralRepository: Repository<StudentReferral>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
@@ -65,6 +68,25 @@ export class AuthService {
     });
 
     await this.userRepository.save(user);
+
+    if (registerDto.referralCode?.trim() && user.role === UserRole.STUDENT) {
+      const normalized = registerDto.referralCode.trim().toUpperCase();
+      const referrer = await this.userRepository.findOne({
+        where: { referralCode: normalized },
+      });
+      if (referrer && referrer.id !== user.id) {
+        user.referredByUserId = referrer.id;
+        await this.userRepository.save(user);
+        await this.referralRepository.save(
+          this.referralRepository.create({
+            referrerUserId: referrer.id,
+            referredUserId: user.id,
+            referredEmail: user.email,
+            status: 'in_progress',
+          }),
+        );
+      }
+    }
 
     const verificationToken = this.jwtService.sign(
       { sub: user.id, email: user.email, type: 'verify' },

@@ -96,6 +96,31 @@ export class StudentAccountController {
     );
   }
 
+  @Get('credits-referrals')
+  @ApiOperation({ summary: 'Credits, referrals, and reward history' })
+  getCreditsReferrals(@CurrentUser() user: User) {
+    return this.service.getCreditsReferrals(user.id);
+  }
+
+  @Post('referral-code')
+  @ApiOperation({ summary: 'Apply a referral code to this account' })
+  applyReferralCode(
+    @CurrentUser() user: User,
+    @Body() body: { code: string },
+  ) {
+    return this.service.applyReferralCode(user.id, body.code || '');
+  }
+
+  @Get('session-history')
+  @ApiOperation({ summary: 'Session history for credits page' })
+  getSessionHistory(
+    @CurrentUser() user: User,
+    @Query('status') status?: string,
+    @Query('sort') sort?: 'newest' | 'oldest',
+  ) {
+    return this.service.getSessionHistory(user.id, status, sort || 'newest');
+  }
+
   @Delete('learners/:learnerLabel')
   @ApiOperation({ summary: 'Remove a learner' })
   removeLearner(

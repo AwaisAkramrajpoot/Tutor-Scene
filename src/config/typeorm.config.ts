@@ -19,9 +19,9 @@ import { MessageRequest } from '../database/entities/message-request.entity';
 import { Conversation } from '../database/entities/conversation.entity';
 import { GradeLevel } from '../database/entities/grade-level.entity';
 import { Testimonial } from '../database/entities/testimonial.entity';
-import { OnDemandContent } from '../database/entities/on-demand-content.entity';
-import { OnDemandContentSaved } from '../database/entities/on-demand-content-saved.entity';
-import { OnDemandCartItem } from '../database/entities/on-demand-cart-item.entity';
+import { StudentReferral } from '../database/entities/student-referral.entity';
+import { StudentCreditLedger } from '../database/entities/student-credit-ledger.entity';
+import { LearnerAssessmentResponse } from '../database/entities/learner-assessment-response.entity';
 
 config();
 
@@ -61,9 +61,9 @@ export default new DataSource({
     Conversation,
     GradeLevel,
     Testimonial,
-    OnDemandContent,
-    OnDemandContentSaved,
-    OnDemandCartItem,
+    StudentReferral,
+    StudentCreditLedger,
+    LearnerAssessmentResponse,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
