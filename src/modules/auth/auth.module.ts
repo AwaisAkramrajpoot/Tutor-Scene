@@ -14,10 +14,12 @@ import { StudentReferral } from '@/database/entities/student-referral.entity';
 import { MailService } from './services/mail.service';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
+import { TutorReferralsModule } from '../tutor-referrals/tutor-referrals.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Prospect, StudentReferral]),
+    TypeOrmModule.forFeature([User, Prospect]),
+    TutorReferralsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

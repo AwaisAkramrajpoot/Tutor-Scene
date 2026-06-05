@@ -6,6 +6,7 @@ import Stripe from 'stripe';
 import { Payment } from '@/database/entities/payment.entity';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import { PaymentStatus } from '@/database/entities/enums';
+import { TutorReferralsService } from '@/modules/tutor-referrals/tutor-referrals.service';
 
 @Injectable()
 export class PaymentsService {
@@ -15,6 +16,7 @@ export class PaymentsService {
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
     private readonly configService: ConfigService,
+    private readonly tutorReferralsService: TutorReferralsService,
   ) {
     this.stripe = new Stripe(this.configService.get<string>('STRIPE_SECRET_KEY'), {
       apiVersion: '2023-10-16',
@@ -82,6 +84,10 @@ export class PaymentsService {
       payment.status = status;
       if (status === PaymentStatus.SUCCEEDED) {
         payment.paidAt = new Date();
+        await this.tutorReferralsService.updateReferralSpendForUser(
+          payment.studentProfileId,
+          Number(payment.amount || 0),
+        );
       }
       await this.paymentRepository.save(payment);
     }

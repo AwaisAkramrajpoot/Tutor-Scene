@@ -37,6 +37,12 @@ export enum ProspectStatus {
   SUSPENDED = 'suspended',
 }
 
+export enum ReferralStatus {
+  PENDING = 'pending',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+}
+
 export enum BookingStatus {
   PENDING = 'pending',
   TUTOR_REVIEW = 'tutor_review',

@@ -30,6 +30,7 @@ import { HealthModule } from './modules/health/health.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { LearnerAssessmentModule } from './modules/learner-assessment/learner-assessment.module';
 import { OnDemandLearningModule } from './modules/on-demand-learning/on-demand-learning.module';
+import { TutorReferralsModule } from './modules/tutor-referrals/tutor-referrals.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { OnDemandLearningModule } from './modules/on-demand-learning/on-demand-l
     TestimonialsModule,
     LearnerAssessmentModule,
     OnDemandLearningModule,
+    TutorReferralsModule,
   ],
   controllers: [],
   providers: [

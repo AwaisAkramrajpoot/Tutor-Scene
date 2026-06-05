@@ -112,20 +112,8 @@ export class User extends BaseEntity {
   @Column({ type: 'boolean', default: false, name: 'registers_self_as_learner' })
   registersSelfAsLearner: boolean;
 
-  @Column({
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-    default: 0,
-    name: 'available_credits',
-  })
-  availableCredits: number;
-
-  @Column({ type: 'varchar', length: 32, nullable: true, name: 'referral_code' })
+  @Column({ type: 'varchar', length: 12, nullable: true, unique: true, name: 'referral_code' })
   referralCode: string | null;
-
-  @Column({ name: 'referred_by_user_id', nullable: true })
-  referredByUserId: number | null;
   
   get fullName(): string {
     return `${this.firstName} ${this.lastName}`;

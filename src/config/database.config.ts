@@ -24,8 +24,11 @@ import { VirtualInterviewResponse } from '../database/entities/virtual-interview
 import { InterviewTopic } from '../database/entities/interview-topic.entity';
 import { InterviewQuestion } from '../database/entities/interview-question.entity';
 import { LearnerAssessmentResponse } from '../database/entities/learner-assessment-response.entity';
-import { StudentReferral } from '../database/entities/student-referral.entity';
-import { StudentCreditLedger } from '../database/entities/student-credit-ledger.entity';
+import { OnDemandContent } from '../database/entities/on-demand-content.entity';
+import { OnDemandContentSaved } from '../database/entities/on-demand-content-saved.entity';
+import { OnDemandCartItem } from '../database/entities/on-demand-cart-item.entity';
+import { Referral } from '../database/entities/referral.entity';
+import { ReferralProgramSettings } from '../database/entities/referral-program-settings.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -91,8 +94,11 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         InterviewTopic,
         InterviewQuestion,
         LearnerAssessmentResponse,
-        StudentReferral,
-        StudentCreditLedger,
+        OnDemandContent,
+        OnDemandContentSaved,
+        OnDemandCartItem,
+        Referral,
+        ReferralProgramSettings,
       ],
       synchronize: false, // Auto-create tables from entities
       logging: this.configService.get<boolean>('DATABASE_LOGGING', false),
