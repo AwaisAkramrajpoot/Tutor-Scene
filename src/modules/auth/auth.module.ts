@@ -18,7 +18,7 @@ import { TutorReferralsModule } from '../tutor-referrals/tutor-referrals.module'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Prospect]),
+    TypeOrmModule.forFeature([User, Prospect, StudentReferral]),
     TutorReferralsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
