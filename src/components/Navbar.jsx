@@ -10,7 +10,7 @@ import {
   Button,
 } from "@mui/material";
 import { getConversations } from "../services/messagingService";
-import { getNotifications } from "../services/notificationsService";
+import { getUnreadNotificationCount } from "../services/notificationsService";
 import {
   isTutorApproved,
   isTutorInInitialOnboarding,
@@ -89,9 +89,8 @@ const Navbar = () => {
     if (!isStudent || !user?.id) return;
     const loadNotifs = async () => {
       try {
-        const res = await getNotifications(user.id);
-        const list = Array.isArray(res) ? res : res?.data || [];
-        setNotifBadgeCount(Math.min(list.length, 99));
+        const count = await getUnreadNotificationCount(user.id);
+        setNotifBadgeCount(Math.min(count, 99));
       } catch {
         setNotifBadgeCount(0);
       }

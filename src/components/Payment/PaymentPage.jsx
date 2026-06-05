@@ -80,6 +80,9 @@ const PaymentPage = () => {
   const bookingId = searchParams.get('bookingId');
   const paymentIntentId = searchParams.get('paymentIntentId');
   const amount = searchParams.get('amount');
+  const pendingCredit = parseFloat(
+    sessionStorage.getItem('pendingCreditApplication') || '0',
+  );
 
   useEffect(() => {
     const fetchPaymentIntent = async () => {
@@ -205,10 +208,28 @@ const PaymentPage = () => {
                   </div>
                 </>
               )}
+              {pendingCredit > 0 && (
+                <div className="flex justify-between text-brand-medium-blue">
+                  <span className="text-gray-600">Account credits (at checkout)</span>
+                  <span className="font-medium">-${pendingCredit.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between pt-3 border-t border-gray-200">
                 <span className="text-lg font-semibold text-gray-900">Total Amount</span>
-                <span className="text-2xl font-bold text-blue-600">${amount}</span>
+                <span className="text-2xl font-bold text-blue-600">
+                  $
+                  {Math.max(parseFloat(amount || '0') - pendingCredit, 0).toFixed(2)}
+                </span>
               </div>
+              {pendingCredit > 0 && (
+                <p className="text-xs text-gray-500">
+                  Credits from{' '}
+                  <a href="/credits-referrals" className="text-brand-medium-blue underline">
+                    Credits / Referrals
+                  </a>{' '}
+                  will be applied when backend credit redemption is enabled for this booking.
+                </p>
+              )}
             </div>
           </div>
 
