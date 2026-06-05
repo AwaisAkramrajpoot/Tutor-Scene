@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { apiRequest } from "../utils/api";
 import { useSystemMessage } from "../hooks/useSystemMessage";
+import { ReferralProgramAdminSection } from "./admin/ReferralProgramAdminSection";
 
 const SUBJECT_LEVEL_OPTIONS = [
   "Elementary",
@@ -1371,6 +1372,12 @@ export default function AdminDashboard() {
         >
           Testimonials
         </TabButton>
+        <TabButton
+          active={activeTab === "referrals"}
+          onClick={() => setActiveTab("referrals")}
+        >
+          Referrals Program
+        </TabButton>
       </div>
 
       {/* Content */}
@@ -2472,6 +2479,8 @@ export default function AdminDashboard() {
           )}
         </section>
       )}
+
+      {activeTab === "referrals" && <ReferralProgramAdminSection />}
 
       {/* Testimonial Modal */}
       <Dialog

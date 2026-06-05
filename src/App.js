@@ -30,6 +30,8 @@ import MyWalletPage from './components/StripeOnboarding/MyWalletPage';
 import OnboardingRefresh from './components/StripeOnboarding/OnboardingRefresh';
 import OnboardingComplete from './components/StripeOnboarding/OnboardingComplete';
 import TutorAvailability from './components/Availability/TutorAvailability';
+import { TutorSessionHistoryPage } from './components/TutorProfile/TutorSessionHistoryPage';
+import { ReferralsPage } from './components/ReferralsPage';
 import MessagingPage from './components/Messaging/MessagingPage';
 import InterviewsPage from './components/Interviews/InterviewsPage';
 import PaymentPage from './components/Payment/PaymentPage';
@@ -402,6 +404,15 @@ function App() {
             </RoleProtectedRoute>
           } 
         />
+        <Route
+          path="/tutor/session-history"
+          element={
+            <RoleProtectedRoute allowedRoles={['tutor']}>
+              <Layout><TutorSessionHistoryPage /></Layout>
+            </RoleProtectedRoute>
+          }
+        />
+        <Route path="/referrals" element={<Layout><ReferralsPage /></Layout>} />
 
         {/* Admin Routes - Requires Admin role */}
         <Route 

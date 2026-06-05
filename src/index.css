@@ -47,6 +47,58 @@ code {
   animation: fadeIn 0.2s ease-out;
 }
 
+.tutor-stat-card {
+  border-radius: 1rem;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+  display: block;
+  text-decoration: none;
+}
+
+.tutor-stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.tutor-stat-card--navy {
+  background-color: var(--brand-deep-navy);
+  color: #fff;
+}
+
+.tutor-stat-card--navy:hover {
+  background-color: var(--brand-dark-blue);
+}
+
+.tutor-stat-card--medium-blue {
+  background-color: var(--brand-medium-blue);
+  color: #fff;
+}
+
+.tutor-stat-card--medium-blue:hover {
+  background-color: var(--brand-dark-blue);
+}
+
+.tutor-stat-card--light-blue {
+  background-color: var(--brand-light-blue);
+  color: var(--brand-deep-navy);
+}
+
+.tutor-stat-card--light-blue:hover {
+  background-color: var(--brand-medium-blue);
+  color: #fff;
+}
+
+.tutor-stat-card--gold {
+  background-color: var(--brand-gold);
+  color: #fff;
+}
+
+.tutor-stat-card--gold:hover {
+  background-color: var(--brand-dark-blue);
+}
+
 /* Mobile-specific styles */
 @layer utilities {
   /* Touch manipulation for better mobile performance */
