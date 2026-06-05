@@ -51,6 +51,18 @@ const Navbar = () => {
   const tutorInOnboarding = isTutorInInitialOnboarding(user);
   const showTutorOnboardingNav =
     user?.role === "tutor" && tutorInOnboarding && !tutorApproved;
+  const isApprovedTutor = user?.role === "tutor" && tutorApproved;
+  const showMessagingIcons =
+    user && (user.role === "student" || isApprovedTutor);
+  const notificationsPath =
+    user?.role === "student" ? "/notifications" : "/tutor-dashboard";
+
+  const navLinkClass = (active) =>
+    `px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+      active
+        ? "text-brand-medium-blue font-semibold"
+        : "text-gray-700 hover:text-brand-medium-blue"
+    }`;
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -86,7 +98,7 @@ const Navbar = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!isStudent || !user?.id) return;
+    if (!user?.id || (!isStudent && !isApprovedTutor)) return;
     const loadNotifs = async () => {
       try {
         const count = await getUnreadNotificationCount(user.id);
@@ -96,9 +108,9 @@ const Navbar = () => {
       }
     };
     loadNotifs();
-    const t = setInterval(loadNotifs, 60000);
+    const t = setInterval(loadNotifs, 30000);
     return () => clearInterval(t);
-  }, [isStudent, user?.id]);
+  }, [isStudent, isApprovedTutor, user?.id, location.pathname]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -269,15 +281,27 @@ const Navbar = () => {
                     </Link>
                   </>
                 )}
+            {isApprovedTutor && (
+              <>
+                <Link
+                  to="/tutor-dashboard"
+                  className={navLinkClass(location.pathname === "/tutor-dashboard")}
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/tutor/availability"
+                  className={navLinkClass(location.pathname === "/tutor/availability")}
+                >
+                  Availability
+                </Link>
+              </>
+            )}
             {isStudent && (
               <>
                 <Link
                   to="/dashboard"
-                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                    location.pathname === "/dashboard"
-                      ? "text-brand-medium-blue font-semibold"
-                      : "text-gray-700 hover:text-brand-medium-blue"
-                  }`}
+                  className={navLinkClass(location.pathname === "/dashboard")}
                 >
                   Dashboard
                 </Link>
@@ -315,38 +339,14 @@ const Navbar = () => {
                 Sign In
               </Link>
             )}
-            {user &&
-              user.role !== "student" &&
-              user.role === "admin" && (
-              //  ||
-              // (user.role === 'tutor' && user.prospectStatus === 'active')
+            {user?.role === "admin" && (
                 <Link
-                  to={
-                    user.role === "tutor"
-                      ? "/tutor-dashboard"
-                      : "/admin-dashboard"
-                  }
-                  className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                    (location.pathname === "/tutor-dashboard" &&
-                      user.role === "tutor") ||
-                    (location.pathname === "/admin-dashboard" &&
-                      user.role === "admin")
-                      ? "text-brand-medium-blue hover:text-brand-dark-blue font-semibold"
-                      : "text-gray-700 hover:text-brand-medium-blue"
-                  }`}
+                  to="/admin-dashboard"
+                  className={navLinkClass(location.pathname === "/admin-dashboard")}
                 >
                   Dashboard
                 </Link>
               )}
-            {/* Show Availability only for authenticated tutors with active status */}
-            {/* {user && user.role === 'tutor' && user.prospectStatus === 'active' && (
-                <Link
-                  to="/tutor/availability"
-                  className="text-gray-700 hover:text-brand-medium-blue px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
-                >
-                  Availability
-                </Link>
-              )} */}
             {/* Show Interviews link for authenticated tutors and admins */}
             {/* {user && (user.role === 'tutor' || user.role === 'admin') && !isTutorOnboardingPage && (
                 <Link
@@ -360,17 +360,10 @@ const Navbar = () => {
                   Interviews
                 </Link>
               )} */}
-            {user &&
-              user.role !== "student" &&
-              user.role === "admin" && (
-              // (user.role === 'tutor' && user.prospectStatus === 'active')
+            {user?.role === "admin" && (
                 <Link
                   to="/messages"
-                  className={`relative px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                    location.pathname.startsWith("/messages")
-                      ? "text-brand-medium-blue hover:text-brand-dark-blue font-semibold"
-                      : "text-gray-700 hover:text-brand-medium-blue"
-                  }`}
+                  className={`relative ${navLinkClass(location.pathname.startsWith("/messages"))}`}
                 >
                   Messages
                   {unreadCount > 0 && (
@@ -411,42 +404,12 @@ const Navbar = () => {
                   >
                     Log Out
                   </button>
-                ) : user.role === "tutor" && tutorApproved ? (
-                  <>
-                    <button
-                      onClick={handleMenuOpen}
-                      className="flex items-center space-x-2 text-brand-dark-blue hover:text-brand-medium-blue px-3 py-2 text-sm font-semibold transition-colors"
-                    >
-                      <span>{user.firstName || "Account"}</span>
-                      <ChevronDownIcon />
-                    </button>
-                    <Menu
-                      anchorEl={anchorEl}
-                      open={Boolean(anchorEl)}
-                      onClose={handleMenuClose}
-                      anchorOrigin={{
-                        vertical: "bottom",
-                        horizontal: "right",
-                      }}
-                      transformOrigin={{
-                        vertical: "top",
-                        horizontal: "right",
-                      }}
-                    >
-                      <MenuItem onClick={handleDashboardClick}>
-                        Dashboard
-                      </MenuItem>
-                      <MenuItem onClick={handleLogoutClick}>Log Out</MenuItem>
-                    </Menu>
-                  </>
                 ) : (
                   <>
-                    {/* ── STUDENT ONLY: Bell + Envelope icon symbols ── */}
-                    {user.role === "student" && (
+                    {showMessagingIcons && (
                       <>
-                        {/* Bell Icon - Notifications */}
                         <Link
-                          to="/notifications"
+                          to={notificationsPath}
                           className="relative text-yellow-500 hover:text-yellow-600 transition-colors"
                           title="Notifications"
                         >
@@ -464,7 +427,7 @@ const Navbar = () => {
                             />
                           </svg>
                           {notifBadgeCount > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center">
+                            <span className="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
                               {notifBadgeCount > 9 ? "9+" : notifBadgeCount}
                             </span>
                           )}
@@ -493,7 +456,7 @@ const Navbar = () => {
                             />
                           </svg>
                           {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
                               {unreadCount > 9 ? "9+" : unreadCount}
                             </span>
                           )}
@@ -521,7 +484,6 @@ const Navbar = () => {
                         horizontal: "right",
                       }}
                     >
-                      {/* ── STUDENT ONLY: updated dropdown menu items ── */}
                       {user.role === "student"
                         ? [
                             <MenuItem
@@ -558,7 +520,7 @@ const Navbar = () => {
                                 navigate("/credits-referrals");
                               }}
                             >
-                              Credits &amp; Referrals
+                              Credits & Referrals
                             </MenuItem>,
                             <MenuItem
                               key="logout"
@@ -568,21 +530,76 @@ const Navbar = () => {
                               Log Out
                             </MenuItem>,
                           ]
-                        : [
-                            <MenuItem
-                              key="dashboard"
-                              onClick={handleDashboardClick}
-                            >
-                              Dashboard
-                            </MenuItem>,
-                            <MenuItem
-                              key="logout"
-                              onClick={handleLogoutClick}
-                              sx={{ color: "red" }}
-                            >
-                              Logout
-                            </MenuItem>,
-                          ]}
+                        : isApprovedTutor
+                          ? [
+                              <MenuItem
+                                key="profile"
+                                onClick={() => {
+                                  handleMenuClose();
+                                  navigate("/create-profile");
+                                }}
+                              >
+                                Profile
+                              </MenuItem>,
+                              <MenuItem
+                                key="settings"
+                                onClick={() => {
+                                  handleMenuClose();
+                                  navigate("/create-profile");
+                                }}
+                              >
+                                Account Settings
+                              </MenuItem>,
+                              <MenuItem
+                                key="wallet"
+                                onClick={() => {
+                                  handleMenuClose();
+                                  navigate("/tutor/wallet");
+                                }}
+                              >
+                                Wallet
+                              </MenuItem>,
+                              <MenuItem
+                                key="referrals"
+                                onClick={() => {
+                                  handleMenuClose();
+                                  navigate("/become-tutor");
+                                }}
+                              >
+                                Referrals
+                              </MenuItem>,
+                              <MenuItem
+                                key="resources"
+                                onClick={() => {
+                                  handleMenuClose();
+                                  navigate("/about");
+                                }}
+                              >
+                                Resources
+                              </MenuItem>,
+                              <MenuItem
+                                key="logout"
+                                onClick={handleLogoutClick}
+                                sx={{ color: "red" }}
+                              >
+                                Log Out
+                              </MenuItem>,
+                            ]
+                          : [
+                              <MenuItem
+                                key="dashboard"
+                                onClick={handleDashboardClick}
+                              >
+                                Dashboard
+                              </MenuItem>,
+                              <MenuItem
+                                key="logout"
+                                onClick={handleLogoutClick}
+                                sx={{ color: "red" }}
+                              >
+                                Log Out
+                              </MenuItem>,
+                            ]}
                     </Menu>
                   </>
                 )}

@@ -1,5 +1,24 @@
 import { apiRequest, APIError } from '../utils/api';
 
+/**
+ * Get unread notification count for current user
+ * @param {number} userId - User ID
+ * @returns {Promise<number>} - Unread count
+ */
+export const getUnreadNotificationCount = async (userId) => {
+  try {
+    const res = await apiRequest(`/api/v1/notifications/unread-count/${userId}`);
+    return res?.count ?? 0;
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * Get all notifications for current user
+ * @param {number} userId - User ID
+ * @returns {Promise<Array>} - Array of notifications
+ */
 export const getNotifications = async (userId) => {
   try {
     return await apiRequest(`/api/v1/notifications/${userId}`);
@@ -8,15 +27,6 @@ export const getNotifications = async (userId) => {
       error.message = 'Unable to load notifications. Please check your connection.';
     }
     throw error;
-  }
-};
-
-export const getUnreadNotificationCount = async (userId) => {
-  try {
-    const res = await apiRequest(`/api/v1/notifications/unread-count/${userId}`);
-    return res?.count ?? 0;
-  } catch {
-    return 0;
   }
 };
 
