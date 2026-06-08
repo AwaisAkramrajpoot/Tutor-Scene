@@ -38,6 +38,7 @@ import PaymentPage from './components/Payment/PaymentPage';
 import PaymentSuccess from './components/Payment/PaymentSuccess';
 import BookSessionPage from './components/BookSessionPage';
 import StudentNotificationsPage from './components/student/StudentNotificationsPage';
+import TutorNotificationsPage from './components/tutor/TutorNotificationsPage';
 import CreditsReferralsPage from './components/student/CreditsReferralsPage';
 import ProfileInformationPage from './components/student/profile/ProfileInformationPage';
 import AccountSettingsPage from './components/student/account/AccountSettingsPage';
@@ -351,6 +352,14 @@ function App() {
               <Layout><TutorDashboard /></Layout>
             </RoleProtectedRoute>
           } 
+        />
+        <Route
+          path="/tutor/notifications"
+          element={
+            <RoleProtectedRoute allowedRoles={['tutor']}>
+              <TutorNotificationsPage />
+            </RoleProtectedRoute>
+          }
         />
         <Route 
           path="/profile-under-review" 

@@ -114,7 +114,9 @@ const StudentNotificationsPage = () => {
       const user = JSON.parse(userStr);
       userIdRef.current = user.id;
       const res = await getNotifications(user.id);
-      const list = (Array.isArray(res) ? res : res?.data || []).map(normalizeNotification);
+      const list = (Array.isArray(res) ? res : res?.data || []).map((n) =>
+        normalizeNotification(n, 'student'),
+      );
       setItems(list);
       setError(null);
       setSelected((prev) => {

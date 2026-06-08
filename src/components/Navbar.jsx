@@ -55,7 +55,7 @@ const Navbar = () => {
   const showMessagingIcons =
     user && (user.role === "student" || isApprovedTutor);
   const notificationsPath =
-    user?.role === "student" ? "/notifications" : "/tutor-dashboard";
+    user?.role === "student" ? "/notifications" : "/tutor/notifications";
 
   const navLinkClass = (active) =>
     `px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
