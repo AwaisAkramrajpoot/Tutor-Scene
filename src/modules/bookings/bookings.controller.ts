@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateTutorBookingSettingsDto } from './dto/update-tutor-booking-settings.dto';
 import { GetStudentSessionsQueryDto } from './dto/get-student-sessions-query.dto';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/auth/decorators/auth.decorator';
@@ -38,6 +39,39 @@ export class BookingsController {
   @ApiResponse({ status: 200, description: 'List of bookings awaiting tutor approval' })
   async findPendingReview(@Param('tutorId') tutorId: string) {
     return this.bookingsService.findPendingReviewByTutor(+tutorId);
+  }
+
+  @Get('tutor/:prospectId/booking-settings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get tutor booking preferences' })
+  async getTutorBookingSettings(@Param('prospectId', ParseIntPipe) prospectId: number) {
+    return this.bookingsService.getTutorBookingSettings(prospectId);
+  }
+
+  @Patch('tutor/:prospectId/booking-settings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update tutor booking preferences' })
+  async updateTutorBookingSettings(
+    @Param('prospectId', ParseIntPipe) prospectId: number,
+    @Body() dto: UpdateTutorBookingSettingsDto,
+  ) {
+    return this.bookingsService.updateTutorBookingSettings(
+      prospectId,
+      dto.autoAcceptBookingRequests,
+    );
+  }
+
+  @Get(':id/detail')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get booking with full details for tutor review' })
+  async findDetail(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('prospectId', ParseIntPipe) prospectId: number,
+  ) {
+    return this.bookingsService.findOneWithDetails(id, prospectId);
   }
 
   @Get(':id')
@@ -86,6 +120,16 @@ export class BookingsController {
     @Body('reason') reason?: string,
   ) {
     return this.bookingsService.rejectBooking(+id, prospectId, reason);
+  }
+
+  @Post(':id/verify-payment')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify Stripe payment and confirm booking (used after payment redirect)' })
+  @ApiResponse({ status: 200, description: 'Booking confirmed' })
+  async verifyPayment(@Param('id', ParseIntPipe) id: number) {
+    return this.bookingsService.verifyAndConfirmPayment(id);
   }
 
   @Patch(':id/cancel')
@@ -144,7 +188,18 @@ export class BookingsController {
       query.status,
       query.page,
       query.limit,
+      query.viewMode,
+      query.period,
     );
+  }
+
+  @Get('tutor/:tutorId/ratings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get tutor ratings (satisfaction, acceptance, cancellation)' })
+  @ApiResponse({ status: 200, description: 'Tutor ratings' })
+  async getTutorRatings(@Param('tutorId', ParseIntPipe) tutorId: number) {
+    return this.bookingsService.getTutorRatings(tutorId);
   }
 
   @Get('tutor/:tutorId/statistics')

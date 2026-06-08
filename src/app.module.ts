@@ -31,6 +31,7 @@ import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { LearnerAssessmentModule } from './modules/learner-assessment/learner-assessment.module';
 import { OnDemandLearningModule } from './modules/on-demand-learning/on-demand-learning.module';
 import { TutorReferralsModule } from './modules/tutor-referrals/tutor-referrals.module';
+import { StudentAccountModule } from './modules/student-account/student-account.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { TutorReferralsModule } from './modules/tutor-referrals/tutor-referrals.
     LearnerAssessmentModule,
     OnDemandLearningModule,
     TutorReferralsModule,
+    StudentAccountModule,
   ],
   controllers: [],
   providers: [

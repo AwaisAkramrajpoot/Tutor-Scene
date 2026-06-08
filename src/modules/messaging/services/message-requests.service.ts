@@ -105,6 +105,9 @@ export class MessageRequestsService {
     await this.notificationsService.create({
       userId: tutor.id,
       notification: `${student.firstName} ${student.lastName} has sent you a message request`,
+      title: 'Message from Learner',
+      preview: 'A learner wants to start a conversation with you.',
+      type: 'message',
     });
 
     return savedRequest;
@@ -220,6 +223,9 @@ export class MessageRequestsService {
         await this.notificationsService.create({
           userId: messageRequest.studentId,
           notification: `Your message request has been accepted by ${tutor.firstName} ${tutor.lastName}`,
+          title: 'Message from Tutor',
+          preview: 'Your message request was accepted. You can now chat.',
+          type: 'message',
         });
       }
 

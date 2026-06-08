@@ -95,10 +95,15 @@ export class MessagesService {
         ? dto.content.substring(0, 100) + '...' 
         : dto.content;
 
+      const messageTitle =
+        receiverId === conversation.tutorId
+          ? 'Message from Learner'
+          : 'Message from Tutor';
+
       await this.notificationsService.create({
         userId: receiverId,
         notification: `New message from ${sender.firstName} ${sender.lastName}: ${messagePreview}`,
-        title: 'Message from Tutor',
+        title: messageTitle,
         preview: messagePreview,
         type: 'message',
         metadata: { conversationId },

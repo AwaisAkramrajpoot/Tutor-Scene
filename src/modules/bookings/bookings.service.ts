@@ -1,11 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, LessThan, MoreThan, IsNull, Or } from 'typeorm';
 import { Booking } from '@/database/entities/booking.entity';
 import { User } from '@/database/entities/user.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
 import { Payment } from '@/database/entities/payment.entity';
-import { PaymentStatus } from '@/database/entities/enums';
+import { Review } from '@/database/entities/review.entity';
+import { PlatformSettings } from '@/database/entities/platform-settings.entity';
+import { PaymentStatus, ReviewStatus } from '@/database/entities/enums';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { BookingStatus } from '@/database/entities/enums';
 import { StripeService } from './services/stripe.service';
@@ -27,6 +29,10 @@ export class BookingsService {
     private readonly prospectRepository: Repository<Prospect>,
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    @InjectRepository(Review)
+    private readonly reviewRepository: Repository<Review>,
+    @InjectRepository(PlatformSettings)
+    private readonly platformSettingsRepository: Repository<PlatformSettings>,
     private readonly stripeService: StripeService,
     private readonly zoomService: ZoomService,
     private readonly mailService: MailService,
@@ -85,6 +91,8 @@ export class BookingsService {
     const referenceNumber = await this.generateReferenceNumber();
 
     // Store discount code if provided (will be validated when tutor accepts)
+    const reviewExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
     const booking = this.bookingRepository.create({
       referenceNumber: referenceNumber,
       studentProfileId: createBookingDto.studentProfileId,
@@ -95,6 +103,9 @@ export class BookingsService {
       status: BookingStatus.TUTOR_REVIEW, // Awaiting tutor approval
       totalPrice: createBookingDto.totalPrice,
       discountCode: createBookingDto.discountCode || null,
+      notes: createBookingDto.notes || null,
+      learnerLabel: createBookingDto.learnerLabel || null,
+      reviewExpiresAt,
     });
     
     const savedBooking = await this.bookingRepository.save(booking);
@@ -102,8 +113,22 @@ export class BookingsService {
     // Create notification for tutor
     await this.notificationsService.create({
       userId: tutorProspect.userId,
-      notification: `${student.firstName} ${student.lastName} has sent you a booking request`,
+      notification: `${student.firstName} has sent you a booking request`,
+      title: 'New Booking Request',
+      preview: 'A learner wants to book a session with you.',
+      type: 'booking_request',
+      metadata: { bookingId: savedBooking.id },
     });
+
+    if (tutorProspect.autoAcceptBookingRequests) {
+      try {
+        return await this.acceptBooking(savedBooking.id, tutorProspect.id);
+      } catch (error) {
+        this.logger.error(
+          `Auto-accept failed for booking ${savedBooking.id}: ${error.message}`,
+        );
+      }
+    }
 
     return savedBooking;
   }
@@ -189,14 +214,42 @@ export class BookingsService {
       }
     }
 
-    // Get tutor's connected account ID for Stripe Connect
     const tutorProspectForPayment = await this.prospectRepository.findOne({
       where: { id: prospectId },
-      select: ['paymentAccountId'],
+      select: ['paymentAccountId', 'paymentOnBoarded'],
     });
 
-    // Create Stripe payment intent with discount
-    const paymentIntentParams: any = {
+    const skipConnect = this.stripeService.shouldSkipConnect();
+    const connectedAccountId = tutorProspectForPayment?.paymentAccountId;
+
+    if (!skipConnect) {
+      if (!connectedAccountId) {
+        throw new BadRequestException(
+          'Connect your Stripe account before accepting bookings. Go to My Wallet to set up payouts.',
+        );
+      }
+
+      const payoutStatus =
+        await this.stripeService.getConnectedAccountPayoutStatus(
+          connectedAccountId,
+        );
+      if (!payoutStatus.ready) {
+        throw new BadRequestException(
+          payoutStatus.message ||
+            'Complete your Stripe payout setup before accepting bookings. Go to My Wallet and finish onboarding.',
+        );
+      }
+
+      // Sync the DB flag if Stripe confirms ready but flag is still false
+      if (!tutorProspectForPayment.paymentOnBoarded) {
+        await this.prospectRepository.update(
+          { id: prospectId },
+          { paymentOnBoarded: true },
+        );
+      }
+    }
+
+    const paymentIntentParams: Record<string, string> = {
       bookingId: booking.id.toString(),
       studentId: booking.studentProfileId.toString(),
       tutorId: booking.tutorProfileId.toString(),
@@ -206,17 +259,15 @@ export class BookingsService {
       paymentIntentParams.discountCode = booking.discountCode;
     }
 
-    // Calculate platform fee (e.g., 15% of final price)
-    const platformFeePercentage = 0.15; // 15%
+    const platformFeePercentage = 0.15;
     const platformFee = finalPrice * platformFeePercentage;
 
-    // Create payment intent with destination charge (platform account)
     const paymentIntent = await this.stripeService.createPaymentIntent(
       finalPrice,
       'usd',
       paymentIntentParams,
-      tutorProspectForPayment?.paymentAccountId, // Connected account ID
-      platformFee, // Application fee
+      skipConnect ? undefined : connectedAccountId,
+      skipConnect ? undefined : platformFee,
     );
 
     // Apply Stripe coupon if available
@@ -288,7 +339,55 @@ export class BookingsService {
     }
 
     booking.status = BookingStatus.CONFIRMED;
-    return this.bookingRepository.save(booking);
+    const saved = await this.bookingRepository.save(booking);
+
+    const [tutorProspect, student] = await Promise.all([
+      this.prospectRepository.findOne({ where: { id: saved.tutorProfileId } }),
+      this.userRepository.findOne({ where: { id: saved.studentProfileId } }),
+    ]);
+
+    if (tutorProspect && student) {
+      await this.notificationsService.create({
+        userId: tutorProspect.userId,
+        notification: `${student.firstName} ${student.lastName}'s booking has been confirmed and paid.`,
+        title: 'Booking Confirmation',
+        preview: 'A learner session is confirmed on your schedule.',
+        type: 'booking_confirmation',
+        metadata: { bookingId: saved.id },
+      });
+    }
+
+    return saved;
+  }
+
+  async verifyAndConfirmPayment(bookingId: number): Promise<Booking> {
+    const booking = await this.findOne(bookingId);
+
+    if (booking.status === BookingStatus.CONFIRMED) {
+      return booking;
+    }
+
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new BadRequestException(
+        `Booking cannot be confirmed in its current state: ${booking.status}`,
+      );
+    }
+
+    if (!booking.stripePaymentIntentId) {
+      throw new BadRequestException('No payment intent associated with this booking');
+    }
+
+    const paymentIntent = await this.stripeService.retrievePaymentIntent(
+      booking.stripePaymentIntentId,
+    );
+
+    if (paymentIntent.status !== 'succeeded') {
+      throw new BadRequestException(
+        `Payment not yet completed. Stripe status: ${paymentIntent.status}`,
+      );
+    }
+
+    return this.confirmBookingPayment(bookingId);
   }
 
   async findByPaymentIntentId(paymentIntentId: string): Promise<Booking | null> {
@@ -322,21 +421,37 @@ export class BookingsService {
   async rejectBooking(id: number, prospectId: number, reason?: string): Promise<Booking> {
     const booking = await this.findOne(id);
 
-    // Simple check: does the booking belong to this prospect?
     if (booking.tutorProfileId !== prospectId) {
       throw new BadRequestException('You can only reject your own bookings');
     }
 
-    // Get the prospect to find the user ID for cancelledBy
+    if (booking.status !== BookingStatus.TUTOR_REVIEW) {
+      throw new BadRequestException('Booking is not awaiting approval');
+    }
+
     const prospect = await this.prospectRepository.findOne({
       where: { id: prospectId },
     });
 
     booking.status = BookingStatus.CANCELLED;
-    booking.cancellationReason = reason;
+    booking.cancellationReason = reason || 'Declined by tutor';
     booking.cancelledAt = new Date();
     booking.cancelledBy = prospect?.userId;
-    return this.bookingRepository.save(booking);
+    const saved = await this.bookingRepository.save(booking);
+
+    const tutorName = prospect?.fullName || 'Your tutor';
+    await this.notificationsService.create({
+      userId: booking.studentProfileId,
+      notification: reason?.includes('72 hours')
+        ? `Your booking request was automatically declined after 72 hours without a response from ${tutorName}.`
+        : `Your booking request was declined by ${tutorName}.`,
+      title: 'Cancellation Alert',
+      preview: 'A booking request on your schedule was declined.',
+      type: 'cancellation',
+      metadata: { bookingId: saved.id },
+    });
+
+    return saved;
   }
 
   async cancelBooking(id: number, userId: number, reason?: string): Promise<Booking> {
@@ -448,14 +563,99 @@ export class BookingsService {
   }
 
   async findPendingReviewByTutor(tutorProfileId: number): Promise<Booking[]> {
+    const tutorProspect = await this.prospectRepository.findOne({
+      where: { id: tutorProfileId },
+      select: ['id', 'autoAcceptBookingRequests'],
+    });
+
+    if (tutorProspect?.autoAcceptBookingRequests) {
+      return [];
+    }
+
+    const now = new Date();
     return this.bookingRepository.find({
       where: {
         tutorProfileId,
         status: BookingStatus.TUTOR_REVIEW,
+        reviewExpiresAt: Or(IsNull(), MoreThan(now)),
       },
       relations: ['student', 'subject'],
       order: { startTime: 'ASC' },
     });
+  }
+
+  async findOneWithDetails(id: number, prospectId?: number): Promise<Booking> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id },
+      relations: ['student', 'subject', 'tutor'],
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${id} not found`);
+    }
+
+    if (prospectId && booking.tutorProfileId !== prospectId) {
+      throw new ForbiddenException('You can only view your own booking requests');
+    }
+
+    return booking;
+  }
+
+  async getTutorBookingSettings(prospectId: number): Promise<{ autoAcceptBookingRequests: boolean }> {
+    const prospect = await this.prospectRepository.findOne({
+      where: { id: prospectId },
+      select: ['id', 'autoAcceptBookingRequests'],
+    });
+
+    if (!prospect) {
+      throw new NotFoundException(`Tutor prospect with ID ${prospectId} not found`);
+    }
+
+    return { autoAcceptBookingRequests: prospect.autoAcceptBookingRequests ?? false };
+  }
+
+  async updateTutorBookingSettings(
+    prospectId: number,
+    autoAcceptBookingRequests: boolean,
+  ): Promise<{ autoAcceptBookingRequests: boolean }> {
+    const prospect = await this.prospectRepository.findOne({ where: { id: prospectId } });
+
+    if (!prospect) {
+      throw new NotFoundException(`Tutor prospect with ID ${prospectId} not found`);
+    }
+
+    prospect.autoAcceptBookingRequests = autoAcceptBookingRequests;
+    await this.prospectRepository.save(prospect);
+
+    return { autoAcceptBookingRequests };
+  }
+
+  async expireStaleBookingRequests(): Promise<number> {
+    const now = new Date();
+    const stale = await this.bookingRepository.find({
+      where: {
+        status: BookingStatus.TUTOR_REVIEW,
+        reviewExpiresAt: LessThan(now),
+      },
+    });
+
+    let count = 0;
+    for (const booking of stale) {
+      try {
+        await this.rejectBooking(
+          booking.id,
+          booking.tutorProfileId,
+          'Expired after 72 hours without response',
+        );
+        count++;
+      } catch (error) {
+        this.logger.warn(
+          `Failed to expire booking request ${booking.id}: ${error.message}`,
+        );
+      }
+    }
+
+    return count;
   }
 
   async findStudentSessions(
@@ -473,7 +673,9 @@ export class BookingsService {
     // Apply status-specific filters
     if (status === 'upcoming') {
       queryBuilder
-        .andWhere('booking.status = :status', { status: BookingStatus.CONFIRMED })
+        .andWhere('booking.status IN (:...statuses)', {
+          statuses: [BookingStatus.CONFIRMED, BookingStatus.PENDING],
+        })
         .andWhere('booking.startTime > :now', { now: new Date() })
         .orderBy('booking.startTime', 'ASC');
     } else if (status === 'cancelled') {
@@ -510,6 +712,8 @@ export class BookingsService {
     status: 'upcoming' | 'cancelled' | 'completed',
     page: number = 1,
     limit: number = 10,
+    viewMode: 'count' | 'period' = 'count',
+    period?: 'week' | 'month' | '3months',
   ): Promise<{ data: Booking[]; total: number; page: number; limit: number; totalPages: number }> {
     const queryBuilder = this.bookingRepository
       .createQueryBuilder('booking')
@@ -519,10 +723,25 @@ export class BookingsService {
 
     // Apply status-specific filters
     if (status === 'upcoming') {
+      const now = new Date();
       queryBuilder
-        .andWhere('booking.status = :status', { status: BookingStatus.CONFIRMED })
-        .andWhere('booking.startTime > :now', { now: new Date() })
+        .andWhere('booking.status IN (:...statuses)', {
+          statuses: [BookingStatus.CONFIRMED, BookingStatus.PENDING],
+        })
+        .andWhere('booking.startTime > :now', { now })
         .orderBy('booking.startTime', 'ASC');
+
+      if (viewMode === 'period' && period) {
+        const endDate = new Date(now);
+        if (period === 'week') {
+          endDate.setDate(endDate.getDate() + 7);
+        } else if (period === 'month') {
+          endDate.setMonth(endDate.getMonth() + 1);
+        } else if (period === '3months') {
+          endDate.setMonth(endDate.getMonth() + 3);
+        }
+        queryBuilder.andWhere('booking.startTime <= :endDate', { endDate });
+      }
     } else if (status === 'cancelled') {
       queryBuilder
         .andWhere('booking.status = :status', { status: BookingStatus.CANCELLED })
@@ -648,6 +867,62 @@ export class BookingsService {
       currentWeekBookingsCount,
       weeklyLearnersCount: Number(weeklyLearnersResult?.count || 0),
     };
+  }
+
+  async getTutorRatings(tutorId: number): Promise<{
+    satisfactionRate: number;
+    acceptanceRate: number;
+    cancellationRate: number;
+    ratingPeriodMonths: number;
+    totalReviews: number;
+  }> {
+    const settings = await this.platformSettingsRepository.findOne({ where: { id: 1 } });
+    const ratingPeriodMonths = settings?.ratingPeriodMonths ?? 3;
+
+    const since = new Date();
+    since.setMonth(since.getMonth() - ratingPeriodMonths);
+
+    // Satisfaction rate — average approved review rating in period
+    const reviews = await this.reviewRepository.find({
+      where: { tutorProfileId: tutorId, status: ReviewStatus.APPROVED },
+    });
+    const recentReviews = reviews.filter((r) => new Date(r.createdAt) >= since);
+    const totalReviews = recentReviews.length;
+    const satisfactionRate =
+      totalReviews > 0
+        ? Math.round(
+            (recentReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews) * 10,
+          ) / 10
+        : 0;
+
+    // Acceptance & cancellation rates — bookings created in period (exclude tutor_review still waiting)
+    const bookings = await this.bookingRepository
+      .createQueryBuilder('b')
+      .select('b.status', 'status')
+      .where('b.tutorProfileId = :tutorId', { tutorId })
+      .andWhere('b.createdAt >= :since', { since })
+      .andWhere('b.status IN (:...statuses)', {
+        statuses: [
+          BookingStatus.PENDING,
+          BookingStatus.CONFIRMED,
+          BookingStatus.COMPLETED,
+          BookingStatus.CANCELLED,
+        ],
+      })
+      .getRawMany();
+
+    const total = bookings.length;
+    const accepted = bookings.filter((b) =>
+      [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.COMPLETED].includes(
+        b.status,
+      ),
+    ).length;
+    const cancelled = bookings.filter((b) => b.status === BookingStatus.CANCELLED).length;
+
+    const acceptanceRate = total > 0 ? Math.round((accepted / total) * 100) : 0;
+    const cancellationRate = total > 0 ? Math.round((cancelled / total) * 100) : 0;
+
+    return { satisfactionRate, acceptanceRate, cancellationRate, ratingPeriodMonths, totalReviews };
   }
 
   private mapEarningStatus(

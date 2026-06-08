@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
@@ -43,5 +43,19 @@ export class AdminController {
   @ApiResponse({ status: 200, description: 'List of all payments' })
   async getAllPayments() {
     return this.adminService.getAllPayments();
+  }
+
+  @Get('platform-settings')
+  @ApiOperation({ summary: 'Get platform settings (Admin)' })
+  @ApiResponse({ status: 200, description: 'Platform settings' })
+  async getPlatformSettings() {
+    return this.adminService.getPlatformSettings();
+  }
+
+  @Patch('platform-settings/rating-period')
+  @ApiOperation({ summary: 'Update rating period in months (Admin)' })
+  @ApiResponse({ status: 200, description: 'Updated platform settings' })
+  async updateRatingPeriod(@Body('months') months: number) {
+    return this.adminService.updateRatingPeriod(Number(months));
   }
 }

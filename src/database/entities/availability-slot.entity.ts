@@ -14,10 +14,10 @@ export class AvailabilitySlot extends BaseEntity {
   @JoinColumn({ name: 'tutor_profile_id' })
   tutor: User;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', name: 'start_time' })
   @Index()
   startTime: Date;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', name: 'end_time' })
   endTime: Date;
 }

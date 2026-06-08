@@ -89,4 +89,10 @@ export class Booking extends BaseEntity {
 
   @Column({ type: 'varchar', length: 120, nullable: true, name: 'learner_label' })
   learnerLabel: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  notes: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'review_expires_at' })
+  reviewExpiresAt: Date | null;
 }

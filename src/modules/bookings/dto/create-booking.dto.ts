@@ -36,4 +36,9 @@ export class CreateBookingDto {
   @IsString()
   @IsOptional()
   discountCode?: string;
+
+  @ApiProperty({ example: 'Emma', required: false, description: 'Learner label for multi-learner accounts' })
+  @IsString()
+  @IsOptional()
+  learnerLabel?: string;
 }

@@ -31,13 +31,21 @@ export class NotificationsService {
   }
 
   private inferTitle(dto: CreateNotificationDto): string {
-    if (dto.type === 'message') return 'Message from Tutor';
+    if (dto.type === 'message') {
+      if (/message request/i.test(dto.notification || '')) {
+        return 'Message from Learner';
+      }
+      return 'Message from Tutor';
+    }
     if (dto.type === 'booking_confirmation') return 'Booking Confirmation';
+    if (dto.type === 'booking_request') return 'New Booking Request';
     if (dto.type === 'cancellation') return 'Cancellation Alert';
     if (dto.type === 'session_reminder') return 'Session Reminder';
     if (dto.type === 'support') return 'Tutor Scene Support';
     const text = dto.notification || '';
+    if (/message request/i.test(text)) return 'Message from Learner';
     if (/new message from/i.test(text)) return 'Message from Tutor';
+    if (/booking request/i.test(text)) return 'New Booking Request';
     if (/accepted|confirmed/i.test(text)) return 'Booking Confirmation';
     if (/cancel/i.test(text)) return 'Cancellation Alert';
     if (/reminder/i.test(text)) return 'Session Reminder';
@@ -46,7 +54,9 @@ export class NotificationsService {
   }
 
   private inferType(text: string): string {
+    if (/message request/i.test(text)) return 'message';
     if (/new message from/i.test(text)) return 'message';
+    if (/booking request/i.test(text)) return 'booking_request';
     if (/accepted|confirmed/i.test(text)) return 'booking_confirmation';
     if (/cancel/i.test(text)) return 'cancellation';
     if (/reminder/i.test(text)) return 'session_reminder';

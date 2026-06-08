@@ -83,6 +83,9 @@ export class Prospect {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   fee: number;
 
+  @Column({ type: 'boolean', default: false, name: 'auto_accept_booking_requests' })
+  autoAcceptBookingRequests: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

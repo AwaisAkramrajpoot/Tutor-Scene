@@ -1,6 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
+
+export type ConnectedAccountPayoutStatus = {
+  ready: boolean;
+  message?: string;
+};
 
 @Injectable()
 export class StripeService {
@@ -12,6 +17,50 @@ export class StripeService {
     this.stripe = new Stripe(stripeSecretKey, {
       apiVersion: '2023-10-16',
     });
+  }
+
+  shouldSkipConnect(): boolean {
+    return this.configService.get<string>('STRIPE_SKIP_CONNECT') === 'true';
+  }
+
+  async getConnectedAccountPayoutStatus(
+    connectedAccountId: string,
+  ): Promise<ConnectedAccountPayoutStatus> {
+    try {
+      const account = await this.stripe.accounts.retrieve(connectedAccountId);
+      const transfersCapability = account.capabilities?.transfers;
+
+      if (transfersCapability !== 'active') {
+        return {
+          ready: false,
+          message:
+            'Complete your Stripe payout setup before accepting bookings. Open My Wallet and finish Stripe Connect onboarding.',
+        };
+      }
+
+      const requirementsDue = account.requirements?.currently_due?.length ?? 0;
+      const pendingVerification =
+        account.requirements?.pending_verification?.length ?? 0;
+
+      if (requirementsDue > 0 || pendingVerification > 0) {
+        return {
+          ready: false,
+          message:
+            'Your Stripe account still has pending requirements. Open My Wallet and finish Stripe Connect onboarding before accepting bookings.',
+        };
+      }
+
+      return { ready: true };
+    } catch (error) {
+      this.logger.error(
+        `Failed to verify connected account ${connectedAccountId}: ${error.message}`,
+      );
+      return {
+        ready: false,
+        message:
+          'Unable to verify your Stripe payout account. Open My Wallet and complete Stripe Connect onboarding.',
+      };
+    }
   }
 
   async createPaymentIntent(
@@ -53,6 +102,14 @@ export class StripeService {
       return paymentIntent;
     } catch (error) {
       this.logger.error(`Failed to create payment intent: ${error.message}`);
+      if (
+        error.message?.includes('capabilities') ||
+        error.message?.includes('destination account')
+      ) {
+        throw new BadRequestException(
+          'Your Stripe payout account is not ready to receive payments. Open My Wallet and complete Stripe Connect onboarding, then try again.',
+        );
+      }
       throw error;
     }
   }
