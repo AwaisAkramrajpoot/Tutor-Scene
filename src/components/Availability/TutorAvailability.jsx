@@ -5,6 +5,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import AvailabilityModal from './AvailabilityModal';
+import AutoAcceptBookingToggle from '../tutor/AutoAcceptBookingToggle';
 import { showSystemMessage } from '../../utils/systemMessage';
 
 const TutorAvailability = () => {
@@ -615,6 +616,20 @@ const TutorAvailability = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Your Availability</h1>
           <p className="text-gray-600">Click on the calendar to add availability slots</p>
+        </div>
+
+        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Booking Requests</h2>
+              <p className="mt-1 text-sm text-gray-600 max-w-2xl">
+                Accept or decline requests within 72 hours, or opt in to automatically accept
+                incoming booking requests. When enabled, requests appear in Notifications instead
+                of the dashboard list.
+              </p>
+            </div>
+            <AutoAcceptBookingToggle />
+          </div>
         </div>
 
         {/* Calendar View */}

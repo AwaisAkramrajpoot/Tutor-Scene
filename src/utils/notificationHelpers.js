@@ -66,7 +66,7 @@ export const NOTIFICATION_EMPTY_STATE_COPY = {
   student:
     'You will see session reminders, booking confirmations, cancellation alerts, messages from tutors, and messages from Tutor Scene Support here.',
   tutor:
-    'You will see session reminders, booking confirmations, cancellation alerts, messages from learners, and messages from Tutor Scene Support here.',
+    'You will see session reminders, booking confirmations, booking requests, cancellation alerts, messages from learners, and messages from Tutor Scene Support here.',
 };
 
 export const getNotificationsPagePath = (role) =>

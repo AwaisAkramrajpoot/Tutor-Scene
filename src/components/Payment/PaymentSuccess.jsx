@@ -10,13 +10,28 @@ const PaymentSuccess = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchBookingDetails = async () => {
+    const confirmAndLoad = async () => {
       try {
         setLoading(true);
-        const data = await apiRequest(`/api/v1/bookings/${id}`, 'GET');
-        setBooking(data);
+        const params = new URLSearchParams(window.location.search);
+        const redirectStatus = params.get('redirect_status');
+
+        if (redirectStatus === 'succeeded') {
+          // Stripe confirmed payment — verify with backend and confirm booking
+          try {
+            const confirmed = await apiRequest(`/api/v1/bookings/${id}/verify-payment`, 'POST');
+            setBooking(confirmed);
+          } catch {
+            // If verify-payment fails (e.g. already confirmed by webhook), just load booking
+            const data = await apiRequest(`/api/v1/bookings/${id}`, 'GET');
+            setBooking(data);
+          }
+        } else {
+          const data = await apiRequest(`/api/v1/bookings/${id}`, 'GET');
+          setBooking(data);
+        }
       } catch (err) {
-        console.error('Failed to fetch booking details:', err);
+        console.error('Failed to load booking details:', err);
         setError(err.message || 'Failed to load booking information');
       } finally {
         setLoading(false);
@@ -24,7 +39,7 @@ const PaymentSuccess = () => {
     };
 
     if (id) {
-      fetchBookingDetails();
+      confirmAndLoad();
     }
   }, [id]);
 

@@ -12,6 +12,7 @@ import {
   normalizeNotification,
   TYPE_ICON_COLOR,
 } from '../../utils/notificationHelpers';
+import BookingRequestDetailModal from './BookingRequestDetailModal';
 
 const FILTER_TABS = [
   { id: 'all', label: 'All' },
@@ -104,6 +105,8 @@ const TutorNotificationsPage = () => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterValue, setFilterValue] = useState('all');
   const [busy, setBusy] = useState(false);
+  const [detailBookingId, setDetailBookingId] = useState(null);
+  const [prospectId, setProspectId] = useState(null);
   const userIdRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -115,6 +118,7 @@ const TutorNotificationsPage = () => {
       }
       const user = JSON.parse(userStr);
       userIdRef.current = user.id;
+      setProspectId(user.prospectId || null);
       const res = await getNotifications(user.id);
       const list = (Array.isArray(res) ? res : res?.data || []).map((n) =>
         normalizeNotification(n, 'tutor'),
@@ -196,8 +200,7 @@ const TutorNotificationsPage = () => {
     navigate('/messages');
   };
 
-  const sessionLink =
-    selected?.type === 'booking_request' ? '/tutor-dashboard' : '/tutor/session-history';
+  const sessionLink = '/tutor/session-history';
 
   return (
     <Layout>
@@ -361,12 +364,21 @@ const TutorNotificationsPage = () => {
                       </p>
                     </div>
                     <div className="mt-6 flex flex-wrap gap-3">
-                      {SESSION_TYPES.includes(selected.type) && (
+                      {selected.type === 'booking_request' && selected.metadata?.bookingId && (
+                        <button
+                          type="button"
+                          onClick={() => setDetailBookingId(selected.metadata.bookingId)}
+                          className="rounded-lg bg-brand-medium-blue px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-dark-blue"
+                        >
+                          View Request Details
+                        </button>
+                      )}
+                      {SESSION_TYPES.includes(selected.type) && selected.type !== 'booking_request' && (
                         <Link
                           to={sessionLink}
                           className="rounded-lg bg-brand-medium-blue px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-dark-blue"
                         >
-                          {selected.type === 'booking_request' ? 'View Request' : 'View Session'}
+                          View Session
                         </Link>
                       )}
                       {selected.type === 'message' && (
@@ -390,6 +402,13 @@ const TutorNotificationsPage = () => {
           )}
         </div>
       </div>
+
+      <BookingRequestDetailModal
+        open={Boolean(detailBookingId)}
+        bookingId={detailBookingId}
+        prospectId={prospectId}
+        onClose={() => setDetailBookingId(null)}
+      />
     </Layout>
   );
 };
