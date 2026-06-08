@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -155,6 +155,25 @@ export class BookingsController {
   @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing authentication token' })
   async getTutorStatistics(@Param('tutorId', ParseIntPipe) tutorId: number) {
     return this.bookingsService.getTutorStatistics(tutorId);
+  }
+
+  @Post(':id/verify-payment')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify Stripe payment and confirm booking (used after payment redirect)' })
+  @ApiResponse({ status: 200, description: 'Booking confirmed' })
+  async verifyPayment(@Param('id', ParseIntPipe) id: number) {
+    return this.bookingsService.verifyAndConfirmPayment(id);
+  }
+
+  @Get('tutor/:tutorId/ratings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get tutor ratings (satisfaction, acceptance, cancellation)' })
+  @ApiResponse({ status: 200, description: 'Tutor ratings' })
+  async getTutorRatings(@Param('tutorId', ParseIntPipe) tutorId: number) {
+    return this.bookingsService.getTutorRatings(tutorId);
   }
 
   @Get('tutor-user/:userId/earnings-history')
