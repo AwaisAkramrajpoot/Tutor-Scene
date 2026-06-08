@@ -648,7 +648,11 @@ export default function AdminDashboard() {
 
   const viewRow = () => {
     if (menuRow?.id) {
-      navigate(`/admin/tutor/${menuRow.id}`);
+      if (activeTab === 'students') {
+        navigate(`/admin/student/${menuRow.id}`);
+      } else {
+        navigate(`/admin/tutor/${menuRow.id}`);
+      }
     }
     closeMenu();
   };
