@@ -25,6 +25,7 @@ import { AboutPage } from './components/About/Index';
 import { Home as BecomeTutorPage } from './components/TutorProfile/Home/index';
 import AdminDashboard from './components/AdminDashboard';
 import TutorDetails from './components/TutorDetails';
+import StudentDetails from './components/StudentDetails';
 import ProfileUnderReview from './components/ProfileUnderReview';
 import MyWalletPage from './components/StripeOnboarding/MyWalletPage';
 import OnboardingRefresh from './components/StripeOnboarding/OnboardingRefresh';
@@ -437,6 +438,14 @@ function App() {
               <Layout><TutorDetails /></Layout>
             </RoleProtectedRoute>
           } 
+        />
+        <Route
+          path="/admin/student/:id"
+          element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <Layout><StudentDetails /></Layout>
+            </RoleProtectedRoute>
+          }
         />
 
         {/* Shared Protected Routes - Any authenticated user */}
