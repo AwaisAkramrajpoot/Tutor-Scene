@@ -230,4 +230,30 @@ export class StripeService {
       throw error;
     }
   }
+
+  shouldSkipConnect(): boolean {
+    return this.configService.get<string>('STRIPE_SKIP_CONNECT') === 'true';
+  }
+
+  async getConnectedAccountPayoutStatus(
+    connectedAccountId: string,
+  ): Promise<{ ready: boolean; message?: string }> {
+    try {
+      const account = await this.stripe.accounts.retrieve(connectedAccountId);
+      const transfersCapability = account.capabilities?.transfers;
+      if (transfersCapability === 'active') {
+        return { ready: true };
+      }
+      if (transfersCapability === 'pending') {
+        return { ready: false, message: 'Your Stripe payout setup is still pending. Go to My Wallet to complete it.' };
+      }
+      return {
+        ready: false,
+        message: 'Complete your Stripe payout setup before accepting bookings. Go to My Wallet and finish onboarding.',
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to retrieve connected account status: ${error?.message}`);
+      return { ready: false, message: 'Unable to verify Stripe account status. Please try again.' };
+    }
+  }
 }

@@ -14,11 +14,8 @@ import { InterviewsModule } from '../interviews/interviews.module';
 import { AuthModule } from '../auth/auth.module';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { BookingsSchedulerService } from './bookings-scheduler.service';
-
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([Booking, User, Prospect, Payment, Review, PlatformSettings]),
     forwardRef(() => InterviewsModule),
     AuthModule,

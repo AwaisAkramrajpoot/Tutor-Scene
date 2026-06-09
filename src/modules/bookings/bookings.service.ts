@@ -15,6 +15,9 @@ import { ZoomService } from '../interviews/services/zoom.service';
 import { MailService } from '../auth/services/mail.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Review } from '@/database/entities/review.entity';
+import { PlatformSettings } from '@/database/entities/platform-settings.entity';
+import { ReviewStatus } from '@/database/entities/enums';
 
 @Injectable()
 export class BookingsService {
@@ -207,8 +210,8 @@ export class BookingsService {
           
           this.logger.log(`Discount applied: ${booking.discountCode}, Amount: ${discountAmount}, Final Price: ${finalPrice}`);
         }
-      } catch (error) {
-        this.logger.warn(`Invalid discount code: ${booking.discountCode} - ${error.message}`);
+      } catch (error: any) {
+        this.logger.warn(`Invalid discount code: ${booking.discountCode} - ${error?.message}`);
         // Continue without discount if code is invalid
         booking.discountCode = null;
       }
@@ -219,37 +222,28 @@ export class BookingsService {
       select: ['paymentAccountId', 'paymentOnBoarded'],
     });
 
-    const skipConnect = this.stripeService.shouldSkipConnect();
     const connectedAccountId = tutorProspectForPayment?.paymentAccountId;
+    const skipConnect = this.stripeService.shouldSkipConnect();
 
     if (!skipConnect) {
       if (!connectedAccountId) {
         throw new BadRequestException(
-          'Connect your Stripe account before accepting bookings. Go to My Wallet to set up payouts.',
+          'Connect your Stripe account before accepting bookings. Go to My Wallet.',
         );
       }
-
-      const payoutStatus =
-        await this.stripeService.getConnectedAccountPayoutStatus(
-          connectedAccountId,
-        );
+      const payoutStatus = await this.stripeService.getConnectedAccountPayoutStatus(connectedAccountId);
       if (!payoutStatus.ready) {
         throw new BadRequestException(
-          payoutStatus.message ||
-            'Complete your Stripe payout setup before accepting bookings. Go to My Wallet and finish onboarding.',
+          payoutStatus.message || 'Complete your Stripe payout setup before accepting bookings. Go to My Wallet and finish onboarding.',
         );
       }
-
-      // Sync the DB flag if Stripe confirms ready but flag is still false
       if (!tutorProspectForPayment.paymentOnBoarded) {
-        await this.prospectRepository.update(
-          { id: prospectId },
-          { paymentOnBoarded: true },
-        );
+        await this.prospectRepository.update({ id: prospectId }, { paymentOnBoarded: true });
       }
     }
 
-    const paymentIntentParams: Record<string, string> = {
+    // Create Stripe payment intent with discount
+    const paymentIntentParams: any = {
       bookingId: booking.id.toString(),
       studentId: booking.studentProfileId.toString(),
       tutorId: booking.tutorProfileId.toString(),
@@ -276,8 +270,8 @@ export class BookingsService {
         // Note: Coupons are typically applied at checkout, not to payment intent
         // We'll store the discount info in the booking for reference
         this.logger.log(`Stripe coupon available: ${stripeCouponId}`);
-      } catch (error) {
-        this.logger.error(`Failed to apply Stripe coupon: ${error.message}`);
+      } catch (error: any) {
+        this.logger.error(`Failed to apply Stripe coupon: ${error?.message}`);
       }
     }
 
@@ -526,8 +520,8 @@ export class BookingsService {
       try {
         await this.stripeService.refundPayment(booking.stripePaymentIntentId);
         // Note: hasRefunded will be set to true via webhook when refund succeeds
-      } catch (error) {
-        this.logger.error(`Failed to process refund for booking ${id}: ${error.message}`);
+      } catch (error: any) {
+        this.logger.error(`Failed to process refund for booking ${id}: ${error?.message}`);
         throw new BadRequestException('Failed to process refund');
       }
     }
@@ -1070,5 +1064,71 @@ export class BookingsService {
 
     // Format as TUT001, TUT002, etc. (uppercase)
     return `TUT${nextNumber.toString().padStart(3, '0')}`;
+  }
+
+  async verifyAndConfirmPayment(bookingId: number): Promise<Booking> {
+    const booking = await this.findOne(bookingId);
+    if (booking.status === BookingStatus.CONFIRMED) return booking;
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new BadRequestException(`Booking is in status "${booking.status}" and cannot be confirmed`);
+    }
+    if (!booking.stripePaymentIntentId) {
+      throw new BadRequestException('No payment intent found for this booking');
+    }
+    const paymentIntent = await this.stripeService.retrievePaymentIntent(booking.stripePaymentIntentId);
+    if (paymentIntent.status !== 'succeeded') {
+      throw new BadRequestException(`Payment not completed. Stripe status: ${paymentIntent.status}`);
+    }
+    return this.confirmBookingPayment(bookingId);
+  }
+
+  async getTutorRatings(tutorId: number): Promise<{
+    satisfactionRate: number;
+    acceptanceRate: number;
+    cancellationRate: number;
+    ratingPeriodMonths: number;
+    totalReviews: number;
+  }> {
+    const settings = await this.platformSettingsRepository.findOne({ where: { id: 1 } });
+    const ratingPeriodMonths = settings?.ratingPeriodMonths ?? 3;
+
+    const since = new Date();
+    since.setMonth(since.getMonth() - ratingPeriodMonths);
+
+    const reviews = await this.reviewRepository.find({
+      where: { tutorProfileId: tutorId, status: ReviewStatus.APPROVED },
+    });
+    const recentReviews = reviews.filter((r) => new Date(r.createdAt) >= since);
+    const totalReviews = recentReviews.length;
+    const satisfactionRate =
+      totalReviews > 0
+        ? Math.round((recentReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews) * 10) / 10
+        : 0;
+
+    const bookings = await this.bookingRepository
+      .createQueryBuilder('b')
+      .select('b.status', 'status')
+      .where('b.tutorProfileId = :tutorId', { tutorId })
+      .andWhere('b.createdAt >= :since', { since })
+      .andWhere('b.status IN (:...statuses)', {
+        statuses: [
+          BookingStatus.PENDING,
+          BookingStatus.CONFIRMED,
+          BookingStatus.COMPLETED,
+          BookingStatus.CANCELLED,
+        ],
+      })
+      .getRawMany();
+
+    const total = bookings.length;
+    const accepted = bookings.filter((b) =>
+      [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.COMPLETED].includes(b.status),
+    ).length;
+    const cancelled = bookings.filter((b) => b.status === BookingStatus.CANCELLED).length;
+
+    const acceptanceRate = total > 0 ? Math.round((accepted / total) * 100) : 0;
+    const cancellationRate = total > 0 ? Math.round((cancelled / total) * 100) : 0;
+
+    return { satisfactionRate, acceptanceRate, cancellationRate, ratingPeriodMonths, totalReviews };
   }
 }
