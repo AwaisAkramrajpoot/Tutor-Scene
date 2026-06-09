@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../database/entities/user.entity';
 import { Prospect } from '../../database/entities/prospect.entity';
+import { LearnerAssessmentResponse } from '../../database/entities/learner-assessment-response.entity';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UserRole, UserStatus, ProspectStatus } from '@/database/entities/enums';
@@ -15,6 +16,8 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Prospect)
     private readonly prospectRepository: Repository<Prospect>,
+    @InjectRepository(LearnerAssessmentResponse)
+    private readonly learnerRepository: Repository<LearnerAssessmentResponse>,
     private readonly mailService: MailService,
   ) {}
 
@@ -39,6 +42,74 @@ export class UsersService {
     const user = await this.findOne(id);
     Object.assign(user, updateUserDto);
     return await this.userRepository.save(user);
+  }
+
+  async findStudentDetail(id: number) {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`Student with ID ${id} not found`);
+    }
+    if (user.role !== UserRole.STUDENT) {
+      throw new NotFoundException(`Student with ID ${id} not found`);
+    }
+
+    const rows = await this.learnerRepository
+      .createQueryBuilder('l')
+      .where('l.user_id = :userId', { userId: id })
+      .andWhere('(l.profile_status = :profile OR l.status = :completed)', {
+        profile: 'profile',
+        completed: 'completed',
+      })
+      .orderBy('l.is_self', 'DESC')
+      .addOrderBy('l.updated_at', 'DESC')
+      .getMany();
+
+    const seen = new Set<string>();
+    const learners = rows
+      .filter((row) => {
+        if (seen.has(row.learnerLabel)) return false;
+        seen.add(row.learnerLabel);
+        return true;
+      })
+      .map((row) => ({
+        id: row.id,
+        learnerLabel: row.learnerLabel,
+        learnerFirstName: row.learnerFirstName,
+        learnerLastName: row.learnerLastName,
+        gradeLevel: row.gradeLevel,
+        gender: row.gender,
+        relationshipToLearner: row.relationshipToLearner,
+        avatarIcon: row.avatarIcon,
+        isSelf: row.isSelf,
+        status: row.status,
+        profileStatus: row.profileStatus,
+        updatedAt: row.updatedAt,
+      }));
+
+    return {
+      student: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        status: user.status,
+        gender: user.gender,
+        avatarIcon: user.avatarIcon,
+        profilePhotoUrl: user.profilePhotoUrl,
+        registersSelfAsLearner: user.registersSelfAsLearner,
+        availableCredits: user.availableCredits,
+        referralCode: user.referralCode,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified,
+        twoFactorEnabled: user.twoFactorEnabled,
+        createdAt: user.createdAt,
+        lastLoginAt: user.lastLoginAt,
+        suspensionReason: user.suspensionReason,
+      },
+      learners,
+    };
   }
 
   async findAllStudents(status?: string): Promise<User[]> {
