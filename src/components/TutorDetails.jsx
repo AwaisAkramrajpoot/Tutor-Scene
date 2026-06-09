@@ -18,22 +18,71 @@ const TutorDetails = () => {
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [suspensionReason, setSuspensionReason] = useState('');
   const [suspendingTutor, setSuspendingTutor] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editUserForm, setEditUserForm] = useState({});
+  const [editProspectForm, setEditProspectForm] = useState({});
 
-  useEffect(() => {
-    const fetchTutor = async () => {
-      try {
-        setLoading(true);
-        const data = await apiRequest(`/api/v1/onboarding/tutor/${id}?admin=true`);
-        setTutor(data.tutor || data.data || data);
-      } catch (err) {
-        console.error('Failed to fetch tutor:', err);
-        setError(err.message || 'Failed to load tutor details');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTutor();
-  }, [id]);
+  const fetchTutor = async () => {
+    try {
+      setLoading(true);
+      const data = await apiRequest(`/api/v1/onboarding/tutor/${id}?admin=true`);
+      setTutor(data.tutor || data.data || data);
+    } catch (err) {
+      console.error('Failed to fetch tutor:', err);
+      setError(err.message || 'Failed to load tutor details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchTutor(); }, [id]);
+
+  const openEdit = () => {
+    setEditUserForm({
+      firstName: tutor.user?.firstName || tutor.fullName?.split(' ')[0] || '',
+      lastName: tutor.user?.lastName || tutor.fullName?.split(' ').slice(1).join(' ') || '',
+      email: tutor.user?.email || '',
+      phoneNumber: tutor.user?.phoneNumber || '',
+      gender: tutor.user?.gender || '',
+      status: tutor.user?.status || '',
+    });
+    setEditProspectForm({
+      fullName: tutor.fullName || '',
+      dateOfBirth: tutor.dateOfBirth ? tutor.dateOfBirth.slice(0, 10) : '',
+      subjects: tutor.subjects || '',
+      gradeLevels: tutor.gradeLevels || '',
+      yearsOfExperience: tutor.yearsOfExperience ?? '',
+      teachingPhilosophy: tutor.teachingPhilosophy || '',
+      fee: tutor.fee ?? '',
+      status: tutor.status || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      await Promise.all([
+        tutor.userId && apiRequest(`/api/v1/admin/users/${tutor.userId}/profile`, {
+          method: 'PATCH',
+          body: JSON.stringify(editUserForm),
+        }),
+        apiRequest(`/api/v1/admin/prospects/${tutor.id}/profile`, {
+          method: 'PATCH',
+          body: JSON.stringify(editProspectForm),
+        }),
+      ]);
+      setShowEditModal(false);
+      setSuccessMessage('Profile updated successfully!');
+      await fetchTutor();
+    } catch (err) {
+      setError(err.message || 'Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const openConfirmDialog = (action, onConfirm) => {
     setConfirmDialog({ isOpen: true, action, onConfirm });
@@ -592,6 +641,12 @@ const TutorDetails = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
               <div className="space-y-2">
+                <button
+                  onClick={openEdit}
+                  className="w-full bg-brand-medium-blue hover:bg-brand-dark-blue text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                >
+                  Edit Profile
+                </button>
                 {/* Message Request Button for Students */}
                 <MessageRequestButton
                   tutorId={tutor.id}
@@ -632,6 +687,110 @@ const TutorDetails = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 my-4">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-semibold text-gray-900">Edit Tutor Profile</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="max-h-[65vh] overflow-y-auto pr-1 space-y-6">
+              {/* Account fields */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Account</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    { key: 'firstName', label: 'First Name' },
+                    { key: 'lastName', label: 'Last Name' },
+                    { key: 'email', label: 'Email', type: 'email' },
+                    { key: 'phoneNumber', label: 'Phone Number' },
+                    { key: 'gender', label: 'Gender' },
+                  ].map(({ key, label, type = 'text' }) => (
+                    <div key={key}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                      <input type={type} value={editUserForm[key] ?? ''}
+                        onChange={(e) => setEditUserForm((f) => ({ ...f, [key]: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-medium-blue text-sm" />
+                    </div>
+                  ))}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Account Status</label>
+                    <select value={editUserForm.status ?? ''}
+                      onChange={(e) => setEditUserForm((f) => ({ ...f, status: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-medium-blue text-sm">
+                      {['active', 'inactive', 'suspended', 'pending'].map((s) => (
+                        <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tutor profile fields */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Tutor Profile</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    { key: 'fullName', label: 'Full Name' },
+                    { key: 'dateOfBirth', label: 'Date of Birth', type: 'date' },
+                    { key: 'subjects', label: 'Subjects (comma-separated)' },
+                    { key: 'gradeLevels', label: 'Grade Levels' },
+                    { key: 'yearsOfExperience', label: 'Years of Experience', type: 'number' },
+                    { key: 'fee', label: 'Hourly Fee (USD)', type: 'number' },
+                  ].map(({ key, label, type = 'text' }) => (
+                    <div key={key}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                      <input type={type} value={editProspectForm[key] ?? ''}
+                        onChange={(e) => setEditProspectForm((f) => ({ ...f, [key]: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-medium-blue text-sm" />
+                    </div>
+                  ))}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Prospect Status</label>
+                    <select value={editProspectForm.status ?? ''}
+                      onChange={(e) => setEditProspectForm((f) => ({ ...f, status: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-medium-blue text-sm">
+                      {['pending', 'awaiting_interview', 'active', 'suspended'].map((s) => (
+                        <option key={s} value={s}>{s.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Teaching Philosophy</label>
+                  <textarea value={editProspectForm.teachingPhilosophy ?? ''}
+                    onChange={(e) => setEditProspectForm((f) => ({ ...f, teachingPhilosophy: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-medium-blue text-sm resize-none" />
+                </div>
+              </div>
+            </div>
+
+            {error && showEditModal && (
+              <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 text-sm">{error}</div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowEditModal(false)} disabled={saving}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-medium disabled:opacity-50">
+                Cancel
+              </button>
+              <button onClick={handleSave} disabled={saving}
+                className="flex-1 bg-brand-medium-blue hover:bg-brand-dark-blue text-white py-2 px-4 rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+                {saving && <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
