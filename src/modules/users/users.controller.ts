@@ -39,6 +39,33 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get('students/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all students (Admin only)' })
+  @ApiQuery({ 
+    name: 'status', 
+    required: false, 
+    enum: ['active', 'inactive', 'suspended', 'pending', 'all'], 
+    description: 'Filter by user status (use "all" to get all records regardless of status)' 
+  })
+  @ApiResponse({ status: 200, description: 'List of students' })
+  findAllStudents(@Query('status') status?: string) {
+    return this.usersService.findAllStudents(status);
+  }
+
+  @Get('students/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get student profile with learners (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Student profile found' })
+  @ApiResponse({ status: 404, description: 'Student not found' })
+  findStudentDetail(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.findStudentDetail(id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, description: 'User found' })
@@ -56,22 +83,6 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.update(id, updateUserDto);
-  }
-
-  @Get('students/all')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all students (Admin only)' })
-  @ApiQuery({ 
-    name: 'status', 
-    required: false, 
-    enum: ['active', 'inactive', 'suspended', 'pending', 'all'], 
-    description: 'Filter by user status (use "all" to get all records regardless of status)' 
-  })
-  @ApiResponse({ status: 200, description: 'List of students' })
-  findAllStudents(@Query('status') status?: string) {
-    return this.usersService.findAllStudents(status);
   }
 
   @Patch(':id/status')
