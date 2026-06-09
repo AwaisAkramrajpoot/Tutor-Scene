@@ -40,6 +40,8 @@ const STATEMENT =
 const POPUP_WARNING =
   'Please ensure pop-up blockers are turned off before launching the Learner Assessment.';
 
+const SECTION_TITLE = 'Get Matched in 3 Easy Steps';
+
 const BookSessionBlueSection = ({
   embedded = false,
   learnerChoices,
@@ -59,7 +61,7 @@ const BookSessionBlueSection = ({
           >
             <div className="min-w-[1rem] flex-1 border-t border-white/40" />
             <h2 className="shrink-0 px-2 text-center text-xl font-semibold text-white sm:text-2xl">
-              Book a Session in 3 Easy Steps
+              {SECTION_TITLE}
             </h2>
             <ChevronDownIcon collapsed={bookSessionStepsOpen} />
             <div className="min-w-[1rem] flex-1 border-t border-white/40" />
@@ -96,28 +98,27 @@ const BookSessionBlueSection = ({
         <button
           type="button"
           onClick={() => setBookSessionStepsOpen(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/10 py-3 text-sm font-medium text-white transition-colors hover:bg-white/20"
+          aria-label={`Expand ${SECTION_TITLE}`}
+          className="flex w-full items-center justify-center rounded-lg bg-white/10 py-2 text-white transition-colors hover:bg-white/20"
         >
           <span className="inline-block -rotate-90">
             <ChevronDownIcon collapsed={false} />
           </span>
-          <span>Book a Session in 3 Easy Steps</span>
         </button>
       )}
     </>
   );
 
-  const assessmentBlock =
-    bookSessionStepsOpen ? (
-      <>
-        <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-950 sm:text-sm">
-          {POPUP_WARNING}
-        </div>
+  const assessmentBlock = (
+    <>
+      <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-950 sm:text-sm">
+        {POPUP_WARNING}
+      </div>
 
-        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-5 shadow-md sm:p-6">
-          <h3 className="text-lg font-bold text-brand-dark-blue">
-            Learner Assessment
-          </h3>
+      <div className="mt-4 rounded-xl border border-gray-200 bg-white p-5 shadow-md sm:p-6">
+        <h3 className="text-lg font-bold text-brand-dark-blue">
+          {SECTION_TITLE}
+        </h3>
           <p className="mt-2 text-sm text-gray-600">
             Start the assessment to match the learner with tutors based on
             subject needs and learning style.
@@ -155,8 +156,8 @@ const BookSessionBlueSection = ({
             </button>
           </div>
         </div>
-      </>
-    ) : null;
+    </>
+  );
 
   const maxInner = embedded
     ? 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-24 md:ml-36'
