@@ -385,10 +385,13 @@ const StudentDashboard = () => {
           {/* ── Left Column ── */}
           <div className="lg:col-span-3 space-y-6">
             {/* Quick Action Cards */}
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div
                 onClick={handleBookSession}
-                className="flex-1 min-w-0 basis-0 bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && handleBookSession()}
+                className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center h-full"
               >
                 <div className="w-14 h-14 bg-brand-medium-blue rounded-full flex items-center justify-center border-2 border-brand-gold mb-3">
                   <svg
@@ -396,12 +399,13 @@ const StudentDashboard = () => {
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                     />
                   </svg>
                 </div>
@@ -415,7 +419,10 @@ const StudentDashboard = () => {
 
               <div
                 onClick={handleFindTutors}
-                className="flex-1 min-w-0 basis-0 bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && handleFindTutors()}
+                className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center h-full"
               >
                 <div className="w-14 h-14 bg-brand-medium-blue rounded-full flex items-center justify-center border-2 border-brand-gold mb-3">
                   <svg
@@ -440,7 +447,10 @@ const StudentDashboard = () => {
 
               <div
                 onClick={handleMySessions}
-                className="flex-1 min-w-0 basis-0 bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && handleMySessions()}
+                className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col items-center text-center h-full"
               >
                 <div className="w-14 h-14 bg-brand-medium-blue rounded-full flex items-center justify-center border-2 border-brand-gold mb-3">
                   <svg
