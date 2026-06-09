@@ -447,6 +447,14 @@ function App() {
             </RoleProtectedRoute>
           }
         />
+        <Route
+          path="/admin/student/:id"
+          element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <Layout><StudentDetails /></Layout>
+            </RoleProtectedRoute>
+          }
+        />
 
         {/* Shared Protected Routes - Any authenticated user */}
         <Route 
