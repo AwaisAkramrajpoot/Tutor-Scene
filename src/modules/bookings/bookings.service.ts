@@ -15,9 +15,6 @@ import { ZoomService } from '../interviews/services/zoom.service';
 import { MailService } from '../auth/services/mail.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { Review } from '@/database/entities/review.entity';
-import { PlatformSettings } from '@/database/entities/platform-settings.entity';
-import { ReviewStatus } from '@/database/entities/enums';
 
 @Injectable()
 export class BookingsService {
@@ -1064,71 +1061,5 @@ export class BookingsService {
 
     // Format as TUT001, TUT002, etc. (uppercase)
     return `TUT${nextNumber.toString().padStart(3, '0')}`;
-  }
-
-  async verifyAndConfirmPayment(bookingId: number): Promise<Booking> {
-    const booking = await this.findOne(bookingId);
-    if (booking.status === BookingStatus.CONFIRMED) return booking;
-    if (booking.status !== BookingStatus.PENDING) {
-      throw new BadRequestException(`Booking is in status "${booking.status}" and cannot be confirmed`);
-    }
-    if (!booking.stripePaymentIntentId) {
-      throw new BadRequestException('No payment intent found for this booking');
-    }
-    const paymentIntent = await this.stripeService.retrievePaymentIntent(booking.stripePaymentIntentId);
-    if (paymentIntent.status !== 'succeeded') {
-      throw new BadRequestException(`Payment not completed. Stripe status: ${paymentIntent.status}`);
-    }
-    return this.confirmBookingPayment(bookingId);
-  }
-
-  async getTutorRatings(tutorId: number): Promise<{
-    satisfactionRate: number;
-    acceptanceRate: number;
-    cancellationRate: number;
-    ratingPeriodMonths: number;
-    totalReviews: number;
-  }> {
-    const settings = await this.platformSettingsRepository.findOne({ where: { id: 1 } });
-    const ratingPeriodMonths = settings?.ratingPeriodMonths ?? 3;
-
-    const since = new Date();
-    since.setMonth(since.getMonth() - ratingPeriodMonths);
-
-    const reviews = await this.reviewRepository.find({
-      where: { tutorProfileId: tutorId, status: ReviewStatus.APPROVED },
-    });
-    const recentReviews = reviews.filter((r) => new Date(r.createdAt) >= since);
-    const totalReviews = recentReviews.length;
-    const satisfactionRate =
-      totalReviews > 0
-        ? Math.round((recentReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews) * 10) / 10
-        : 0;
-
-    const bookings = await this.bookingRepository
-      .createQueryBuilder('b')
-      .select('b.status', 'status')
-      .where('b.tutorProfileId = :tutorId', { tutorId })
-      .andWhere('b.createdAt >= :since', { since })
-      .andWhere('b.status IN (:...statuses)', {
-        statuses: [
-          BookingStatus.PENDING,
-          BookingStatus.CONFIRMED,
-          BookingStatus.COMPLETED,
-          BookingStatus.CANCELLED,
-        ],
-      })
-      .getRawMany();
-
-    const total = bookings.length;
-    const accepted = bookings.filter((b) =>
-      [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.COMPLETED].includes(b.status),
-    ).length;
-    const cancelled = bookings.filter((b) => b.status === BookingStatus.CANCELLED).length;
-
-    const acceptanceRate = total > 0 ? Math.round((accepted / total) * 100) : 0;
-    const cancellationRate = total > 0 ? Math.round((cancelled / total) * 100) : 0;
-
-    return { satisfactionRate, acceptanceRate, cancellationRate, ratingPeriodMonths, totalReviews };
   }
 }

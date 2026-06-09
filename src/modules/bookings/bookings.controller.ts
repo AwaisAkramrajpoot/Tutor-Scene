@@ -212,25 +212,6 @@ export class BookingsController {
     return this.bookingsService.getTutorStatistics(tutorId);
   }
 
-  @Post(':id/verify-payment')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verify Stripe payment and confirm booking (used after payment redirect)' })
-  @ApiResponse({ status: 200, description: 'Booking confirmed' })
-  async verifyPayment(@Param('id', ParseIntPipe) id: number) {
-    return this.bookingsService.verifyAndConfirmPayment(id);
-  }
-
-  @Get('tutor/:tutorId/ratings')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get tutor ratings (satisfaction, acceptance, cancellation)' })
-  @ApiResponse({ status: 200, description: 'Tutor ratings' })
-  async getTutorRatings(@Param('tutorId', ParseIntPipe) tutorId: number) {
-    return this.bookingsService.getTutorRatings(tutorId);
-  }
-
   @Get('tutor-user/:userId/earnings-history')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
