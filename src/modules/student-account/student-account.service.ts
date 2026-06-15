@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, MoreThan } from 'typeorm';
@@ -184,10 +183,14 @@ export class StudentAccountService {
     if (!user) throw new NotFoundException('User not found');
     const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
     if (!valid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new BadRequestException(
+        'The current password you entered is incorrect. Please try again.',
+      );
     }
     if (dto.currentPassword === dto.newPassword) {
-      throw new BadRequestException('New password must be different');
+      throw new BadRequestException(
+        'Your new password must be different from your current password.',
+      );
     }
     user.passwordHash = await bcrypt.hash(dto.newPassword, 10);
     await this.userRepo.save(user);
