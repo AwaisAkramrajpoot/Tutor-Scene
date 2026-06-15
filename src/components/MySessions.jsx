@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../utils/api';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Rating } from '@mui/material';
@@ -45,7 +45,7 @@ const MySessions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const limit = 10;
+  const limit = 50;
 
   // Review dialog state
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
@@ -60,6 +60,11 @@ const MySessions = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [sessionToCancel, setSessionToCancel] = useState(null);
   const [cancellingBooking, setCancellingBooking] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
 
   // Fetch sessions when tab or page changes
   useEffect(() => {
@@ -105,7 +110,11 @@ const MySessions = () => {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setCurrentPage(1); // Reset to first page when changing tabs
+    setCurrentPage(1);
+    setSearchQuery('');
+    setSubjectFilter('');
+    setSortOrder('newest');
+    setFilterOpen(false);
   };
 
   const handlePageChange = (page) => {
@@ -296,6 +305,53 @@ const MySessions = () => {
     return `${diffHours.toFixed(1)} hour${diffHours > 1 ? 's' : ''}`;
   };
 
+  const subjectOptions = useMemo(() => {
+    const names = sessions
+      .map((s) => s.subject?.name)
+      .filter(Boolean);
+    return [...new Set(names)].sort();
+  }, [sessions]);
+
+  const filteredSessions = useMemo(() => {
+    let list = [...sessions];
+    const q = searchQuery.trim().toLowerCase();
+
+    if (q) {
+      list = list.filter((session) => {
+        const tutorName = session.tutor?.fullName || '';
+        const subjectName = session.subject?.name || '';
+        const dateStr = formatDate(session.startTime);
+        return (
+          tutorName.toLowerCase().includes(q) ||
+          subjectName.toLowerCase().includes(q) ||
+          dateStr.toLowerCase().includes(q) ||
+          (session.status || '').toLowerCase().includes(q)
+        );
+      });
+    }
+
+    if (subjectFilter) {
+      list = list.filter((session) => session.subject?.name === subjectFilter);
+    }
+
+    list.sort((a, b) => {
+      const aTime = new Date(a.startTime).getTime();
+      const bTime = new Date(b.startTime).getTime();
+      return sortOrder === 'oldest' ? aTime - bTime : bTime - aTime;
+    });
+
+    return list;
+  }, [sessions, searchQuery, subjectFilter, sortOrder]);
+
+  const hasActiveFilters = Boolean(searchQuery.trim() || subjectFilter || sortOrder !== 'newest');
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSubjectFilter('');
+    setSortOrder('newest');
+    setFilterOpen(false);
+  };
+
   const renderPagination = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -404,21 +460,89 @@ const MySessions = () => {
               <SearchIcon />
             </div>
             <input
-              type="text"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Search sessions..."
+              aria-label="Search sessions"
             />
           </div>
-          <div className="flex items-center space-x-2">
-            <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setFilterOpen((open) => !open)}
+              className={`flex items-center gap-2 px-4 py-2 border rounded-lg bg-white text-gray-700 hover:bg-gray-50 ${
+                filterOpen || hasActiveFilters
+                  ? 'border-brand-medium-blue text-brand-medium-blue'
+                  : 'border-gray-300'
+              }`}
+              aria-expanded={filterOpen}
+              aria-controls="session-filters-panel"
+            >
               <FilterIcon />
               <span>Filter</span>
             </button>
-            <button className="px-4 py-2 bg-brand-medium-blue text-white rounded-lg hover:bg-brand-dark-blue transition-colors shadow-lg">
+            <button
+              type="button"
+              onClick={() => navigate('/book-session')}
+              className="px-4 py-2 bg-brand-medium-blue text-white rounded-lg hover:bg-brand-dark-blue transition-colors shadow-lg"
+            >
               New Session
             </button>
           </div>
         </div>
+
+        {filterOpen && (
+          <div
+            id="session-filters-panel"
+            className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+          >
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label htmlFor="session-subject-filter" className="mb-1 block text-sm font-medium text-gray-700">
+                  Subject
+                </label>
+                <select
+                  id="session-subject-filter"
+                  value={subjectFilter}
+                  onChange={(e) => setSubjectFilter(e.target.value)}
+                  className="min-w-[180px] rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">All subjects</option>
+                  {subjectOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="session-sort-order" className="mb-1 block text-sm font-medium text-gray-700">
+                  Sort by date
+                </label>
+                <select
+                  id="session-sort-order"
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="min-w-[180px] rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+              </div>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="border-b border-gray-200 mb-6">
@@ -501,10 +625,27 @@ const MySessions = () => {
           </div>
         )}
 
+        {/* No filter matches */}
+        {!loading && !error && sessions.length > 0 && filteredSessions.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No sessions match your search</h3>
+            <p className="text-gray-500 mb-4">
+              Try a different search term or adjust your filters.
+            </p>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white px-6 py-2 rounded-lg transition-colors shadow-lg"
+            >
+              Clear search and filters
+            </button>
+          </div>
+        )}
+
         {/* Sessions List */}
-        {!loading && !error && sessions.length > 0 && (
+        {!loading && !error && filteredSessions.length > 0 && (
           <div className="space-y-4">
-            {sessions.map((session) => (
+            {filteredSessions.map((session) => (
               <div key={session.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
                 <div className="p-6">
                   <div className="flex flex-col md:flex-row md:items-center justify-between">

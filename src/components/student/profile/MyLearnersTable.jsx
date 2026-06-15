@@ -29,6 +29,7 @@ const cellInput =
 
 const MyLearnersTable = ({
   learners,
+  totalLearnerCount = 0,
   loading,
   search,
   onSearchChange,
@@ -51,7 +52,7 @@ const MyLearnersTable = ({
     return <p className="text-gray-500 text-center py-10">Loading learners…</p>;
   }
 
-  if (learners.length === 0) {
+  if (totalLearnerCount === 0) {
     return (
       <p className="text-gray-500 text-center py-10 border border-dashed border-gray-200 rounded-lg">
         No learners on this account yet. Use <strong>Add Learner(s)</strong> above or register{' '}
@@ -60,55 +61,73 @@ const MyLearnersTable = ({
     );
   }
 
+  const hasActiveFilters = Boolean(search.trim() || filterRel || filterGender);
+  const filtersToolbar = (
+    <div className="flex flex-wrap gap-3 mb-4">
+      <input
+        type="search"
+        placeholder="Search by name or grade…"
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+        className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[180px]"
+        aria-label="Search learners"
+      />
+      <select
+        value={sortKey}
+        onChange={(e) => onSortChange(e.target.value)}
+        className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+        aria-label="Sort learners"
+      >
+        <option value="name">Sort by first name</option>
+        <option value="grade">Sort by grade level</option>
+        <option value="relationship">Sort by relationship</option>
+      </select>
+      <select
+        value={filterRel}
+        onChange={(e) => onFilterRelChange(e.target.value)}
+        className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+        aria-label="Filter by relationship"
+      >
+        <option value="">All relationships</option>
+        {RELATIONSHIP_OPTIONS.map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+        <option value="Self">Self</option>
+      </select>
+      <select
+        value={filterGender}
+        onChange={(e) => onFilterGenderChange(e.target.value)}
+        className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+        aria-label="Filter by gender"
+      >
+        <option value="">All genders</option>
+        {GENDER_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  if (learners.length === 0) {
+    return (
+      <>
+        {filtersToolbar}
+        <p className="text-gray-500 text-center py-10 border border-dashed border-gray-200 rounded-lg">
+          {hasActiveFilters
+            ? 'No learners match your current search or filters. Try adjusting your selection.'
+            : 'No learners to display.'}
+        </p>
+      </>
+    );
+  }
+
   return (
     <>
-      <div className="flex flex-wrap gap-3 mb-4">
-        <input
-          type="search"
-          placeholder="Search by name or grade…"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[180px]"
-          aria-label="Search learners"
-        />
-        <select
-          value={sortKey}
-          onChange={(e) => onSortChange(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          aria-label="Sort learners"
-        >
-          <option value="name">Sort by first name</option>
-          <option value="grade">Sort by grade level</option>
-          <option value="relationship">Sort by relationship</option>
-        </select>
-        <select
-          value={filterRel}
-          onChange={(e) => onFilterRelChange(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          aria-label="Filter by relationship"
-        >
-          <option value="">All relationships</option>
-          {RELATIONSHIP_OPTIONS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-          <option value="Self">Self</option>
-        </select>
-        <select
-          value={filterGender}
-          onChange={(e) => onFilterGenderChange(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          aria-label="Filter by gender"
-        >
-          <option value="">All genders</option>
-          {GENDER_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {filtersToolbar}
 
       <div className="overflow-x-auto max-h-[min(480px,60vh)] overflow-y-auto border border-gray-200 rounded-lg shadow-inner">
         <table className="w-full text-sm min-w-[900px]">

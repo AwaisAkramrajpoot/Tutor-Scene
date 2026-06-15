@@ -325,6 +325,7 @@ const BookSession = ({ tutorData, bookingData, onClose }) => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Select Available Time Slot</h3>
                   <p className="text-sm text-gray-500 mb-4">Click on a green time slot to select it for booking</p>
                   <FullCalendar
+                    className="book-session-calendar"
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                     initialView="dayGridMonth"
                     headerToolbar={{

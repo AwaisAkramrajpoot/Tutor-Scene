@@ -634,6 +634,7 @@ const ProfileInformationPage = () => {
               </p>
               <MyLearnersTable
                 learners={filteredLearners}
+                totalLearnerCount={learners.length}
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}

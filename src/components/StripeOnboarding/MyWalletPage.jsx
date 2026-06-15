@@ -101,10 +101,18 @@ const MyWalletPage = () => {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-brand-dark-blue">Payouts &amp; Earnings</h1>
-      <Link to="/tutor-dashboard" className="text-sm text-brand-medium-blue hover:underline">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-brand-dark-blue">Payouts &amp; Earnings</h1>
+        <Link to="/tutor-dashboard" className="text-sm text-gray-600 hover:text-brand-dark-blue">
+          ← Back to Dashboard
+        </Link>
+      </div>
+      <a
+        href="#earnings-details"
+        className="mt-1 inline-block text-sm font-medium text-brand-medium-blue hover:underline"
+      >
         View details
-      </Link>
+      </a>
 
       {error && (
         <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
@@ -133,7 +141,10 @@ const MyWalletPage = () => {
         </div>
       </div>
 
-      <section className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section
+        id="earnings-details"
+        className="mt-8 scroll-mt-24 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+      >
         <h2 className="text-lg font-bold text-brand-dark-blue">Earnings Breakdown</h2>
         <p className="mt-1 text-sm text-gray-600">
           Each transaction includes date &amp; time, session ID, learner ID, base pay, tips, total,

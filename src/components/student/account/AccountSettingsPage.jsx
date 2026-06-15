@@ -25,7 +25,9 @@ const AccountSettingsPage = () => {
   const [phone, setPhone] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
   const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' });
-  const [pwdMsg, setPwdMsg] = useState('');
+  const [pwdStatus, setPwdStatus] = useState({ type: '', message: '' });
+  const [twoFactorSaving, setTwoFactorSaving] = useState(false);
+  const [twoFactorStatus, setTwoFactorStatus] = useState({ type: '', message: '' });
   const [prefs, setPrefs] = useState(null);
 
   const load = useCallback(async () => {
@@ -65,17 +67,55 @@ const AccountSettingsPage = () => {
 
   const handlePassword = async (e) => {
     e.preventDefault();
-    setPwdMsg('');
-    if (pwd.next !== pwd.confirm) {
-      setPwdMsg('New passwords do not match.');
+    setPwdStatus({ type: '', message: '' });
+
+    if (!pwd.current.trim()) {
+      setPwdStatus({
+        type: 'error',
+        message: 'Please enter your current password.',
+      });
       return;
     }
+
+    if (pwd.next.length < 8) {
+      setPwdStatus({
+        type: 'error',
+        message: 'Your new password must be at least 8 characters long.',
+      });
+      return;
+    }
+
+    if (pwd.next !== pwd.confirm) {
+      setPwdStatus({
+        type: 'error',
+        message: 'The new passwords you entered do not match. Please try again.',
+      });
+      return;
+    }
+
+    if (pwd.current === pwd.next) {
+      setPwdStatus({
+        type: 'error',
+        message: 'Your new password must be different from your current password.',
+      });
+      return;
+    }
+
     try {
       await changePassword(pwd.current, pwd.next);
-      setPwdMsg('Password updated. A confirmation email was sent.');
+      setPwdStatus({
+        type: 'success',
+        message:
+          'Your password has been updated successfully. A confirmation email has been sent.',
+      });
       setPwd({ current: '', next: '', confirm: '' });
     } catch (err) {
-      setPwdMsg(err?.message || 'Could not change password.');
+      setPwdStatus({
+        type: 'error',
+        message:
+          err?.message ||
+          'We could not update your password. Please check your entries and try again.',
+      });
     }
   };
 
@@ -97,11 +137,37 @@ const AccountSettingsPage = () => {
 
   const handle2FA = async () => {
     const enabled = !settings?.security?.twoFactorEnabled;
+    setTwoFactorStatus({ type: '', message: '' });
+    setTwoFactorSaving(true);
+
     try {
       await setTwoFactor(enabled);
-      await load();
-    } catch {
-      /* ignore */
+      setSettings((prev) =>
+        prev
+          ? {
+              ...prev,
+              security: {
+                ...prev.security,
+                twoFactorEnabled: enabled,
+              },
+            }
+          : prev,
+      );
+      setTwoFactorStatus({
+        type: 'success',
+        message: enabled
+          ? 'Two-factor authentication has been enabled.'
+          : 'Two-factor authentication has been disabled.',
+      });
+    } catch (err) {
+      setTwoFactorStatus({
+        type: 'error',
+        message:
+          err?.message ||
+          'We could not update two-factor authentication. Please try again.',
+      });
+    } finally {
+      setTwoFactorSaving(false);
     }
   };
 
@@ -201,7 +267,18 @@ const AccountSettingsPage = () => {
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
               required
             />
-            {pwdMsg && <p className="text-sm text-gray-600">{pwdMsg}</p>}
+            {pwdStatus.message && (
+              <p
+                className={`text-sm ${
+                  pwdStatus.type === 'success'
+                    ? 'text-green-700'
+                    : 'text-red-600'
+                }`}
+                role={pwdStatus.type === 'error' ? 'alert' : 'status'}
+              >
+                {pwdStatus.message}
+              </p>
+            )}
             <button
               type="submit"
               className="bg-brand-medium-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark-blue"
@@ -220,17 +297,34 @@ const AccountSettingsPage = () => {
               <div>
                 <p className="text-sm font-medium">Two-factor authentication</p>
                 <p className="text-xs text-gray-500">Recommended minimum</p>
+                {twoFactorStatus.message && (
+                  <p
+                    className={`mt-1 text-xs ${
+                      twoFactorStatus.type === 'success'
+                        ? 'text-green-700'
+                        : 'text-red-600'
+                    }`}
+                    role={twoFactorStatus.type === 'error' ? 'alert' : 'status'}
+                  >
+                    {twoFactorStatus.message}
+                  </p>
+                )}
               </div>
               <button
                 type="button"
                 onClick={handle2FA}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                disabled={twoFactorSaving}
+                className={`px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
                   settings?.security?.twoFactorEnabled
                     ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {settings?.security?.twoFactorEnabled ? 'Enabled' : 'Enable'}
+                {twoFactorSaving
+                  ? 'Saving…'
+                  : settings?.security?.twoFactorEnabled
+                    ? 'Disable'
+                    : 'Enable'}
               </button>
             </div>
           </div>

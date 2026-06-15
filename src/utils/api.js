@@ -185,6 +185,22 @@ export const apiRequest = async (endpoint, options = {}, retryOptions = {}) => {
     
     // Handle 401 Unauthorized - token expired or invalid
     if (response.status === 401) {
+      const authData = await response.json().catch(() => ({}));
+      const skipTokenRefresh =
+        endpoint.includes('/change-password') ||
+        endpoint.includes('/auth/login') ||
+        endpoint.includes('/auth/signin');
+
+      if (skipTokenRefresh) {
+        throw new APIError(
+          authData.message || 'Authentication failed',
+          401,
+          'AUTH_ERROR',
+          authData.errors,
+          false,
+        );
+      }
+
       // Try to refresh the token
       if (!isRefreshing) {
         isRefreshing = true;
@@ -220,6 +236,9 @@ export const apiRequest = async (endpoint, options = {}, retryOptions = {}) => {
           return retryData;
         } catch (refreshError) {
           isRefreshing = false;
+          if (refreshError instanceof APIError) {
+            throw refreshError;
+          }
           // Authentication failed - redirect to login
           throw new APIError(
             'Session expired. Please log in again.',
