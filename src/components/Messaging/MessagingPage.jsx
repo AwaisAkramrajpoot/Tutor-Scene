@@ -16,19 +16,38 @@ const MessagingPageContent = () => {
   const isTutor = currentUser?.role === 'tutor';
   const isStudent = currentUser?.role === 'student';
 
-  // Handle conversation selection from URL parameter
+  // Handle conversation selection from URL parameter (deep links / refresh only)
   useEffect(() => {
     const conversationId = searchParams.get('conversation');
-    if (conversationId && conversations.length > 0) {
-      const conversation = conversations.find(
-        (conv) => conv.id === parseInt(conversationId, 10)
-      );
-      if (conversation && conversation.id !== activeConversation?.id) {
-        setActiveConversation(conversation);
-        setIsMobileChatOpen(true);
-      }
+    if (!conversationId || conversations.length === 0) return;
+
+    const conversation = conversations.find(
+      (conv) => conv.id === parseInt(conversationId, 10),
+    );
+    if (!conversation) return;
+
+    setActiveConversation(conversation);
+    setIsMobileChatOpen(true);
+  }, [searchParams, conversations, setActiveConversation]);
+
+  // Message-request deep link: open conversation if already accepted, else highlight request
+  useEffect(() => {
+    const requestId = searchParams.get('request');
+    if (!requestId || !isTutor) return;
+
+    const parsedRequestId = parseInt(requestId, 10);
+    if (Number.isNaN(parsedRequestId)) return;
+
+    const linkedConversation = conversations.find(
+      (conv) => conv.messageRequestId === parsedRequestId,
+    );
+
+    if (linkedConversation) {
+      setActiveConversation(linkedConversation);
+      setIsMobileChatOpen(true);
+      setSearchParams({ conversation: String(linkedConversation.id) });
     }
-  }, [searchParams, conversations, setActiveConversation, activeConversation?.id]);
+  }, [searchParams, conversations, isTutor, setActiveConversation, setSearchParams]);
 
   // Handle mobile back button
   const handleMobileBack = () => {
@@ -38,14 +57,17 @@ const MessagingPageContent = () => {
     setSearchParams({});
   };
 
-  // Handle conversation selection on mobile
+  // Keep URL in sync when the active conversation changes
   useEffect(() => {
-    if (activeConversation) {
-      setIsMobileChatOpen(true);
-      // Update URL with conversation ID for mobile back button support
-      setSearchParams({ conversation: activeConversation.id.toString() });
+    if (!activeConversation) return;
+
+    const currentParam = searchParams.get('conversation');
+    const nextParam = activeConversation.id.toString();
+    if (currentParam !== nextParam) {
+      setSearchParams({ conversation: nextParam });
     }
-  }, [activeConversation, setSearchParams]);
+    setIsMobileChatOpen(true);
+  }, [activeConversation, searchParams, setSearchParams]);
 
   // Handle browser back button on mobile
   useEffect(() => {
@@ -84,7 +106,13 @@ const MessagingPageContent = () => {
 
           {isTutor && (
             <div className="max-h-[min(40vh,320px)] flex-shrink-0 overflow-y-auto overscroll-y-contain border-b border-gray-200 bg-gray-50 p-4">
-              <MessageRequestsList />
+              <MessageRequestsList
+                highlightRequestId={
+                  searchParams.get('request')
+                    ? parseInt(searchParams.get('request'), 10)
+                    : null
+                }
+              />
             </div>
           )}
 

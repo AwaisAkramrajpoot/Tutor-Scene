@@ -36,7 +36,7 @@ const getTimeLabel = (dateString) => {
   }
 };
 
-const NotificationsPanel = () => {
+const NotificationsPanel = ({ showStripeButton = false }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -127,8 +127,8 @@ const NotificationsPanel = () => {
         </div>
       </div>
 
-      {/* Stripe Button — tutors only */}
-      {userRole === 'tutor' && (
+      {/* Stripe — tutor dashboard only (never shown on learner dashboard) */}
+      {showStripeButton && userRole === 'tutor' && (
         <div className="text-center">
           <button
             type="button"
@@ -138,7 +138,7 @@ const NotificationsPanel = () => {
             Connect to Stripe
           </button>
           <p className="text-xs text-gray-500 mt-2">
-            To setup or update your payment method, please sign into Stripe.
+            To receive payouts, sign into your Stripe Connect account.
           </p>
         </div>
       )}

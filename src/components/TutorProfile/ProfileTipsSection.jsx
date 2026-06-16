@@ -100,6 +100,18 @@ export const ProfileTipsSection = () => {
       return { iso: "", error: "Date of birth cannot be in the future." };
     }
 
+    let age = today.getFullYear() - d.getFullYear();
+    const monthDiff = today.getMonth() - d.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d.getDate())) {
+      age -= 1;
+    }
+    if (age < 18) {
+      return {
+        iso: "",
+        error: "You must be at least 18 years old to create a tutor profile.",
+      };
+    }
+
     return { iso, error: "" };
   };
 
@@ -336,7 +348,7 @@ export const ProfileTipsSection = () => {
 
   const isProfileComplete = useMemo(() => {
     if (!String(uploadedUrls.profilePic || "").trim()) return false;
-    if (!dateOfBirthIso) return false;
+    if (!dateOfBirthIso || dateOfBirthError) return false;
     if (selectedSubjects.length === 0) return false;
     const yoeStr = String(yearsOfExperience ?? "").trim();
     if (!yoeStr) return false;
@@ -348,6 +360,7 @@ export const ProfileTipsSection = () => {
     uploadedUrls.profilePic,
     uploadedUrls.cv,
     dateOfBirthIso,
+    dateOfBirthError,
     selectedSubjects.length,
     yearsOfExperience,
   ]);
@@ -674,6 +687,9 @@ const handleCVFile = async (file) => {
           />
           {dateOfBirthError && (
             <p className="text-sm text-red-600 mt-2">{dateOfBirthError}</p>
+          )}
+          {!dateOfBirthError && (
+            <p className="text-sm text-gray-500 mt-2">You must be at least 18 years old.</p>
           )}
         </div>
 

@@ -11,6 +11,20 @@ const TYPE_LABELS = {
 export const getMessageTitle = (role = 'student') =>
   role === 'tutor' ? 'Message from Learner' : 'Message from Tutor';
 
+/** Redact learner last names from notification body text for tutor-facing views. */
+export const sanitizeNotificationTextForTutor = (text = '') => {
+  if (!text) return text;
+  return text
+    .replace(/^New message from (\S+)\s+\S+:/, 'New message from $1:')
+    .replace(/^(\S+)\s+\S+ has sent you a message request/, '$1 has sent you a message request')
+    .replace(/^(\S+)\s+\S+'s booking has been confirmed/, "$1's booking has been confirmed");
+};
+
+export const getNotificationBody = (notification, role = 'student') => {
+  const text = notification.notification || notification.preview || '';
+  return role === 'tutor' ? sanitizeNotificationTextForTutor(text) : text;
+};
+
 export const inferNotificationType = (text = '', type) => {
   if (type) return type;
   if (/new message from|message request/i.test(text)) return 'message';
@@ -41,11 +55,13 @@ export const inferNotificationTitle = (text = '', type, role = 'student') => {
 export const normalizeNotification = (n, role = 'student') => {
   const text = n.notification || '';
   const type = inferNotificationType(text, n.type);
+  const body = getNotificationBody(n, role);
   return {
     ...n,
     type,
     title: n.title || inferNotificationTitle(text, type, role),
-    preview: n.preview || text,
+    preview: n.preview || body,
+    notification: body,
     isRead: Boolean(n.isRead),
     isSystem: Boolean(n.isSystem) || /tutor scene/i.test(text),
     category: TYPE_LABELS[type] || 'Support',

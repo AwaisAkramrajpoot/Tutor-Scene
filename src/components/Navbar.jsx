@@ -109,7 +109,12 @@ const Navbar = () => {
     };
     loadNotifs();
     const t = setInterval(loadNotifs, 30000);
-    return () => clearInterval(t);
+    const onUpdated = () => loadNotifs();
+    window.addEventListener('notifications-updated', onUpdated);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener('notifications-updated', onUpdated);
+    };
   }, [isStudent, isApprovedTutor, user?.id, location.pathname]);
 
   const handleSearchSubmit = (e) => {

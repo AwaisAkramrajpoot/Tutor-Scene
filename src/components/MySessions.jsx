@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { apiRequest } from '../utils/api';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { apiRequest, resolveApiAssetUrl } from '../utils/api';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Rating } from '@mui/material';
 import { showSystemMessage } from '../utils/systemMessage';
 
@@ -37,8 +37,16 @@ const StarIcon = (props) => (
 
 const MySessions = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState('upcoming');
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get('tab');
+    return tab === 'cancelled' || tab === 'completed' ? tab : 'upcoming';
+  });
+  const [highlightSessionId, setHighlightSessionId] = useState(() => {
+    const id = searchParams.get('session');
+    return id ? parseInt(id, 10) : null;
+  });
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -70,6 +78,23 @@ const MySessions = () => {
   useEffect(() => {
     fetchSessions();
   }, [activeTab, currentPage]);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'upcoming' || tab === 'cancelled' || tab === 'completed') {
+      setActiveTab(tab);
+    }
+    const sessionId = searchParams.get('session');
+    setHighlightSessionId(sessionId ? parseInt(sessionId, 10) : null);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!highlightSessionId || loading || sessions.length === 0) return;
+    const el = document.getElementById(`session-${highlightSessionId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightSessionId, loading, sessions]);
 
   const fetchSessions = async () => {
     try {
@@ -115,6 +140,8 @@ const MySessions = () => {
     setSubjectFilter('');
     setSortOrder('newest');
     setFilterOpen(false);
+    setHighlightSessionId(null);
+    setSearchParams(tab === 'upcoming' ? { tab } : { tab });
   };
 
   const handlePageChange = (page) => {
@@ -256,11 +283,33 @@ const MySessions = () => {
   const getStatusColor = (status) => {
     const colors = {
       upcoming: 'bg-brand-light-blue text-brand-dark-blue border border-brand-gold',
+      confirmed: 'bg-brand-light-blue text-brand-dark-blue border border-brand-gold',
       completed: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
       pending: 'bg-yellow-100 text-yellow-800'
     };
     return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getLearnerFirstName = (session) => {
+    if (session.learnerLabel) {
+      return session.learnerLabel.trim().split(/\s+/)[0];
+    }
+    return session.student?.firstName || 'Learner';
+  };
+
+  const getTutorFirstName = (session) => {
+    const tutor = session.tutor;
+    if (!tutor) return 'Tutor';
+    if (tutor.user?.firstName) return tutor.user.firstName;
+    if (tutor.fullName) return tutor.fullName.trim().split(/\s+/)[0];
+    return 'Tutor';
+  };
+
+  const getTutorProfilePic = (session) => {
+    const pic = session.tutor?.profilePic;
+    if (pic) return resolveApiAssetUrl(pic);
+    return null;
   };
 
   const formatDate = (dateString) => {
@@ -449,8 +498,14 @@ const MySessions = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Sessions</h1>
-          <p className="text-gray-600">View and manage your tutoring sessions</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {activeTab === 'upcoming' ? 'Upcoming Sessions' : 'My Sessions'}
+          </h1>
+          <p className="text-gray-600">
+            {activeTab === 'upcoming'
+              ? 'View and manage your scheduled tutoring sessions.'
+              : 'View and manage all your tutoring sessions.'}
+          </p>
         </div>
 
         {/* Search and Filter */}
@@ -646,26 +701,40 @@ const MySessions = () => {
         {!loading && !error && filteredSessions.length > 0 && (
           <div className="space-y-4">
             {filteredSessions.map((session) => (
-              <div key={session.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div
+                key={session.id}
+                id={`session-${session.id}`}
+                className={`bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-shadow ${
+                  highlightSessionId === session.id
+                    ? 'border-brand-medium-blue ring-2 ring-brand-medium-blue/30'
+                    : 'border-gray-200'
+                }`}
+              >
                 <div className="p-6">
                   <div className="flex flex-col md:flex-row md:items-center justify-between">
                     <div className="flex items-center space-x-4 mb-4 md:mb-0">
                       <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
-                        {session.tutor?.profilePic ? (
+                        {getTutorProfilePic(session) ? (
                           <img
-                            src={session.tutor.profilePic}
-                            alt={session.tutor?.fullName}
+                            src={getTutorProfilePic(session)}
+                            alt={getTutorFirstName(session)}
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <span className="text-lg font-bold text-gray-600">
-                            {session.tutor?.fullName?.charAt(0) || 'T'}
+                            {getTutorFirstName(session).charAt(0)}
                           </span>
                         )}
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg text-gray-900">{session.tutor?.fullName || 'Unknown Tutor'}</h3>
-                        <p className="text-gray-600">{session.subject?.name}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">Learner</p>
+                        <h3 className="font-bold text-lg text-gray-900">
+                          {getLearnerFirstName(session)}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Tutor: {getTutorFirstName(session)}
+                          {session.subject?.name ? ` · ${session.subject.name}` : ''}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-6">
@@ -691,7 +760,7 @@ const MySessions = () => {
                   </div>
 
                   {/* Actions for Upcoming Sessions */}
-                  {session.status === 'upcoming' && (
+                  {activeTab === 'upcoming' && (
                     <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
                       {session.zoomJoinLink && (
                         <a

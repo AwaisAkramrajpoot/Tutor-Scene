@@ -8,14 +8,17 @@ const API_URL =
 
 export const resolveApiAssetUrl = (u) => {
   if (!u || typeof u !== 'string') return '';
-  if (u.startsWith('/')) return `${API_URL}${u}`;
+  const trimmed = u.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('/')) return `${API_URL}${trimmed}`;
+  if (trimmed.startsWith('uploads/')) return `${API_URL}/${trimmed}`;
   try {
-    const parsed = new URL(u);
+    const parsed = new URL(trimmed);
     if (parsed.pathname.startsWith('/uploads/')) {
       return `${API_URL}${parsed.pathname}${parsed.search}`;
     }
   } catch (_) {}
-  return u;
+  return trimmed;
 };
 
 // Flag to prevent multiple simultaneous refresh attempts

@@ -222,6 +222,23 @@ export const getOtherUser = (conversation, currentUserId) => {
 };
 
 /**
+ * Display name respecting privacy: tutors see learner first name only.
+ * @param {object} user - User object with firstName/lastName
+ * @param {string} viewerRole - Current user's role
+ * @returns {string}
+ */
+export const getDisplayName = (user, viewerRole) => {
+  if (!user) return 'Unknown User';
+  if (viewerRole === 'tutor') {
+    return user.firstName || 'Learner';
+  }
+  if (viewerRole === 'admin') {
+    return [user.firstName, user.lastName].filter(Boolean).join(' ') || 'User';
+  }
+  return [user.firstName, user.lastName].filter(Boolean).join(' ') || 'User';
+};
+
+/**
  * Sort conversations by most recent activity
  * @param {Array} conversations - Array of conversations
  * @returns {Array} - Sorted conversations

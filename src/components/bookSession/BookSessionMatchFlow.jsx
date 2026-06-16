@@ -605,15 +605,22 @@ const BookSessionMatchFlow = ({
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {tutors.map((tutor) => {
-                const allPills = buildSubjectPillsFromCatalog(
-                  tutor.subjects,
-                  availableSubjects,
-                );
+                const allPills =
+                  Array.isArray(tutor.subjectPills) && tutor.subjectPills.length > 0
+                    ? tutor.subjectPills
+                    : buildSubjectPillsFromCatalog(
+                        tutor.subjects,
+                        availableSubjects,
+                      );
                 const pills = filterSubjectPills(allPills, subject, level);
                 const hasSubjectOrLevelFilter = Boolean(
                   subject.trim() || level.trim(),
                 );
                 const cardPills = hasSubjectOrLevelFilter ? pills : allPills;
+                const fallbackSubjectNames = (tutor.subjects || '')
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean);
                 const { feeRangeMin, feeRangeMax } = computeFeeRangeFromBaseFee(
                   tutor.fee,
                 );
@@ -650,21 +657,32 @@ const BookSessionMatchFlow = ({
                   </p>
                   <p className="mt-3 text-sm font-medium text-gray-900">Subject(s)</p>
                   <div className="mt-1 flex flex-wrap gap-2">
-                    {cardPills.map((p, index) => (
-                      <span
-                        key={`${p.fullName}-${index}`}
-                        className="inline-flex max-w-full flex-wrap items-baseline gap-x-1 rounded-md border border-brand-gold bg-blue-50 px-2.5 py-1 text-[11px] text-brand-dark-blue sm:text-xs"
-                      >
-                        <span className="font-bold">{p.category}</span>
-                        <span>– {p.subjectLine}</span>
-                        {p.gradeLevelsDisplay ? (
-                          <span className="font-normal text-gray-700">
-                            {' '}
-                            {p.gradeLevelsDisplay}
-                          </span>
-                        ) : null}
-                      </span>
-                    ))}
+                    {cardPills.length > 0 ? (
+                      cardPills.map((p, index) => (
+                        <span
+                          key={`${p.fullName}-${index}`}
+                          className="inline-flex max-w-full flex-wrap items-baseline gap-x-1 rounded-md border border-brand-gold bg-blue-50 px-2.5 py-1 text-[11px] text-brand-dark-blue sm:text-xs"
+                        >
+                          <span className="font-bold">{p.category}</span>
+                          <span>– {p.subjectLine}</span>
+                          {p.gradeLevelsDisplay ? (
+                            <span className="font-normal text-gray-700">
+                              {' '}
+                              {p.gradeLevelsDisplay}
+                            </span>
+                          ) : null}
+                        </span>
+                      ))
+                    ) : (
+                      fallbackSubjectNames.map((name) => (
+                        <span
+                          key={name}
+                          className="inline-flex rounded-md border border-brand-gold bg-blue-50 px-2.5 py-1 text-[11px] text-brand-dark-blue sm:text-xs"
+                        >
+                          {name}
+                        </span>
+                      ))
+                    )}
                   </div>
                   {tutor.yearsOfExperience != null && (
                     <p className="mt-2 text-xs text-gray-500">

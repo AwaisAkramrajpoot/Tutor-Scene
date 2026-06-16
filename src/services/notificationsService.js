@@ -65,3 +65,8 @@ export const deleteAllNonSystemNotifications = async (userId) => {
     method: 'DELETE',
   });
 };
+
+/** Notify listeners (e.g. Navbar) that notification read state changed. */
+export const notifyNotificationsUpdated = () => {
+  window.dispatchEvent(new CustomEvent('notifications-updated'));
+};

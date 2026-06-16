@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import UserAvatar from './UserAvatar';
-import { formatMessageDate } from '../../utils/messagingHelpers';
+import { formatMessageDate, getDisplayName } from '../../utils/messagingHelpers';
+import { useMessaging } from '../../contexts/MessagingContext';
 
-const MessageRequestCard = ({ request, onAccept, onReject }) => {
+const MessageRequestCard = ({ request, onAccept, onReject, highlight = false }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [localStatus, setLocalStatus] = useState(request.status);
+  const { currentUser } = useMessaging();
 
   const handleAccept = async () => {
     if (isProcessing) return;
@@ -48,7 +50,12 @@ const MessageRequestCard = ({ request, onAccept, onReject }) => {
   const student = request.student;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div
+      id={`message-request-${request.id}`}
+      className={`bg-white border rounded-lg p-4 hover:shadow-md transition-shadow ${
+        highlight ? 'border-brand-medium-blue ring-2 ring-brand-medium-blue/30' : 'border-gray-200'
+      }`}
+    >
       <div className="flex items-start gap-3">
         {/* Student Avatar */}
         <UserAvatar user={student} size="md" />
@@ -58,7 +65,7 @@ const MessageRequestCard = ({ request, onAccept, onReject }) => {
           <div className="flex items-start justify-between gap-2 mb-2">
             <div>
               <h4 className="font-semibold text-gray-900">
-                {student?.firstName} {student?.lastName}
+                {getDisplayName(student, currentUser?.role)}
               </h4>
               <p className="text-xs text-gray-500">
                 {formatMessageDate(request.createdAt)}

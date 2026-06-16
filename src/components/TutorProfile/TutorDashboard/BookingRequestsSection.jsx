@@ -638,7 +638,7 @@ export const BookingRequestsSection = () => {
         {/* Right column - 1/3 width */}
         <aside className="space-y-6">
           {/* Notifications */}
-          <NotificationsPanel />
+          <NotificationsPanel showStripeButton />
 
           {/* Quick Actions */}
           <article className="bg-white rounded-2xl border border-black/10 p-6">

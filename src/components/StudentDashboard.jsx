@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { apiRequest, resolveApiAssetUrl } from "../utils/api";
 import {
   Dialog,
@@ -191,10 +191,11 @@ const StudentDashboard = () => {
       try {
         setLoading(true);
         const response = await apiRequest(
-          `/api/v1/bookings/student/${user.id}/sessions?status=upcoming`,
+          `/api/v1/bookings/student/${user.id}/sessions?status=upcoming&page=1&limit=10`,
           { method: "GET" }
         );
-        setUpcomingSessions(response.data || []);
+        const list = response.data || [];
+        setUpcomingSessions(list.slice(0, 10));
         setError(null);
       } catch (err) {
         console.error("Error fetching upcoming sessions:", err);
@@ -262,16 +263,53 @@ const StudentDashboard = () => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
+      hour: "numeric",
       minute: "2-digit",
+      hour12: true,
     });
   };
+
+  const formatSessionTimeRange = (startTime, endTime) =>
+    `${formatTime(startTime)} – ${formatTime(endTime)}`;
+
+  const getLearnerFirstName = (session) => {
+    if (session.learnerLabel) {
+      return session.learnerLabel.trim().split(/\s+/)[0];
+    }
+    return user?.firstName || "Learner";
+  };
+
+  const getTutorFirstName = (session) => {
+    const tutor = session.tutor;
+    if (!tutor) return "Tutor";
+    if (tutor.user?.firstName) return tutor.user.firstName;
+    if (tutor.fullName) return tutor.fullName.trim().split(/\s+/)[0];
+    return "Tutor";
+  };
+
+  const getTutorProfilePic = (session) => {
+    const pic = session.tutor?.profilePic;
+    if (pic) return resolveApiAssetUrl(pic);
+    const initial = getTutorFirstName(session)[0] || "T";
+    return `https://placehold.co/48x48/E0E0E0/333333?text=${initial}`;
+  };
+
+  const getSubjectName = (session) =>
+    session.subject?.name || session.subject || "—";
+
+  const upcomingSessionsCalendarLink = (sessionId) =>
+    `/my-sessions?tab=upcoming&session=${sessionId}`;
 
   const handleOpenCancelDialog = (session) => {
     setSessionToCancel(session);
@@ -547,11 +585,19 @@ const StudentDashboard = () => {
 
             {/* Upcoming Sessions */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center space-x-2 mb-6">
-                <CalendarIcon className="text-brand-medium-blue" />
-                <h2 className="text-xl font-bold text-gray-900">
-                  Upcoming Sessions
-                </h2>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div className="flex items-center space-x-2">
+                  <CalendarIcon className="text-brand-medium-blue" />
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Upcoming Sessions
+                  </h2>
+                </div>
+                <Link
+                  to="/my-sessions?tab=upcoming"
+                  className="text-sm font-medium text-brand-medium-blue hover:underline whitespace-nowrap"
+                >
+                  View All
+                </Link>
               </div>
 
               {loading ? (
@@ -569,60 +615,72 @@ const StudentDashboard = () => {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
                   {upcomingSessions.map((session) => (
                     <div
                       key={session.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                      className="flex flex-wrap items-center gap-4 px-4 py-4 bg-white hover:bg-gray-50"
                     >
-                      <div className="flex items-center space-x-4">
-                        <img
-                          src={
-                            session.tutor?.profilePicture ||
-                            `https://placehold.co/48x48/E0E0E0/333333?text=${
-                              session.tutor?.firstName?.[0] || "T"
-                            }${session.tutor?.lastName?.[0] || "T"}`
-                          }
-                          alt={`${session.tutor?.fullName || ""}`}
-                          className="w-12 h-12 rounded-full object-cover"
-                        />
-                        <div>
-                          <h3 className="font-bold text-gray-900">
-                            {session.tutor?.fullName}
-                          </h3>
-                          {session.subject && (
-                            <div className="flex space-x-2 mt-1">
-                              <span className="bg-brand-light-blue text-brand-dark-blue px-2 py-1 rounded-full text-xs font-medium">
-                                {session.subject.name || session.subject}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                            <div className="flex items-center space-x-1">
-                              <CalendarIcon className="w-4 h-4" />
-                              <span>{formatDate(session.startTime)}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <ClockIcon className="w-4 h-4" />
-                              <span>{formatTime(session.endTime)}</span>
-                            </div>
-                          </div>
-                        </div>
+                      <div className="min-w-[88px] font-semibold text-gray-900">
+                        {getLearnerFirstName(session)}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() =>
-                            handleJoinSession(session.zoomJoinLink)
-                          }
-                          className="bg-brand-medium-blue hover:bg-brand-dark-blue text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg hover:shadow-xl"
+
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-600 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <CalendarIcon className="w-4 h-4 text-gray-400" />
+                          <time dateTime={session.startTime}>
+                            {formatDate(session.startTime)}
+                          </time>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <ClockIcon className="w-4 h-4 text-gray-400" />
+                          <time dateTime={session.startTime}>
+                            {formatSessionTimeRange(
+                              session.startTime,
+                              session.endTime,
+                            )}
+                          </time>
+                        </div>
+                        <span className="bg-brand-light-blue text-brand-dark-blue px-2.5 py-0.5 rounded-full text-xs font-medium">
+                          {getSubjectName(session)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 min-w-[120px]">
+                        <img
+                          src={getTutorProfilePic(session)}
+                          alt={getTutorFirstName(session)}
+                          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                        />
+                        <span className="font-medium text-gray-900 text-sm">
+                          {getTutorFirstName(session)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 ml-auto">
+                        <Link
+                          to={upcomingSessionsCalendarLink(session.id)}
+                          className="text-sm font-medium text-brand-medium-blue hover:underline whitespace-nowrap"
                         >
-                          Join Session
-                        </button>
+                          View on calendar
+                        </Link>
+                        {session.status === "confirmed" && session.zoomJoinLink && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleJoinSession(session.zoomJoinLink)
+                            }
+                            className="text-sm font-medium text-white bg-brand-medium-blue hover:bg-brand-dark-blue px-3 py-1.5 rounded-lg transition-colors"
+                          >
+                            Join
+                          </button>
+                        )}
                         {session.status === "confirmed" && (
                           <button
+                            type="button"
                             onClick={() => handleOpenCancelDialog(session)}
-                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                            title="Cancel Booking"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Cancel booking"
                           >
                             <svg
                               className="w-5 h-5"

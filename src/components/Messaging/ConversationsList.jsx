@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMessaging } from "../../contexts/MessagingContext";
 import {
   filterConversations,
@@ -24,6 +25,7 @@ const ConversationsList = () => {
     error,
     currentUser,
   } = useMessaging();
+  const [, setSearchParams] = useSearchParams();
   const controlsVersion = useConversationControlsVersion();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -72,6 +74,7 @@ const ConversationsList = () => {
 
   const handleSelectConversation = (conversation) => {
     setActiveConversation(conversation);
+    setSearchParams({ conversation: String(conversation.id) });
   };
 
   const handleSearchChange = (query) => {

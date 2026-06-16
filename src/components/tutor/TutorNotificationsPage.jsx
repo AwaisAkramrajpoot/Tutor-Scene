@@ -7,6 +7,7 @@ import {
   markAllNotificationsAsRead,
   deleteNotification,
   deleteAllNonSystemNotifications,
+  notifyNotificationsUpdated,
 } from '../../services/notificationsService';
 import {
   normalizeNotification,
@@ -147,15 +148,21 @@ const TutorNotificationsPage = () => {
     return n.category === tab;
   });
 
+  const markItemRead = async (item) => {
+    if (!item || item.isRead || !userIdRef.current) return item;
+    await markNotificationAsRead(userIdRef.current, item.id);
+    const updated = { ...item, isRead: true };
+    setItems((prev) =>
+      prev.map((n) => (n.id === item.id ? updated : n)),
+    );
+    setSelected((prev) => (prev?.id === item.id ? updated : prev));
+    notifyNotificationsUpdated();
+    return updated;
+  };
+
   const handleSelect = async (item) => {
     setSelected(item);
-    if (!item.isRead && userIdRef.current) {
-      await markNotificationAsRead(userIdRef.current, item.id);
-      setItems((prev) =>
-        prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)),
-      );
-      setSelected({ ...item, isRead: true });
-    }
+    await markItemRead(item);
   };
 
   const handleDelete = async (item) => {
@@ -176,6 +183,7 @@ const TutorNotificationsPage = () => {
     await markAllNotificationsAsRead(userIdRef.current);
     setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
     if (selected) setSelected({ ...selected, isRead: true });
+    notifyNotificationsUpdated();
     setBusy(false);
   };
 
@@ -191,12 +199,22 @@ const TutorNotificationsPage = () => {
     setBusy(false);
   };
 
-  const openMessages = () => {
-    const conversationId = selected?.metadata?.conversationId;
+  const openMessages = async () => {
+    if (!selected) return;
+    await markItemRead(selected);
+
+    const conversationId = selected.metadata?.conversationId;
     if (conversationId) {
       navigate(`/messages?conversation=${conversationId}`);
       return;
     }
+
+    const messageRequestId = selected.metadata?.messageRequestId;
+    if (messageRequestId) {
+      navigate(`/messages?request=${messageRequestId}`);
+      return;
+    }
+
     navigate('/messages');
   };
 

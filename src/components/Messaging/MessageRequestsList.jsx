@@ -11,7 +11,7 @@ import {
   rejectMessageRequest,
 } from '../../services/messagingService';
 
-const MessageRequestsList = () => {
+const MessageRequestsList = ({ highlightRequestId = null }) => {
   const navigate = useNavigate();
   const { setMessageRequests, messageRequests, setConversations, conversations, fetchConversations } = useMessaging();
   const [loading, setLoading] = useState(true);
@@ -21,6 +21,15 @@ const MessageRequestsList = () => {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  // Scroll to highlighted request from notification deep link
+  useEffect(() => {
+    if (!highlightRequestId || loading) return;
+    const el = document.getElementById(`message-request-${highlightRequestId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [highlightRequestId, loading, messageRequests]);
 
   const fetchRequests = async () => {
     try {
@@ -135,6 +144,7 @@ const MessageRequestsList = () => {
               request={request}
               onAccept={handleAccept}
               onReject={handleReject}
+              highlight={highlightRequestId === request.id}
             />
           ))}
         </div>

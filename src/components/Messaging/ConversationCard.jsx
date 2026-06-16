@@ -1,10 +1,9 @@
-import { formatMessageDate, truncateText, getOtherUser, isUserOnline } from '../../utils/messagingHelpers';
+import { formatMessageDate, truncateText, getOtherUser, isUserOnline, getDisplayName } from '../../utils/messagingHelpers';
 import UserAvatar from './UserAvatar';
 import { useMessaging } from '../../contexts/MessagingContext';
 
 const ConversationCard = ({ conversation, isActive, onClick, timeRefreshKey = 0 }) => {
   const { currentUser, onlineUsers } = useMessaging();
-
   const otherUser = getOtherUser(conversation, currentUser?.id);
 
   const lastMessagePreview = conversation.lastMessage?.content
@@ -37,7 +36,7 @@ const ConversationCard = ({ conversation, isActive, onClick, timeRefreshKey = 0 
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-start justify-between gap-2">
           <h4 className={`truncate font-semibold ${isActive ? 'text-blue-900' : 'text-gray-900'}`}>
-            {otherUser?.firstName} {otherUser?.lastName}
+            {getDisplayName(otherUser, currentUser?.role)}
           </h4>
           {lastMessageTime ? (
             <span className={`flex-shrink-0 text-xs ${isActive ? 'text-blue-600' : 'text-gray-500'}`}>
