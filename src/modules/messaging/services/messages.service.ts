@@ -100,9 +100,14 @@ export class MessagesService {
           ? 'Message from Learner'
           : 'Message from Tutor';
 
+      const senderLabel =
+        receiverId === conversation.tutorId
+          ? sender.firstName
+          : `${sender.firstName} ${sender.lastName}`;
+
       await this.notificationsService.create({
         userId: receiverId,
-        notification: `New message from ${sender.firstName} ${sender.lastName}: ${messagePreview}`,
+        notification: `New message from ${senderLabel}: ${messagePreview}`,
         title: messageTitle,
         preview: messagePreview,
         type: 'message',

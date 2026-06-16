@@ -340,7 +340,7 @@ export class BookingsService {
     if (tutorProspect && student) {
       await this.notificationsService.create({
         userId: tutorProspect.userId,
-        notification: `${student.firstName} ${student.lastName}'s booking has been confirmed and paid.`,
+        notification: `${student.firstName}'s booking has been confirmed and paid.`,
         title: 'Booking Confirmation',
         preview: 'A learner session is confirmed on your schedule.',
         type: 'booking_confirmation',
@@ -658,6 +658,8 @@ export class BookingsService {
     const queryBuilder = this.bookingRepository
       .createQueryBuilder('booking')
       .leftJoinAndSelect('booking.tutor', 'tutor')
+      .leftJoinAndSelect('tutor.user', 'tutorUser')
+      .leftJoinAndSelect('booking.student', 'student')
       .leftJoinAndSelect('booking.subject', 'subject')
       .where('booking.studentProfileId = :studentId', { studentId });
 

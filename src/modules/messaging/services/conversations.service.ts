@@ -8,6 +8,7 @@ import { Repository, IsNull } from 'typeorm';
 import { Conversation } from '@/database/entities/conversation.entity';
 import { Message } from '@/database/entities/message.entity';
 import { Prospect } from '@/database/entities/prospect.entity';
+import { sanitizeStudentForTutor } from '@/common/utils/user-privacy.util';
 
 @Injectable()
 export class ConversationsService {
@@ -43,8 +44,12 @@ export class ConversationsService {
         const unreadCount = await this.getUnreadCount(conversation.id, userId);
         const lastMessage = await this.getLastMessage(conversation.id);
 
+        const isTutor = conversation.tutorId === userId;
         return {
           ...conversation,
+          student: isTutor
+            ? sanitizeStudentForTutor(conversation.student)
+            : conversation.student,
           unreadCount,
           lastMessage,
         };
@@ -73,6 +78,10 @@ export class ConversationsService {
     // Validate access
     if (!this.validateAccess(conversation, userId)) {
       throw new ForbiddenException('Access denied to this conversation');
+    }
+
+    if (conversation.tutorId === userId) {
+      conversation.student = sanitizeStudentForTutor(conversation.student);
     }
 
     return conversation;

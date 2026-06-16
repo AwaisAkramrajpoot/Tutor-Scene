@@ -14,6 +14,7 @@ import { Prospect } from '@/database/entities/prospect.entity';
 import { MessageRequestStatus, UserRole } from '@/database/entities/enums';
 import { CreateMessageRequestDto } from '../dto/create-message-request.dto';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
+import { sanitizeStudentForTutor } from '@/common/utils/user-privacy.util';
 
 @Injectable()
 export class MessageRequestsService {
@@ -101,13 +102,17 @@ export class MessageRequestsService {
 
     const savedRequest = await this.messageRequestRepository.save(messageRequest);
 
-    // Create notification for tutor
+    // Create notification for tutor (first name only — last name is admin-only)
     await this.notificationsService.create({
       userId: tutor.id,
-      notification: `${student.firstName} ${student.lastName} has sent you a message request`,
+      notification: `${student.firstName} has sent you a message request`,
       title: 'Message from Learner',
       preview: 'A learner wants to start a conversation with you.',
       type: 'message',
+      metadata: {
+        messageRequestId: savedRequest.id,
+        studentId: studentId,
+      },
     });
 
     return savedRequest;
@@ -134,7 +139,7 @@ export class MessageRequestsService {
    * Requirements: 1.3
    */
   async findAllForTutor(tutorId: number): Promise<MessageRequest[]> {
-    return this.messageRequestRepository.find({
+    const requests = await this.messageRequestRepository.find({
       where: {
         tutorId,
         status: MessageRequestStatus.PENDING,
@@ -144,6 +149,11 @@ export class MessageRequestsService {
         createdAt: 'DESC',
       },
     });
+
+    return requests.map((request) => ({
+      ...request,
+      student: sanitizeStudentForTutor(request.student),
+    }));
   }
 
   /**

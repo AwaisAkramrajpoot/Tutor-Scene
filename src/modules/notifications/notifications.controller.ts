@@ -18,6 +18,10 @@ import {
 import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { CurrentUser } from '@/modules/auth/decorators/auth.decorator';
+import { User } from '@/database/entities/user.entity';
+import { UserRole } from '@/database/entities/enums';
+import { sanitizeNotificationForTutor } from '@/common/utils/user-privacy.util';
 
 @ApiTags('Notifications')
 @Controller('notifications')
@@ -55,8 +59,21 @@ export class NotificationsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all notifications for a user with relative time' })
-  async findByUser(@Param('userId', ParseIntPipe) userId: number) {
-    return this.notificationsService.findByUserWithRelativeTime(userId);
+  async findByUser(
+    @Param('userId', ParseIntPipe) userId: number,
+    @CurrentUser() currentUser: User,
+  ) {
+    const notifications =
+      await this.notificationsService.findByUserWithRelativeTime(userId);
+
+    if (
+      currentUser.role === UserRole.TUTOR &&
+      currentUser.id === userId
+    ) {
+      return notifications.map(sanitizeNotificationForTutor);
+    }
+
+    return notifications;
   }
 
   @Patch(':userId/read-all')

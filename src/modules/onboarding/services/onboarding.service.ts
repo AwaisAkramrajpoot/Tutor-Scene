@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets, IsNull } from 'typeorm';
+import { Repository, Brackets, IsNull, In } from 'typeorm';
 import { Prospect } from '@/database/entities/prospect.entity';
 import { User } from '@/database/entities/user.entity';
 import { AvailabilitySlot } from '@/database/entities/availability-slot.entity';
@@ -347,10 +347,38 @@ export class OnboardingService {
     })[0];
   }
 
+  private assertValidTutorDateOfBirth(dateOfBirth: Date): void {
+    const dob = new Date(dateOfBirth);
+    if (Number.isNaN(dob.getTime())) {
+      throw new BadRequestException('Enter a valid date of birth.');
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dob.setHours(0, 0, 0, 0);
+
+    if (dob.getTime() > today.getTime()) {
+      throw new BadRequestException('Date of birth cannot be in the future.');
+    }
+
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age -= 1;
+    }
+
+    if (age < 18) {
+      throw new BadRequestException(
+        'You must be at least 18 years old to create a tutor profile.',
+      );
+    }
+  }
+
   private applyOnboardingDtoToProspect(
     prospect: Prospect,
     onboardingDto: OnboardingDto,
   ): void {
+    this.assertValidTutorDateOfBirth(onboardingDto.dateOfBirth);
     prospect.fullName = onboardingDto.fullName;
     prospect.dateOfBirth = onboardingDto.dateOfBirth;
     prospect.subjects = onboardingDto.subjects;
@@ -418,6 +446,79 @@ export class OnboardingService {
       return this.prospectRepository.save(prospect);
     }
     return prospect;
+  }
+
+  /** Learner-visible fields overlaid from a pending profile-update draft. */
+  private readonly learnerDisplayFields: (keyof Prospect)[] = [
+    'fullName',
+    'subjects',
+    'gradeLevels',
+    'yearsOfExperience',
+    'teachingPhilosophy',
+    'profilePic',
+    'introVideo',
+    'fee',
+  ];
+
+  private overlayDraftForLearnerDisplay(
+    published: Prospect,
+    draft: Prospect | null,
+  ): Prospect {
+    if (!draft) {
+      return published;
+    }
+    const merged = { ...published };
+    for (const key of this.learnerDisplayFields) {
+      const value = draft[key];
+      if (value !== undefined && value !== null && value !== '') {
+        (merged as Record<string, unknown>)[key as string] = value;
+      }
+    }
+    return merged;
+  }
+
+  private async loadPendingDraftsByPublishedIds(
+    publishedIds: number[],
+  ): Promise<Map<number, Prospect>> {
+    if (!publishedIds.length) {
+      return new Map();
+    }
+    const drafts = await this.prospectRepository.find({
+      where: {
+        parentProspectId: In(publishedIds),
+        status: ProspectStatus.PENDING,
+      },
+      order: { updatedAt: 'DESC' },
+    });
+    const map = new Map<number, Prospect>();
+    for (const draft of drafts) {
+      if (draft.parentProspectId != null && !map.has(draft.parentProspectId)) {
+        map.set(draft.parentProspectId, draft);
+      }
+    }
+    return map;
+  }
+
+  private async resolveProspectForLearnerView(
+    published: Prospect,
+    draftByParentId?: Map<number, Prospect>,
+  ): Promise<Prospect> {
+    const healed = await this.healPublishedProspect(published);
+    const draft =
+      draftByParentId?.get(healed.id) ??
+      (await this.findDraftForPublished(healed.id));
+    return this.overlayDraftForLearnerDisplay(healed, draft);
+  }
+
+  private mapProspectForLearnerList(
+    published: Prospect,
+    draft: Prospect | null,
+  ) {
+    const merged = this.overlayDraftForLearnerDisplay(published, draft);
+    return {
+      ...merged,
+      subjectPills: buildSubjectPillsFromProspect(merged.subjects || ''),
+    };
   }
 
   private async findPublishedProspectByUserId(
@@ -559,6 +660,7 @@ export class OnboardingService {
     try {
       const userId = this.normalizeUserId(onboardingDto.userId);
       onboardingDto.userId = userId;
+      this.assertValidTutorDateOfBirth(onboardingDto.dateOfBirth);
 
       await this.reconcileOrphanPendingRootsForUser(userId);
       const published = await this.findPublishedProspectByUserId(userId);
@@ -756,6 +858,10 @@ export class OnboardingService {
       return this.getTutorById(prospect.parentProspectId, false);
     }
 
+    if (!forAdmin) {
+      return this.resolveProspectForLearnerView(prospect);
+    }
+
     return prospect;
   }
 
@@ -907,9 +1013,15 @@ export class OnboardingService {
 
       const tutors = await queryBuilder.getMany();
 
+      const draftByParentId = await this.loadPendingDraftsByPublishedIds(
+        tutors.map((t) => t.id),
+      );
+
       const healed: Prospect[] = [];
       for (const tutor of tutors) {
-        healed.push(await this.healPublishedProspect(tutor));
+        healed.push(
+          await this.resolveProspectForLearnerView(tutor, draftByParentId),
+        );
       }
 
       const byUser = new Map<number, Prospect>();
@@ -924,7 +1036,12 @@ export class OnboardingService {
         }
       }
 
-      return [...withoutUser, ...byUser.values()];
+      return [...withoutUser, ...byUser.values()].map((tutor) =>
+        this.mapProspectForLearnerList(
+          tutor,
+          draftByParentId.get(tutor.id) ?? null,
+        ),
+      );
     } catch (error) {
       throw new InternalServerErrorException('Failed to search tutors');
     }
