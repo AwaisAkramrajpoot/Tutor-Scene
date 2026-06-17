@@ -133,10 +133,34 @@ export class BookingsService {
     return savedBooking;
   }
 
+  async resolveProspectIdForUser(userId: number): Promise<number | null> {
+    const prospect = await this.prospectRepository.findOne({
+      where: { userId, parentProspectId: IsNull() },
+      order: { updatedAt: 'DESC' },
+      select: ['id'],
+    });
+    return prospect?.id ?? null;
+  }
+
+  private upcomingSessionStatuses(): BookingStatus[] {
+    return [
+      BookingStatus.CONFIRMED,
+      BookingStatus.PENDING,
+      BookingStatus.TUTOR_REVIEW,
+    ];
+  }
+
   async findAll(userId?: number): Promise<Booking[]> {
     if (userId) {
+      const prospectId = await this.resolveProspectIdForUser(userId);
+      const where: Array<{ studentProfileId: number } | { tutorProfileId: number }> = [
+        { studentProfileId: userId },
+      ];
+      if (prospectId != null) {
+        where.push({ tutorProfileId: prospectId });
+      }
       return this.bookingRepository.find({
-        where: [{ studentProfileId: userId }, { tutorProfileId: userId }],
+        where,
         order: { startTime: 'DESC' },
       });
     }
@@ -324,6 +348,10 @@ export class BookingsService {
 
   async confirmBookingPayment(bookingId: number): Promise<Booking> {
     const booking = await this.findOne(bookingId);
+
+    if (booking.status === BookingStatus.CONFIRMED) {
+      return booking;
+    }
 
     if (booking.status !== BookingStatus.PENDING) {
       throw new BadRequestException('Booking is not awaiting payment');
@@ -667,9 +695,9 @@ export class BookingsService {
     if (status === 'upcoming') {
       queryBuilder
         .andWhere('booking.status IN (:...statuses)', {
-          statuses: [BookingStatus.CONFIRMED, BookingStatus.PENDING],
+          statuses: this.upcomingSessionStatuses(),
         })
-        .andWhere('booking.startTime > :now', { now: new Date() })
+        .andWhere('booking.endTime > :now', { now: new Date() })
         .orderBy('booking.startTime', 'ASC');
     } else if (status === 'cancelled') {
       queryBuilder
@@ -719,9 +747,9 @@ export class BookingsService {
       const now = new Date();
       queryBuilder
         .andWhere('booking.status IN (:...statuses)', {
-          statuses: [BookingStatus.CONFIRMED, BookingStatus.PENDING],
+          statuses: this.upcomingSessionStatuses(),
         })
-        .andWhere('booking.startTime > :now', { now })
+        .andWhere('booking.endTime > :now', { now })
         .orderBy('booking.startTime', 'ASC');
 
       if (viewMode === 'period' && period) {

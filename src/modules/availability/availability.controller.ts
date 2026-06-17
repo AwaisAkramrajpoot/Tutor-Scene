@@ -36,6 +36,26 @@ export class AvailabilityController {
     return this.availabilityService.create(body, body.tutorProfileId);
   }
 
+  @Get('tutor/:tutorUserId/calendar-slots')
+  @ApiOperation({
+    summary: 'Get tutor calendar slots for learner booking (with status)',
+  })
+  @ApiResponse({ status: 200, description: 'Calendar slots with availability status' })
+  async getCalendarSlots(
+    @Param('tutorUserId') tutorUserId: string,
+    @Query('tutorProspectId') tutorProspectId?: string,
+    @Query('studentId') studentId?: string,
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    return this.availabilityService.getLearnerCalendarSlots(+tutorUserId, {
+      tutorProspectId: tutorProspectId ? +tutorProspectId : undefined,
+      studentId: studentId ? +studentId : undefined,
+      start,
+      end,
+    });
+  }
+
   @Get('tutor/:tutorId')
   @ApiOperation({ summary: 'Get tutor availability slots' })
   @ApiResponse({ status: 200, description: 'List of availability slots' })

@@ -108,24 +108,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getProfile(@CurrentUser() user: User) {
-    return {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      phoneNumber: user.phoneNumber,
-      role: user.role,
-      status: user.status,
-      profilePhotoUrl: user.profilePhotoUrl,
-      avatarIcon: user.avatarIcon,
-      gender: user.gender,
-      emailVerified: user.emailVerified,
-      phoneVerified: user.phoneVerified,
-      twoFactorEnabled: user.twoFactorEnabled,
-      registersSelfAsLearner: user.registersSelfAsLearner,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
+    return this.authService.getUserProfile(user);
   }
 
   // ─── NEW: Google OAuth Endpoints ──────────────────────────────────────────

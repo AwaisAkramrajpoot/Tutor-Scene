@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, ParseIntPipe, HttpCode, HttpStatus, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -7,6 +7,7 @@ import { GetStudentSessionsQueryDto } from './dto/get-student-sessions-query.dto
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/auth/decorators/auth.decorator';
 import { User } from '@/database/entities/user.entity';
+import { UserRole } from '@/database/entities/enums';
 
 @ApiTags('Bookings')
 @Controller('bookings')
@@ -28,8 +29,8 @@ export class BookingsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all bookings for current user' })
   @ApiResponse({ status: 200, description: 'List of bookings' })
-  async findAll(@Request() req: any) {
-    return this.bookingsService.findAll(req.user.profileId);
+  async findAll(@CurrentUser() user: User) {
+    return this.bookingsService.findAll(user.id);
   }
 
   @Get('pending-review/tutor/:tutorId')
@@ -37,8 +38,16 @@ export class BookingsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get bookings pending review for a tutor' })
   @ApiResponse({ status: 200, description: 'List of bookings awaiting tutor approval' })
-  async findPendingReview(@Param('tutorId') tutorId: string) {
-    return this.bookingsService.findPendingReviewByTutor(+tutorId);
+  async findPendingReview(
+    @Param('tutorId', ParseIntPipe) tutorId: number,
+    @CurrentUser() user: User,
+  ) {
+    let effectiveTutorId = tutorId;
+    if (user.role === UserRole.TUTOR) {
+      const resolved = await this.bookingsService.resolveProspectIdForUser(user.id);
+      if (resolved) effectiveTutorId = resolved;
+    }
+    return this.bookingsService.findPendingReviewByTutor(effectiveTutorId);
   }
 
   @Get('tutor/:prospectId/booking-settings')
@@ -63,97 +72,6 @@ export class BookingsController {
     );
   }
 
-  @Get(':id/detail')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get booking with full details for tutor review' })
-  async findDetail(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('prospectId', ParseIntPipe) prospectId: number,
-  ) {
-    return this.bookingsService.findOneWithDetails(id, prospectId);
-  }
-
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get booking by ID' })
-  @ApiResponse({ status: 200, description: 'Booking details' })
-  async findOne(@Param('id') id: string) {
-    return this.bookingsService.findOne(+id);
-  }
-
-  @Get(':id/payment-intent')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get payment intent client secret for booking' })
-  @ApiResponse({ status: 200, description: 'Payment intent client secret' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Not your booking' })
-  @ApiResponse({ status: 404, description: 'Payment intent not found' })
-  async getPaymentIntent(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: User,
-  ): Promise<{ clientSecret: string }> {
-    return this.bookingsService.getPaymentIntentClientSecret(id, user.id);
-  }
-
-  @Patch(':id/accept')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Accept a booking (Tutor)' })
-  @ApiResponse({ status: 200, description: 'Booking accepted' })
-  async accept(
-    @Param('id') id: string,
-    @Body('prospectId', ParseIntPipe) prospectId: number,
-  ) {
-    return this.bookingsService.acceptBooking(+id, prospectId);
-  }
-
-  @Patch(':id/reject')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Reject a booking (Tutor)' })
-  @ApiResponse({ status: 200, description: 'Booking rejected' })
-  async reject(
-    @Param('id') id: string,
-    @Body('prospectId', ParseIntPipe) prospectId: number,
-    @Body('reason') reason?: string,
-  ) {
-    return this.bookingsService.rejectBooking(+id, prospectId, reason);
-  }
-
-  @Post(':id/verify-payment')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verify Stripe payment and confirm booking (used after payment redirect)' })
-  @ApiResponse({ status: 200, description: 'Booking confirmed' })
-  async verifyPayment(@Param('id', ParseIntPipe) id: number) {
-    return this.bookingsService.verifyAndConfirmPayment(id);
-  }
-
-  @Patch(':id/cancel')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Cancel a booking' })
-  @ApiResponse({ status: 200, description: 'Booking cancelled' })
-  async cancel(
-    @Param('id') id: string,
-    @Request() req: any,
-    @Body('reason') reason?: string,
-  ) {
-    return this.bookingsService.cancelBooking(+id, req.user.id, reason);
-  }
-
-  @Patch(':id/complete')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Mark booking as completed' })
-  @ApiResponse({ status: 200, description: 'Booking completed' })
-  async complete(@Param('id') id: string) {
-    return this.bookingsService.completeBooking(+id);
-  }
-
   @Get('student/:studentId/sessions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -162,10 +80,17 @@ export class BookingsController {
   @ApiResponse({ status: 400, description: 'Invalid query parameters' })
   async getStudentSessions(
     @Param('studentId', ParseIntPipe) studentId: number,
+    @CurrentUser() user: User,
     @Query() query: GetStudentSessionsQueryDto,
   ) {
+    if (user.role === UserRole.STUDENT && studentId !== user.id) {
+      throw new ForbiddenException('Cannot access another student\'s sessions');
+    }
+    const effectiveStudentId =
+      user.role === UserRole.STUDENT ? user.id : studentId;
+
     return this.bookingsService.findStudentSessions(
-      studentId,
+      effectiveStudentId,
       query.status,
       query.page,
       query.limit,
@@ -181,10 +106,17 @@ export class BookingsController {
   @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing authentication token' })
   async getTutorSessions(
     @Param('tutorId', ParseIntPipe) tutorId: number,
+    @CurrentUser() user: User,
     @Query() query: GetStudentSessionsQueryDto,
   ) {
+    let effectiveTutorId = tutorId;
+    if (user.role === UserRole.TUTOR) {
+      const resolved = await this.bookingsService.resolveProspectIdForUser(user.id);
+      if (resolved) effectiveTutorId = resolved;
+    }
+
     return this.bookingsService.findTutorSessions(
-      tutorId,
+      effectiveTutorId,
       query.status,
       query.page,
       query.limit,
@@ -198,8 +130,16 @@ export class BookingsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get tutor ratings (satisfaction, acceptance, cancellation)' })
   @ApiResponse({ status: 200, description: 'Tutor ratings' })
-  async getTutorRatings(@Param('tutorId', ParseIntPipe) tutorId: number) {
-    return this.bookingsService.getTutorRatings(tutorId);
+  async getTutorRatings(
+    @Param('tutorId', ParseIntPipe) tutorId: number,
+    @CurrentUser() user: User,
+  ) {
+    let effectiveTutorId = tutorId;
+    if (user.role === UserRole.TUTOR) {
+      const resolved = await this.bookingsService.resolveProspectIdForUser(user.id);
+      if (resolved) effectiveTutorId = resolved;
+    }
+    return this.bookingsService.getTutorRatings(effectiveTutorId);
   }
 
   @Get('tutor/:tutorId/statistics')
@@ -208,8 +148,16 @@ export class BookingsController {
   @ApiOperation({ summary: 'Get tutor statistics including current week bookings and active students count' })
   @ApiResponse({ status: 200, description: 'Tutor statistics' })
   @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing authentication token' })
-  async getTutorStatistics(@Param('tutorId', ParseIntPipe) tutorId: number) {
-    return this.bookingsService.getTutorStatistics(tutorId);
+  async getTutorStatistics(
+    @Param('tutorId', ParseIntPipe) tutorId: number,
+    @CurrentUser() user: User,
+  ) {
+    let effectiveTutorId = tutorId;
+    if (user.role === UserRole.TUTOR) {
+      const resolved = await this.bookingsService.resolveProspectIdForUser(user.id);
+      if (resolved) effectiveTutorId = resolved;
+    }
+    return this.bookingsService.getTutorStatistics(effectiveTutorId);
   }
 
   @Get('tutor-user/:userId/earnings-history')
@@ -228,5 +176,96 @@ export class BookingsController {
       sort || 'newest',
       paymentStatus || 'all',
     );
+  }
+
+  @Get(':id/detail')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get booking with full details for tutor review' })
+  async findDetail(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('prospectId', ParseIntPipe) prospectId: number,
+  ) {
+    return this.bookingsService.findOneWithDetails(id, prospectId);
+  }
+
+  @Get(':id/payment-intent')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get payment intent client secret for booking' })
+  @ApiResponse({ status: 200, description: 'Payment intent client secret' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not your booking' })
+  @ApiResponse({ status: 404, description: 'Payment intent not found' })
+  async getPaymentIntent(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: User,
+  ): Promise<{ clientSecret: string }> {
+    return this.bookingsService.getPaymentIntentClientSecret(id, user.id);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get booking by ID' })
+  @ApiResponse({ status: 200, description: 'Booking details' })
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.bookingsService.findOne(id);
+  }
+
+  @Patch(':id/accept')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Accept a booking (Tutor)' })
+  @ApiResponse({ status: 200, description: 'Booking accepted' })
+  async accept(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('prospectId', ParseIntPipe) prospectId: number,
+  ) {
+    return this.bookingsService.acceptBooking(id, prospectId);
+  }
+
+  @Patch(':id/reject')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reject a booking (Tutor)' })
+  @ApiResponse({ status: 200, description: 'Booking rejected' })
+  async reject(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('prospectId', ParseIntPipe) prospectId: number,
+    @Body('reason') reason?: string,
+  ) {
+    return this.bookingsService.rejectBooking(id, prospectId, reason);
+  }
+
+  @Post(':id/verify-payment')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify Stripe payment and confirm booking (used after payment redirect)' })
+  @ApiResponse({ status: 200, description: 'Booking confirmed' })
+  async verifyPayment(@Param('id', ParseIntPipe) id: number) {
+    return this.bookingsService.verifyAndConfirmPayment(id);
+  }
+
+  @Patch(':id/cancel')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel a booking' })
+  @ApiResponse({ status: 200, description: 'Booking cancelled' })
+  async cancel(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: User,
+    @Body('reason') reason?: string,
+  ) {
+    return this.bookingsService.cancelBooking(id, user.id, reason);
+  }
+
+  @Patch(':id/complete')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark booking as completed' })
+  @ApiResponse({ status: 200, description: 'Booking completed' })
+  async complete(@Param('id', ParseIntPipe) id: number) {
+    return this.bookingsService.completeBooking(id);
   }
 }

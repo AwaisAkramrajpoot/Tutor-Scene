@@ -387,15 +387,26 @@ export class StudentAccountService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    const referralCode = await this.ensureReferralCode(user);
+    let referralCode = user.referralCode || '';
+    try {
+      referralCode = await this.ensureReferralCode(user);
+    } catch {
+      referralCode = user.referralCode || '';
+    }
+
     const frontendBase =
       process.env.FRONTEND_URL || 'https://tutorscene.com';
 
-    const referrals = await this.referralRepo.find({
-      where: { referrerUserId: userId },
-      order: { createdAt: 'DESC' },
-      take: 20,
-    });
+    let referrals: StudentReferral[] = [];
+    try {
+      referrals = await this.referralRepo.find({
+        where: { referrerUserId: userId },
+        order: { createdAt: 'DESC' },
+        take: 20,
+      });
+    } catch {
+      referrals = [];
+    }
 
     const referredUsers = referrals.length
       ? await this.userRepo.find({
@@ -432,32 +443,37 @@ export class StudentAccountService {
       status: r.status,
     }));
 
-    const pendingLedger = await this.creditLedgerRepo
-      .createQueryBuilder('ledger')
-      .select('COALESCE(SUM(ledger.amount), 0)', 'total')
-      .where('ledger.user_id = :userId', { userId })
-      .andWhere("ledger.source IN ('grace_refund_pending', 'referral_pending')")
-      .getRawOne();
+    let pendingBalance = 0;
+    try {
+      const pendingLedger = await this.creditLedgerRepo
+        .createQueryBuilder('ledger')
+        .select('COALESCE(SUM(ledger.amount), 0)', 'total')
+        .where('ledger.user_id = :userId', { userId })
+        .andWhere("ledger.source IN ('grace_refund_pending', 'referral_pending')")
+        .getRawOne();
 
-    let pendingBalance = Number(pendingLedger?.total || 0);
+      pendingBalance = Number(pendingLedger?.total || 0);
 
-    const gracePending = await this.bookingRepo.find({
-      where: {
-        studentProfileId: userId,
-        status: BookingStatus.CANCELLED,
-        refundEligible: true,
-        hasRefunded: false,
-      },
-      take: 20,
-    });
-    for (const b of gracePending) {
-      const amount = Number(b.finalPrice ?? b.totalPrice ?? 0);
-      const alreadyCredited = await this.creditLedgerRepo.findOne({
-        where: { bookingId: b.id, userId, source: 'grace_refund' },
+      const gracePending = await this.bookingRepo.find({
+        where: {
+          studentProfileId: userId,
+          status: BookingStatus.CANCELLED,
+          refundEligible: true,
+          hasRefunded: false,
+        },
+        take: 20,
       });
-      if (!alreadyCredited && amount > 0) {
-        pendingBalance += amount;
+      for (const b of gracePending) {
+        const amount = Number(b.finalPrice ?? b.totalPrice ?? 0);
+        const alreadyCredited = await this.creditLedgerRepo.findOne({
+          where: { bookingId: b.id, userId, source: 'grace_refund' },
+        });
+        if (!alreadyCredited && amount > 0) {
+          pendingBalance += amount;
+        }
       }
+    } catch {
+      pendingBalance = 0;
     }
 
     const availableCredits = Number(user.availableCredits || 0);
@@ -467,7 +483,9 @@ export class StudentAccountService {
       availableBalance: availableCredits,
       pendingBalance,
       referralCode,
-      referralLink: `${frontendBase}/signup?ref=${referralCode}`,
+      referralLink: referralCode
+        ? `${frontendBase}/signup?ref=${referralCode}`
+        : `${frontendBase}/signup`,
       referredByApplied: Boolean(user.referredByUserId),
       referralHistory,
       referralSummary,
