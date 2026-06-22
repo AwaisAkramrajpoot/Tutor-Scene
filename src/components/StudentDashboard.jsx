@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { apiRequest, resolveApiAssetUrl } from "../utils/api";
+import { getStudentProfileId } from "../utils/authUserIds";
 import {
   Dialog,
   DialogTitle,
@@ -187,11 +188,12 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     const fetchUpcomingSessions = async () => {
-      if (!user?.id) return;
+      const studentId = getStudentProfileId();
+      if (!studentId) return;
       try {
         setLoading(true);
         const response = await apiRequest(
-          `/api/v1/bookings/student/${user.id}/sessions?status=upcoming&page=1&limit=10`,
+          `/api/v1/bookings/student/${studentId}/sessions?status=upcoming&page=1&limit=10`,
           { method: "GET" }
         );
         const list = response.data || [];

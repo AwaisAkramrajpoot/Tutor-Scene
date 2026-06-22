@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiRequest, resolveApiAssetUrl } from '../utils/api';
+import { getStudentProfileId } from '../utils/authUserIds';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Rating } from '@mui/material';
 import { showSystemMessage } from '../utils/systemMessage';
 
@@ -101,25 +102,16 @@ const MySessions = () => {
       setLoading(true);
       setError(null);
 
-      // Get student ID from localStorage
-      const userStr = localStorage.getItem('user');
-      if (!userStr) {
-        setError('User not found. Please log in again.');
-        return;
-      }
-
-      const user = JSON.parse(userStr);
-      const studentId = user.id || user.userId;
+      const studentId = getStudentProfileId();
 
       if (!studentId) {
         setError('Student ID not found. Please log in again.');
         return;
       }
 
-      // Fetch sessions from API
       const response = await apiRequest(
         `/api/v1/bookings/student/${studentId}/sessions?status=${activeTab}&page=${currentPage}&limit=${limit}`,
-        'GET'
+        { method: 'GET' },
       );
 
       setSessions(response.data || []);

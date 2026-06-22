@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiRequest } from "../../../utils/api";
+import { resolveTutorProspectId, getTutorUserId } from "../../../utils/authUserIds";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import NotificationsPanel from "../../Notifications/NotificationsPanel";
 import AutoAcceptBookingToggle from "../../tutor/AutoAcceptBookingToggle";
@@ -125,11 +126,7 @@ export const BookingRequestsSection = () => {
 
   const fetchBookingRequests = useCallback(async () => {
     try {
-      const userStr = localStorage.getItem('user');
-      if (!userStr) return;
-
-      const user = JSON.parse(userStr);
-      const tutorId = user.prospectId;
+      const tutorId = await resolveTutorProspectId();
       setProspectId(tutorId || null);
 
       if (!tutorId) return;
@@ -148,24 +145,24 @@ export const BookingRequestsSection = () => {
 
   const fetchTutorSessions = useCallback(async () => {
     try {
-      const userStr = localStorage.getItem('user');
-      if (!userStr) {
+      const tutorId = await resolveTutorProspectId();
+      const fallbackUserId = getTutorUserId();
+      const apiTutorId = tutorId || fallbackUserId;
+
+      if (!apiTutorId) {
         setSessionsError('User not found. Please log in again.');
         return;
       }
 
-      const user = JSON.parse(userStr);
-      const tutorId = user.prospectId;
-      if (!tutorId) {
-        setSessionsError('Tutor ID not found. Please log in again.');
-        return;
+      if (tutorId) {
+        setProspectId(tutorId);
       }
 
       setLoadingSessions(true);
       setSessionsError(null);
 
       const data = await apiRequest(
-        `/api/v1/bookings/tutor/${tutorId}/sessions?status=upcoming&limit=100&page=1`,
+        `/api/v1/bookings/tutor/${apiTutorId}/sessions?status=upcoming&limit=100&page=1`,
       );
 
       const sessionsArray = Array.isArray(data) ? data : data.data || data.sessions || [];
@@ -198,15 +195,16 @@ export const BookingRequestsSection = () => {
     try {
       setBookingActionLoading(bookingId);
       setError(null);
-      
-      // Get prospectId from localStorage
-      const userStr = localStorage.getItem('user');
-      const user = JSON.parse(userStr);
-      const prospectId = user.prospectId;
+
+      const resolvedProspectId = await resolveTutorProspectId();
+      if (!resolvedProspectId) {
+        setError('Tutor profile not found. Please log in again.');
+        return;
+      }
 
       await apiRequest(`/api/v1/bookings/${bookingId}/accept`, {
         method: 'PATCH',
-        body: JSON.stringify({ prospectId })
+        body: JSON.stringify({ prospectId: resolvedProspectId }),
       });
 
       // Remove accepted booking from list
@@ -227,15 +225,16 @@ export const BookingRequestsSection = () => {
     try {
       setBookingActionLoading(bookingId);
       setError(null);
-      
-      // Get prospectId from localStorage
-      const userStr = localStorage.getItem('user');
-      const user = JSON.parse(userStr);
-      const prospectId = user.prospectId;
+
+      const resolvedProspectId = await resolveTutorProspectId();
+      if (!resolvedProspectId) {
+        setError('Tutor profile not found. Please log in again.');
+        return;
+      }
 
       await apiRequest(`/api/v1/bookings/${bookingId}/reject`, {
         method: 'PATCH',
-        body: JSON.stringify({ prospectId })
+        body: JSON.stringify({ prospectId: resolvedProspectId }),
       });
 
       // Remove rejected booking from list

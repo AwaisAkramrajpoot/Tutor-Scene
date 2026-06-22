@@ -11,10 +11,10 @@ const ArrowLeftIcon = (props) => (
 );
 
 export const BOOKING_STEPS = [
-  { id: 1, label: 'Select Date/Time' },
-  { id: 2, label: 'Upload Materials' },
-  { id: 3, label: 'Review Booking' },
-  { id: 4, label: 'Pay & Submit' },
+  { id: 1, label: 'Select Dates & Times', shortLabel: 'Dates' },
+  { id: 2, label: 'Review Selections', shortLabel: 'Review' },
+  { id: 3, label: 'Upload Materials', shortLabel: 'Materials' },
+  { id: 4, label: 'Review Your Booking', shortLabel: 'Confirm' },
 ];
 
 export const BookSessionStickyRibbon = ({ onBack }) => (
@@ -84,15 +84,15 @@ export const BookSessionBookingHero = ({
       <div className="relative z-10 mx-auto max-w-7xl px-4 pb-3 text-center">
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{displayFirst}</h1>
         {subjectDisplayLine ? (
-          <p className="mt-1 text-sm font-medium text-brand-medium-blue sm:text-base">
+          <p className="mx-auto mt-1 max-w-3xl text-sm font-medium leading-snug text-brand-medium-blue sm:text-base">
             {subjectDisplayLine}
           </p>
         ) : null}
       </div>
 
-      <div className="relative z-10 mx-auto max-w-4xl px-4 pb-6">
+      <div className="relative z-10 mx-auto max-w-5xl px-4 pb-6">
         <nav
-          className="flex items-center justify-between gap-1 rounded-full bg-[#1e3a8a] px-2 py-2 sm:gap-2 sm:px-4"
+          className="flex items-stretch justify-between gap-0.5 rounded-2xl border border-white/10 bg-[#1e3a8a] p-1.5 shadow-lg sm:gap-1 sm:p-2"
           aria-label="Booking progress"
         >
           {BOOKING_STEPS.map((step) => {
@@ -101,9 +101,9 @@ export const BookSessionBookingHero = ({
             return (
               <div
                 key={step.id}
-                className={`flex min-w-0 flex-1 items-center justify-center gap-1 px-0.5 sm:gap-2 sm:px-1 ${
-                  isActive ? '' : 'opacity-60'
-                }`}
+                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 sm:flex-row sm:gap-2 sm:px-2 ${
+                  isActive ? 'bg-white/10' : ''
+                } ${isActive ? '' : 'opacity-70'}`}
                 aria-current={isActive ? 'step' : undefined}
               >
                 <span
@@ -111,18 +111,19 @@ export const BookSessionBookingHero = ({
                     isActive
                       ? 'bg-white text-[#1e3a8a]'
                       : isPast
-                        ? 'bg-white/30 text-white'
-                        : 'bg-white/20 text-white'
+                        ? 'bg-white/35 text-white'
+                        : 'bg-white/20 text-white/90'
                   }`}
                 >
                   {step.id}
                 </span>
                 <span
-                  className={`hidden min-w-0 truncate text-[10px] font-semibold leading-tight sm:inline sm:text-xs ${
-                    isActive ? 'text-white' : 'text-white/80'
+                  className={`min-w-0 text-center text-[10px] font-semibold leading-tight sm:text-left sm:text-xs ${
+                    isActive ? 'text-white' : 'text-white/85'
                   }`}
                 >
-                  {step.label}
+                  <span className="sm:hidden">{step.shortLabel}</span>
+                  <span className="hidden truncate sm:inline">{step.label}</span>
                 </span>
               </div>
             );

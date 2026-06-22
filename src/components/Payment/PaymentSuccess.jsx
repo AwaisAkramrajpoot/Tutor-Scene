@@ -19,15 +19,17 @@ const PaymentSuccess = () => {
         if (redirectStatus === 'succeeded') {
           // Stripe confirmed payment — verify with backend and confirm booking
           try {
-            const confirmed = await apiRequest(`/api/v1/bookings/${id}/verify-payment`, 'POST');
+            const confirmed = await apiRequest(`/api/v1/bookings/${id}/verify-payment`, {
+              method: 'POST',
+            });
             setBooking(confirmed);
           } catch {
             // If verify-payment fails (e.g. already confirmed by webhook), just load booking
-            const data = await apiRequest(`/api/v1/bookings/${id}`, 'GET');
+            const data = await apiRequest(`/api/v1/bookings/${id}`, { method: 'GET' });
             setBooking(data);
           }
         } else {
-          const data = await apiRequest(`/api/v1/bookings/${id}`, 'GET');
+          const data = await apiRequest(`/api/v1/bookings/${id}`, { method: 'GET' });
           setBooking(data);
         }
       } catch (err) {
